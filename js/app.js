@@ -1,5 +1,5 @@
-import { health, styles, songs } from './store.js';
-import { getLeaveGuard, clearLeaveGuard } from './ui.js';
+import { health, styles, songs, usage } from './store.js';
+import { getLeaveGuard, clearLeaveGuard, toast } from './ui.js';
 import renderSettings from './pages/settings.js';
 import renderPlanning from './pages/planning.js';
 import renderMusic from './pages/music.js';
@@ -87,6 +87,21 @@ function paintCounts() {
   });
 }
 
+/**
+ * 저장이 실패하면 반드시 눈에 보이게 합니다.
+ * 예전에는 조용히 넘어가서, 저장한 줄 알았던 곡이 없어져 있었습니다.
+ */
+window.addEventListener('store:error', (e) => {
+  toast(e.detail?.message || '저장하지 못했습니다.');
+});
+
+/** 저장 공간이 차오르면 미리 알려 줍니다. 꽉 찬 뒤에 알면 늦습니다. */
+function checkUsage() {
+  const { ratio } = usage();
+  if (ratio < 0.8) return;
+  toast(`저장 공간을 ${Math.round(ratio * 100)}% 썼습니다. API 설정에서 백업을 내보내 두세요.`);
+}
+
 window.addEventListener('hashchange', render);
 window.addEventListener('health:change', paintStatus);
 window.addEventListener('store:change', paintCounts);
@@ -94,3 +109,4 @@ window.addEventListener('store:change', paintCounts);
 render();
 paintStatus();
 paintCounts();
+checkUsage();

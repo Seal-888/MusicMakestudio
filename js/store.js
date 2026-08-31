@@ -44,15 +44,64 @@ function read(key, fallback) {
   }
 }
 
+/**
+ * 브라우저 저장 공간이 꽉 차면 setItem이 예외를 던집니다.
+ * 예전에는 여기서 false만 돌려주고 부르는 쪽이 그걸 무시했기 때문에,
+ * 저장 버튼을 눌러도 아무 일이 없는데 성공한 것처럼 보였습니다.
+ * 이제 실패를 그대로 위로 올려 보냅니다.
+ */
 function write(key, value) {
   try {
     localStorage.setItem(NS + key, JSON.stringify(value));
     return true;
   } catch (err) {
-    console.error('저장 실패', err);
+    const full = isQuotaError(err);
+    console.error(full ? '저장 공간이 가득 찼습니다' : '저장 실패', err);
+    window.dispatchEvent(
+      new CustomEvent('store:error', {
+        detail: {
+          full,
+          message: full
+            ? '저장 공간이 가득 찼습니다. API 설정에서 백업을 내보낸 뒤 오래된 항목을 지워 주세요.'
+            : '저장하지 못했습니다. 브라우저의 시크릿 모드에서는 저장이 막힐 수 있습니다.',
+        },
+      })
+    );
     return false;
   }
 }
+
+function isQuotaError(err) {
+  return (
+    err &&
+    (err.name === 'QuotaExceededError' ||
+      err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      err.code === 22 ||
+      err.code === 1014)
+  );
+}
+
+/** 지금 쓰고 있는 저장 공간 (대략). 0~1 사이 값과 바이트 수를 함께 돌려줍니다. */
+export function usage() {
+  let bytes = 0;
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith(NS)) continue;
+      bytes += key.length + (localStorage.getItem(key) || '').length;
+    }
+  } catch {
+    return { bytes: 0, ratio: 0 };
+  }
+  // 브라우저마다 다르지만 localStorage는 보통 5MB 안팎입니다.
+  return { bytes, ratio: Math.min(1, bytes / (5 * 1024 * 1024)) };
+}
+
+/**
+ * 목록 상한. 예전에는 jobs(50)와 refs(30)에만 있었습니다.
+ * songs와 styles는 무제한이라 계속 쌓이다가 어느 날 저장이 조용히 실패했습니다.
+ * 넘치면 가장 오래된 것부터 밀려납니다. 지우기 전에 백업을 받아 두세요.
+ */
+const LIMITS = { songs: 300, styles: 200, refs: 30, jobs: 50 };
 
 const DEFAULT_SETTINGS = {
   geminiKey: '',
@@ -101,8 +150,9 @@ export const styles = {
   add(item) {
     const list = this.all();
     list.unshift({ id: crypto.randomUUID(), savedAt: Date.now(), ...item });
-    write('styles', list);
+    if (!write('styles', list.slice(0, LIMITS.styles))) return false;
     window.dispatchEvent(new CustomEvent('store:change'));
+    return true;
   },
   remove(id) {
     write('styles', this.all().filter((s) => s.id !== id));
@@ -139,8 +189,9 @@ export const jobs = {
   add(item) {
     const list = this.all().filter((j) => j.taskId !== item.taskId);
     list.unshift({ savedAt: Date.now(), ...item });
-    write('jobs', list.slice(0, 50));
+    if (!write('jobs', list.slice(0, LIMITS.jobs))) return false;
     window.dispatchEvent(new CustomEvent('store:change'));
+    return true;
   },
   remove(taskId) {
     write('jobs', this.all().filter((j) => j.taskId !== taskId));
@@ -156,8 +207,9 @@ export const refs = {
   add(item) {
     const list = this.all();
     list.unshift({ id: crypto.randomUUID(), savedAt: Date.now(), ...item });
-    write('refs', list.slice(0, 30));
+    if (!write('refs', list.slice(0, LIMITS.refs))) return false;
     window.dispatchEvent(new CustomEvent('store:change'));
+    return true;
   },
   remove(id) {
     write('refs', this.all().filter((r) => r.id !== id));
@@ -172,8 +224,9 @@ export const songs = {
   add(item) {
     const list = this.all();
     list.unshift({ id: crypto.randomUUID(), savedAt: Date.now(), ...item });
-    write('songs', list);
+    if (!write('songs', list.slice(0, LIMITS.songs))) return false;
     window.dispatchEvent(new CustomEvent('store:change'));
+    return true;
   },
   remove(id) {
     write('songs', this.all().filter((s) => s.id !== id));

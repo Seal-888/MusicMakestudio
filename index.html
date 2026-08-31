@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 음악 작업실 · 로컬</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Gaegu:wght@700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">♪</div>
+    <div class="brand-text">
+      <strong>AI 음악 작업실</strong>
+      <span>로컬 버전 · <b id="build">v42</b></span>
+    </div>
+  </div>
+
+  <nav id="nav">
+    <p class="nav-label">만들기</p>
+    <a href="#/planning"  data-page="planning">플리채널 기획</a>
+    <a href="#/music"     data-page="music">음악 만들기</a>
+    <a href="#/video"     data-page="video">영상 만들기</a>
+
+    <p class="nav-label">보관</p>
+    <a href="#/metadata"  data-page="metadata">메타데이터 <span class="count" data-count="songs">0</span></a>
+    <a href="#/styles"    data-page="styles">스타일 보관함 <span class="count" data-count="styles">0</span></a>
+
+    <p class="nav-label">분석</p>
+    <a href="#/analyzer"  data-page="analyzer">채널 분석기</a>
+    <a href="#/revenue"   data-page="revenue">수익 분석</a>
+
+    <p class="nav-label">도구</p>
+    <a href="#/srt"       data-page="srt">번역 + SRT</a>
+    <a href="#/timestamp" data-page="timestamp">타임스탬프</a>
+    <a href="#/visualizer" data-page="visualizer">파형 영상</a>
+    <a href="#/capcut"    data-page="capcut">캡컷으로 보내기</a>
+
+    <p class="nav-label">설정</p>
+    <a href="#/settings"  data-page="settings">API 설정</a>
+  </nav>
+
+  <div class="status-panel">
+    <p class="nav-label">연결 상태</p>
+    <ul id="status-list">
+      <li data-svc="gemini"><span class="dot"></span>Gemini</li>
+      <li data-svc="kie"><span class="dot"></span>kie.ai (Suno)</li>
+      <li data-svc="youtube"><span class="dot"></span>YouTube</li>
+      <li data-svc="pexels"><span class="dot"></span>Pexels</li>
+    </ul>
+    <a class="status-link" href="#/settings">설정 열기 →</a>
+  </div>
+</aside>
+
+<main id="view"></main>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

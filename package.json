@@ -1,0 +1,24 @@
+{
+  "name": "plimusic-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PLI Music Studio — AI 음악 채널 작업실 (로컬 실행)",
+  "type": "module",
+  "scripts": {
+    "start": "python3 serve.py 8383",
+    "test": "npm run test:imports && npm run test:functions && npm run test:smoke && npm run test:flow && npm run test:draft && npm run test:reference",
+    "test:imports": "node check-imports.mjs",
+    "test:functions": "node check-functions.mjs",
+    "test:smoke": "node smoke-test.mjs",
+    "test:flow": "node check-flow.mjs",
+    "test:draft": "node check-draft.mjs",
+    "test:reference": "node check-reference.mjs"
+  },
+  "devDependencies": {
+    "acorn": "^8.18.0",
+    "jsdom": "^30.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

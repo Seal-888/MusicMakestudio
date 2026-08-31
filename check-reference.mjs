@@ -1,7 +1,12 @@
 /** 레퍼런스를 고르면 옵션이 맞춰지고, 쓰지 않기로 되돌아오는지 봅니다. */
 import { JSDOM } from 'jsdom';
 import fs from 'fs'; import path from 'path';
-const ROOT = process.env.APP_DIR;
+import { fileURLToPath, pathToFileURL } from 'url';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(process.env.APP_DIR || HERE);
+/** 동적 import는 반드시 file:// URL로 넘겨야 합니다.
+ *  상대경로를 그대로 넘기면 Node가 npm 패키지 이름으로 오해합니다. */
+const appUrl = (rel) => pathToFileURL(path.join(ROOT, rel)).href;
 const dom = new JSDOM(fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),{url:'http://localhost:8383/',pretendToBeVisual:true});
 const { window } = dom;
 global.window=window; global.document=window.document;
@@ -31,7 +36,7 @@ global.fetch=async()=>({ok:true,status:200,json:async()=>({})});
 
 const c=window.document.createElement('div');
 window.document.getElementById('view').replaceChildren(c);
-(await import(path.join(ROOT,'js/pages/music.js'))).default(c);
+(await import(appUrl('js/pages/music.js'))).default(c);
 
 const on=(n)=>[...c.querySelectorAll(`[data-pills="${n}"] .pill.on`)].map(p=>p.textContent.trim());
 let fail=0;

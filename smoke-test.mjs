@@ -12,8 +12,13 @@
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const ROOT = process.env.APP_DIR || path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(process.env.APP_DIR || HERE);
+/** 동적 import는 반드시 file:// URL로 넘겨야 합니다.
+ *  상대경로를 그대로 넘기면 Node가 npm 패키지 이름으로 오해합니다. */
+const appUrl = (rel) => pathToFileURL(path.join(ROOT, rel)).href;
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 
 const dom = new JSDOM(html, { url: 'http://localhost:8383/', pretendToBeVisual: true });
@@ -61,7 +66,7 @@ const pages = [
 const errors = [];
 window.addEventListener('error', (e) => errors.push(String(e.message)));
 
-const mod = {
+const modFile = {
   settings: 'settings.js', planning: 'planning.js', music: 'music.js',
   video: 'video.js', metadata: 'metadata.js', styles: 'styles.js',
   analyzer: 'analyzer.js', revenue: 'revenue.js', srt: 'srt.js',
@@ -73,7 +78,7 @@ for (const [label, key] of pages) {
   const container = window.document.createElement('div');
   window.document.getElementById('view').replaceChildren(container);
   try {
-    const m = await import(path.join(ROOT, 'js/pages', mod[key]) + `?t=${Date.now()}`);
+    const m = await import(appUrl(path.join('js/pages', modFile[key])) + `?t=${Date.now()}`);
     m.default(container);
     const len = container.innerHTML.length;
     if (len < 200) {

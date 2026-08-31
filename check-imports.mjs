@@ -6,7 +6,12 @@
  */
 import fs from 'fs';
 import path from 'path';
-const ROOT = process.env.APP_DIR;
+import { fileURLToPath, pathToFileURL } from 'url';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(process.env.APP_DIR || HERE);
+/** 동적 import는 반드시 file:// URL로 넘겨야 합니다.
+ *  상대경로를 그대로 넘기면 Node가 npm 패키지 이름으로 오해합니다. */
+const appUrl = (rel) => pathToFileURL(path.join(ROOT, rel)).href;
 
 // 브라우저에만 있는 것들을 최소한으로 흉내 냅니다.
 // 여기서는 실행 결과가 아니라 "불러와지는지"만 봅니다.
@@ -44,7 +49,7 @@ const files = [];
 for (const file of files) {
   let mod;
   try {
-    mod = await import(file + `?v=${Date.now()}`);
+    mod = await import(pathToFileURL(file).href + `?v=${Date.now()}`);
   } catch (err) {
     console.log(`  ✗ ${path.relative(ROOT, file)}: ${err.message.split('\n')[0]}`);
     bad++;

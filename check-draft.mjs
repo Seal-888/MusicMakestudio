@@ -2,7 +2,12 @@
 import { JSDOM } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
-const ROOT = process.env.APP_DIR;
+import { fileURLToPath, pathToFileURL } from 'url';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(process.env.APP_DIR || HERE);
+/** 동적 import는 반드시 file:// URL로 넘겨야 합니다.
+ *  상대경로를 그대로 넘기면 Node가 npm 패키지 이름으로 오해합니다. */
+const appUrl = (rel) => pathToFileURL(path.join(ROOT, rel)).href;
 const dom = new JSDOM(fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),
   { url:'http://localhost:8383/', pretendToBeVisual:true });
 const { window } = dom;
@@ -30,7 +35,7 @@ const check=(ok,label)=>{console.log(`  ${ok?'✓':'✗'} ${label}`); if(!ok) fa
 // 1) 곡을 만들고 자동 저장되는지
 let c = window.document.createElement('div');
 window.document.getElementById('view').replaceChildren(c);
-let mod = await import(path.join(ROOT,'js/pages/music.js'));
+let mod = await import(appUrl('js/pages/music.js'));
 mod.default(c);
 c.querySelector('[data-f=concept]').value = '테스트 주제';
 c.querySelector('[data-go]').click();
@@ -47,13 +52,13 @@ const d1 = JSON.parse(store.get('anhmusic:draft:music'));
 check(JSON.stringify(d1).includes('내가 고친 가사'), '고친 가사도 저장됨');
 
 // 3) 나가려 하면 막아 주는지
-const { getLeaveGuard } = await import(path.join(ROOT,'js/ui.js'));
+const { getLeaveGuard } = await import(appUrl('js/ui.js'));
 check(!!getLeaveGuard(), '이탈 확인이 걸림');
 
 // 4) 페이지를 새로 열면 이어서 하기가 뜨는지
 c = window.document.createElement('div');
 window.document.getElementById('view').replaceChildren(c);
-mod = await import(path.join(ROOT,'js/pages/music.js') + '?again=1');
+mod = await import(appUrl('js/pages/music.js') + '?again=1');
 mod.default(c);
 const resume = c.querySelector('[data-resume]');
 check(!!resume, '이어서 하기 안내가 뜸');

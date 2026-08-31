@@ -11,9 +11,14 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 import * as acorn from 'acorn';
 
-const ROOT = process.env.APP_DIR || path.dirname(new URL(import.meta.url).pathname);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(process.env.APP_DIR || HERE);
+/** 동적 import는 반드시 file:// URL로 넘겨야 합니다.
+ *  상대경로를 그대로 넘기면 Node가 npm 패키지 이름으로 오해합니다. */
+const appUrl = (rel) => pathToFileURL(path.join(ROOT, rel)).href;
 
 /** 매개변수나 구조 분해 안에 숨은 이름을 모두 꺼냅니다. */
 function collectNames(node, into) {

@@ -237,7 +237,7 @@ function wireBackup(root) {
       const blob = new Blob([exportAll()], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `anhmusic-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `plimusic-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
       toast('백업 파일을 내려받았습니다');

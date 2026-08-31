@@ -39,7 +39,7 @@ Object.defineProperty(global, 'crypto', { value: fakeCrypto, configurable: true 
 Object.defineProperty(window, 'crypto', { value: fakeCrypto, configurable: true });
 
 const store = new Map([
-  ['anhmusic:settings', JSON.stringify({ geminiKey: 'TEST', geminiModel: 'gemini-3.5-flash' })],
+  ['plimusic:settings', JSON.stringify({ geminiKey: 'TEST', geminiModel: 'gemini-3.5-flash' })],
 ]);
 const ls = {
   getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -139,10 +139,10 @@ console.log('\n버튼 동작:');
 out.querySelector('[data-save-style]').click();
 out.querySelector('[data-save-song]').click();
 await new Promise((r) => setTimeout(r, 100));
-const savedStyle = JSON.parse(store.get('anhmusic:styles') || '[]')[0];
+const savedStyle = JSON.parse(store.get('plimusic:styles') || '[]')[0];
 check(!!savedStyle, '스타일 보관함 저장');
 check(savedStyle?.prompt?.includes('96 BPM'), '곡별 스타일이 그대로 저장됨');
-check(JSON.parse(store.get('anhmusic:songs') || '[]').length > 0, '메타데이터 저장');
+check(JSON.parse(store.get('plimusic:songs') || '[]').length > 0, '메타데이터 저장');
 
 const box = out.querySelector('[data-lyrics]');
 box.value = '고친 가사입니다';
@@ -151,7 +151,7 @@ await new Promise((r) => setTimeout(r, 50));
 out.querySelectorAll('[data-save-song]')[0].click();
 await new Promise((r) => setTimeout(r, 50));
 check(
-  JSON.parse(store.get('anhmusic:songs') || '[]')[0]?.lyrics === '고친 가사입니다',
+  JSON.parse(store.get('plimusic:songs') || '[]')[0]?.lyrics === '고친 가사입니다',
   '고친 가사가 저장에 반영됨'
 );
 

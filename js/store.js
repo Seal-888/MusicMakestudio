@@ -1,5 +1,39 @@
 // 브라우저 localStorage에만 저장됩니다. 어디로도 전송되지 않습니다.
-const NS = 'anhmusic:';
+const NS = 'plimusic:';
+const OLD_NS = 'anhmusic:'; // 이름을 바꾸기 전에 쓰던 접두사
+
+/**
+ * 예전 이름으로 저장해 둔 것을 새 이름으로 한 번만 옮깁니다.
+ *
+ * localStorage는 키 이름이 다르면 아예 다른 칸입니다.
+ * 접두사만 바꾸고 끝냈다면 그동안 만든 곡과 API 키가 전부 사라진 것처럼 보였을 겁니다.
+ *
+ * 옛 키는 일부러 지우지 않습니다.
+ * 옮기다 문제가 생겨도 원래 자리에 그대로 남아 있어야 되돌릴 수 있습니다.
+ * 한동안 문제가 없으면 그때 지우면 됩니다.
+ */
+function migrateFromOldName() {
+  try {
+    if (localStorage.getItem(NS + 'migrated')) return;
+
+    let moved = 0;
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith(OLD_NS)) continue;
+      const next = NS + key.slice(OLD_NS.length);
+      if (localStorage.getItem(next) !== null) continue; // 새 것이 있으면 덮지 않습니다
+      localStorage.setItem(next, localStorage.getItem(key));
+      moved++;
+    }
+
+    localStorage.setItem(NS + 'migrated', String(Date.now()));
+    if (moved) console.info(`[plimusic] 예전 이름으로 저장된 항목 ${moved}개를 옮겼습니다.`);
+  } catch (err) {
+    // 옮기지 못해도 앱은 떠야 합니다. 빈 상태로 시작할 뿐입니다.
+    console.error('[plimusic] 예전 데이터를 옮기지 못했습니다', err);
+  }
+}
+
+migrateFromOldName();
 
 function read(key, fallback) {
   try {

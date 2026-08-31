@@ -24,8 +24,8 @@ const ref={ id:'r1', name:'재즈 플리', source:'소리 분석', summary:'재�
     vocal:'나른한 여성 보컬, 속삭이듯', instruments:'그랜드 피아노, 색소폰, 베이스 기타',
     mood:'차분하고 나른한 밤의 느낌' }};
 const store=new Map([
-  ['anhmusic:settings',JSON.stringify({geminiKey:'K',geminiModel:'g'})],
-  ['anhmusic:refs',JSON.stringify([ref])],
+  ['plimusic:settings',JSON.stringify({geminiKey:'K',geminiModel:'g'})],
+  ['plimusic:refs',JSON.stringify([ref])],
 ]);
 const ls={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
 Object.defineProperty(window,'localStorage',{value:ls,configurable:true});

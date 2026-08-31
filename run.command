@@ -7,7 +7,7 @@ PORT=8383
 URL="http://localhost:$PORT"
 
 echo ""
-echo "  AI 음악 작업실 · 로컬"
+echo "  PLI Music Studio"
 echo "  ------------------------------"
 
 # 이미 켜져 있으면 브라우저만 엽니다.

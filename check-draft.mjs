@@ -18,7 +18,7 @@ global.Blob=window.Blob; global.URL=window.URL; global.HTMLElement=window.HTMLEl
 const fc={randomUUID:()=>'x'+Math.random().toString(16).slice(2)};
 Object.defineProperty(global,'crypto',{value:fc,configurable:true});
 Object.defineProperty(window,'crypto',{value:fc,configurable:true});
-const store=new Map([['anhmusic:settings',JSON.stringify({geminiKey:'K',geminiModel:'g'})]]);
+const store=new Map([['plimusic:settings',JSON.stringify({geminiKey:'K',geminiModel:'g'})]]);
 const ls={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
 Object.defineProperty(window,'localStorage',{value:ls,configurable:true});
 Object.defineProperty(window,'sessionStorage',{value:{getItem:()=>null,setItem(){},removeItem(){}},configurable:true});
@@ -41,14 +41,14 @@ c.querySelector('[data-f=concept]').value = '테스트 주제';
 c.querySelector('[data-go]').click();
 await new Promise(r=>setTimeout(r,900));
 check(c.querySelector('[data-out]').querySelectorAll('[data-lyrics]').length>0, '곡 생성됨');
-check(!!store.get('anhmusic:draft:music'), '자동 저장됨');
+check(!!store.get('plimusic:draft:music'), '자동 저장됨');
 
 // 2) 가사를 고치면 그것도 저장되는지
 const box = c.querySelector('[data-lyrics]');
 box.value = '내가 고친 가사';
 box.dispatchEvent(new window.Event('input',{bubbles:true}));
 await new Promise(r=>setTimeout(r,900));
-const d1 = JSON.parse(store.get('anhmusic:draft:music'));
+const d1 = JSON.parse(store.get('plimusic:draft:music'));
 check(JSON.stringify(d1).includes('내가 고친 가사'), '고친 가사도 저장됨');
 
 // 3) 나가려 하면 막아 주는지

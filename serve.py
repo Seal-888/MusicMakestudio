@@ -11,7 +11,10 @@
 전부 127.0.0.1에서만 돌기 때문에 밖에서는 접근할 수 없습니다.
 """
 
+import functools
 import http.server
+import json
+import os
 import socketserver
 import sys
 import urllib.request
@@ -19,6 +22,11 @@ import urllib.parse
 import urllib.error
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8383
+
+# 항상 이 파일이 놓인 폴더를 내보냅니다.
+# 예전에는 실행할 때의 현재 폴더를 썼기 때문에, 다른 위치에서 부르면
+# 엉뚱한 폴더가 서비스될 수 있었습니다.
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
 KIE = "https://api.kie.ai"
 ALLOWED_GRAB = ("https://",)
 
@@ -37,6 +45,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     # ---------- 라우팅 ----------
     def do_GET(self):
+        # 지금 8383에서 도는 서버가 "어느 폴더"를 내보내는지 알려 줍니다.
+        # run.command가 이걸로 다른 폴더의 서버가 살아 있는지 가려냅니다.
+        if self.path == "/__whoami":
+            body = json.dumps({"app": "plimusic-studio", "dir": APP_DIR}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path.startswith("/kie/"):
             return self.relay("GET")
         if self.path.startswith("/grab?"):
@@ -118,8 +136,10 @@ class Server(socketserver.ThreadingTCPServer):
 
 
 if __name__ == "__main__":
-    with Server(("127.0.0.1", PORT), Handler) as httpd:
+    handler = functools.partial(Handler, directory=APP_DIR)
+    with Server(("127.0.0.1", PORT), handler) as httpd:
         print(f"  서버 시작 · http://localhost:{PORT}")
+        print(f"  폴더: {APP_DIR}")
         print("  끄려면 Control+C")
         print()
         try:

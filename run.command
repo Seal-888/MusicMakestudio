@@ -10,11 +10,47 @@ echo ""
 echo "  PLI Music Studio"
 echo "  ------------------------------"
 
-# 이미 켜져 있으면 브라우저만 엽니다.
-if curl -s -o /dev/null "$URL" 2>/dev/null; then
-  echo "  이미 켜져 있습니다. 브라우저를 엽니다."
-  open "$URL"
-  exit 0
+HERE="$(pwd -P)"
+
+# 8383에 뭔가 떠 있으면, 그게 "이 폴더"의 서버인지부터 확인합니다.
+#
+# 예전에는 응답만 오면 브라우저를 열고 끝냈습니다.
+# 그래서 다른 폴더(예전 버전)의 서버가 살아 있으면 그쪽 파일이 그대로 열렸고,
+# 방금 고친 내용이 반영되지 않는데 원인을 알기 어려웠습니다.
+WHO="$(curl -s --max-time 2 "$URL/__whoami" 2>/dev/null)"
+
+if [ -n "$WHO" ]; then
+  RUNNING_DIR="$(printf '%s' "$WHO" | sed -n 's/.*"dir"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+
+  if [ "$RUNNING_DIR" = "$HERE" ]; then
+    echo "  이미 켜져 있습니다. 브라우저를 엽니다."
+    open "$URL"
+    exit 0
+  fi
+
+  echo ""
+  echo "  ⚠  포트 $PORT 를 다른 폴더가 쓰고 있습니다."
+  echo ""
+  echo "     지금 도는 곳: ${RUNNING_DIR:-알 수 없음}"
+  echo "     열려던 곳:   $HERE"
+  echo ""
+  echo "     그대로 두면 예전 폴더의 파일이 열립니다."
+  echo "     아래를 실행해 끈 뒤 다시 시도하세요:"
+  echo ""
+  echo "         lsof -ti tcp:$PORT | xargs kill"
+  echo ""
+  read -r -p "  엔터를 누르면 닫힙니다. "
+  exit 1
+fi
+
+# 응답이 없더라도 포트를 쥔 프로세스가 있을 수 있습니다(다른 프로그램 등).
+if lsof -ti tcp:"$PORT" >/dev/null 2>&1; then
+  echo ""
+  echo "  ⚠  포트 $PORT 를 다른 프로그램이 쓰고 있습니다."
+  echo "     lsof -i tcp:$PORT   으로 확인한 뒤 끄고 다시 시도하세요."
+  echo ""
+  read -r -p "  엔터를 누르면 닫힙니다. "
+  exit 1
 fi
 
 # 쓸 수 있는 서버를 찾습니다.

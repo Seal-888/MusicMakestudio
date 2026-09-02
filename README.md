@@ -4,14 +4,14 @@
 
 ## 시작하기
 
-1. 이 폴더를 원하는 곳에 두세요. (예: `~/Documents/plimusic-studio`)
+1. 이 폴더의 위치: `/Users/kjun/playlist/makepli/plimusic-studio`
 2. `run.command`를 더블클릭하세요. 터미널이 열리고 브라우저가 뜹니다.
 3. 처음이라면 **API 설정**에서 키를 넣고 **테스트**를 눌러 초록불을 확인하세요.
 
 `run.command`가 안 열리면 터미널에서 한 번만:
 
 ```bash
-cd ~/Documents/plimusic-studio
+cd /Users/kjun/playlist/makepli/plimusic-studio
 chmod +x run.command
 ```
 
@@ -46,6 +46,7 @@ chmod +x run.command
 의존성을 한 번만 받아 두면 됩니다.
 
 ```bash
+cd /Users/kjun/playlist/makepli/plimusic-studio
 npm install
 npm test
 ```

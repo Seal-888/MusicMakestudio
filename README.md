@@ -13,9 +13,14 @@
 ```bash
 cd /Users/kjun/playlist/makepli/plimusic-studio
 chmod +x run.command
+xattr -d com.apple.quarantine run.command
 ```
 
-"확인되지 않은 개발자" 경고가 뜨면 파일 우클릭 → **열기**를 고르면 됩니다.
+두 번째 줄이 꼭 필요합니다. 인터넷이나 압축 파일에서 받은 파일에는 macOS가
+격리(quarantine) 표시를 붙이는데, 실행 권한만 줘서는 이게 안 풀립니다.
+`xattr`가 "그런 속성 없음" 오류를 내면 이미 풀린 것이니 넘어가면 됩니다.
+
+이래도 "확인되지 않은 개발자" 경고가 뜨면 파일 우클릭 → **열기**를 고르세요.
 
 ## 왜 파일을 그냥 열면 안 되나요
 

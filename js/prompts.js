@@ -516,6 +516,72 @@ const DENSITY = {
   rich: '이미지가 촘촘하게 씁니다. 구체적인 장면과 감각 묘사를 넣습니다.',
 };
 
+/**
+ * 1단계 — 곡의 씨앗만 여러 개 뽑습니다.
+ *
+ * 왜 나눴는가:
+ * 예전에는 5곡의 가사와 850자 스타일을 통째로 만든 뒤 4곡을 버렸습니다.
+ * 버릴 것까지 다 쓰느라 토큰이 나갔고, 한 번에 여러 곡을 쓰다 보니
+ * 곡 하나에 들이는 주의도 그만큼 얇아졌습니다.
+ *
+ * 그래서 먼저 짧게 씨앗만 뽑아 고르게 하고,
+ * 고른 것만 2단계에서 온전히 씁니다. 토큰은 줄고 곡당 집중은 올라갑니다.
+ */
+export function songSeeds({
+  genres, language, moods, concept, persona = 'villain',
+  seedCount = 5, avoidTitles = [], referenceStyle = null, seriesNote = '',
+}) {
+  const p = PERSONAS[persona] || PERSONAS.villain;
+
+  return {
+    temperature: 1.25, // 씨앗 단계는 폭이 넓어야 고를 맛이 납니다.
+    maxOutputTokens: 3000,
+    thinkingLevel: 'low',
+    prompt: `당신은 Suno AI로 발매되는 곡을 만들어 온 작사가입니다.
+아직 가사를 쓰지 마세요. **어떤 곡을 쓸지 후보 ${seedCount}개**만 냅니다.
+
+════════ 조건 ════════
+- 주제: ${concept}
+- 장르: ${genres}
+- 분위기: ${moods}
+- 가사 언어: ${language}
+
+════════ 화자 ════════
+${p.guide}
+${seriesNote ? `\n════════ 시리즈 ════════\n${seriesNote}\n` : ''}${
+      referenceStyle ? `\n════════ 레퍼런스 사운드 ════════\n${referenceStyle}\n` : ''
+    }
+════════ 후보 ${seedCount}개는 서로 달라야 합니다 ════════
+같은 주제라도 **들어가는 각도**를 다르게 잡으세요.
+비슷한 후보 다섯 개는 하나만 있는 것과 같습니다.
+
+각도를 바꾸는 방법:
+- 시점을 옮긴다 (말하는 사람 / 듣는 사람 / 지켜본 사람)
+- 시간을 옮긴다 (그 순간 / 한참 뒤 / 그러기 직전)
+- 장면을 바꾼다 (같은 감정을 다른 자리에서)
+- 태도를 뒤집는다 (인정 / 부정 / 무관심)
+${avoidTitles.length ? `\n이미 나온 제목입니다. 겹치지 마세요: ${avoidTitles.join(', ')}\n` : ''}
+════════ 후보마다 담을 것 ════════
+- title: 제목. 20자 안쪽. 가사에 그대로 나오는 문장은 피합니다.
+- angle: 이 후보가 잡은 각도. 한국어 한 줄.
+- hook: 후렴에서 반복될 핵심 한 줄. **실제 가사 문장으로** (${language}).
+- opening: 곡의 첫 줄. 실제 가사 문장으로 (${language}).
+- soundNote: 어떤 소리로 갈지 한국어 한 줄. (예: 느린 808에 현악, 속삭이는 보컬)
+
+가사 전문이나 스타일 프롬프트는 쓰지 마세요. 위 다섯 가지만 냅니다.
+JSON만 출력합니다.`,
+    schema: obj({
+      seeds: S.objList({
+        title: S.str,
+        angle: S.str,
+        hook: S.str,
+        opening: S.str,
+        soundNote: S.str,
+      }),
+    }),
+  };
+}
+
 export function songWriting({
   genres, language, vocal, tempo, moods, era, situations, instruments, concept,
   duration = '3:30', songCount = 1,
@@ -524,7 +590,7 @@ export function songWriting({
   mumbling = false, rhyme = true, minimal = false,
   persona = 'villain', anchor = true,
   variety = true, batchSeed = 0, introMode = 'short', form = 'standard',
-  referenceFirst = false, introInStyle = false,
+  referenceFirst = false, introInStyle = false, seed = null,
 }) {
   const chorusFirst = form === 'chorusFirst';
   const table = chorusFirst ? CHORUS_FIRST_STRUCTURES : SONG_STRUCTURES;
@@ -553,7 +619,22 @@ export function songWriting({
 - 목표 길이: 약 ${duration}
 - 주제: ${concept}
 
-${referenceStyle
+${seed
+      ? `════════ 이 곡은 이미 정해졌습니다 — 아래를 그대로 쓰세요 ════════
+고르기가 끝난 후보입니다. 방향을 새로 잡지 말고 이걸 완성하세요.
+
+- 제목: ${seed.title}
+- 각도: ${seed.angle}
+- 후렴 훅: ${seed.hook}
+- 첫 줄: ${seed.opening}
+- 소리: ${seed.soundNote}
+
+**후렴 훅과 첫 줄은 위 문장을 그대로 씁니다.** 다듬는 정도는 괜찮지만 갈아엎지 마세요.
+제목도 위 것을 씁니다. 각도에서 벗어나는 내용은 넣지 않습니다.
+스타일 프롬프트는 위 '소리'를 출발점으로 삼아 규격에 맞게 살을 붙입니다.
+
+`
+      : ''}${referenceStyle
       ? `════════ 레퍼런스 사운드 — 이 소리에 맞추세요 ════════
 아래는 사용자가 목표로 삼는 레퍼런스를 분석한 결과입니다.
 ${referenceFirst

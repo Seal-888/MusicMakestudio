@@ -789,3 +789,30 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
 .reffirst input{margin-top:3px;accent-color:var(--gold);width:16px;height:16px;flex:0 0 auto}
 .reffirst > span{display:flex;flex-direction:column;gap:3px}
 .field.is-dimmed{opacity:.5}
+
+/* ── 1단계 후보 고르기 ───────────────────────── */
+.seed-item {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 11px 12px;
+  margin-top: 8px;
+  border: 1px solid var(--paper-line);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.seed-item:hover { border-color: var(--gold); }
+.seed-item:has(input:checked) {
+  border-color: var(--gold);
+  background: rgba(221, 169, 63, .10);
+}
+.seed-item input { margin-top: 3px; flex: none; }
+.seed-item > div { min-width: 0; }
+.seed-item strong { display: block; margin-bottom: 3px; }
+.seed-item p { margin: 2px 0; }
+.seed-line {
+  font-size: 13px;
+  color: var(--ink);
+  opacity: .85;
+}

@@ -1,5 +1,5 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { songWriting, songSeeds, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
 import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
@@ -420,9 +420,12 @@ export default function renderMusic(root) {
       </label>
 
       <div class="style-head">
-        <button class="btn is-red" data-go>가사 + 스타일 만들기</button>
+        <button class="btn is-red" data-seed>후보 먼저 보기</button>
+        <button class="btn is-ghost" data-go>바로 전부 만들기</button>
         <button class="btn is-ghost" data-reset>기본값으로 되돌리기</button>
       </div>
+      <p class="muted small">후보를 먼저 보면 마음에 드는 것만 완성합니다. 토큰도 덜 씁니다.</p>
+      <div data-seed-out></div>
       <div data-out></div>
     </div>`;
 
@@ -595,6 +598,8 @@ export default function renderMusic(root) {
   R.wirePills(root);
 
   const btn = root.querySelector('[data-go]');
+  const seedBtn = root.querySelector('[data-seed]');
+  const seedOut = root.querySelector('[data-seed-out]');
   const out = root.querySelector('[data-out]');
   const val = (f) => root.querySelector(`[data-f=${f}]`).value;
 
@@ -675,33 +680,117 @@ export default function renderMusic(root) {
     }
   });
 
-  btn.addEventListener('click', () => {
-    // 레퍼런스를 골랐으면 장르는 그쪽에서 가져오므로 따로 고르지 않아도 됩니다.
+  /** 만들기 전에 빠진 값이 없는지 봅니다. 문제가 있으면 문구를 돌려줍니다. */
+  function missing() {
     if (!R.readPills(root, 'genre').length && !pickedRef()) {
-      return alert('장르를 하나 이상 고르거나, 맨 위에서 레퍼런스를 골라 주세요.');
+      return '장르를 하나 이상 고르거나, 맨 위에서 레퍼런스를 골라 주세요.';
     }
-    if (!root.querySelector('[data-f=concept]').value.trim()) return alert('주제를 입력해 주세요.');
+    if (!root.querySelector('[data-f=concept]').value.trim()) return '주제를 입력해 주세요.';
+    return null;
+  }
+
+  btn.addEventListener('click', () => {
+    const bad = missing();
+    if (bad) return alert(bad);
     generate(false);
   });
+
+  seedBtn.addEventListener('click', () => {
+    const bad = missing();
+    if (bad) return alert(bad);
+    showSeeds();
+  });
+
+  /**
+   * 1단계 — 후보만 짧게 뽑습니다.
+   * 가사를 다 쓴 뒤 버리는 대신, 고른 것만 2단계에서 완성합니다.
+   */
+  function showSeeds() {
+    const want = parseInt(val('songCount'), 10) || 5;
+
+    R.runTask({
+      button: seedBtn,
+      output: seedOut,
+      working: `후보 ${want}개 뽑는 중`,
+      task: () =>
+        callGemini(
+          songSeeds({
+            genres: R.readPills(root, 'genre').join(', ') || pickedRef()?.summary || '레퍼런스에 맞춰 알아서',
+            language: R.readPills(root, 'language')[0] || 'Korean',
+            moods: R.readPills(root, 'mood').join(', ') || 'natural',
+            concept: root.querySelector('[data-f=concept]').value.trim(),
+            persona: R.readPills(root, 'persona')[0] || 'villain',
+            seedCount: want,
+            avoidTitles: (latest?.data.songs || []).map((x) => x.title),
+            referenceStyle: pickedRef()?.detail || null,
+          })
+        ),
+      onDone: (d) => paintSeeds(d.seeds || []),
+    });
+  }
+
+  function paintSeeds(seeds) {
+    if (!seeds.length) {
+      seedOut.innerHTML = '<p class="muted">후보를 만들지 못했습니다.</p>';
+      return;
+    }
+
+    seedOut.innerHTML = `<div class="card">
+      <span class="card-tag is-gold">후보 ${seeds.length}개</span>
+      <p class="muted small">완성할 후보를 고르세요. 고른 것만 가사와 스타일을 만듭니다.</p>
+      ${seeds
+        .map(
+          (x, i) => `<label class="seed-item">
+            <input type="checkbox" data-seed-pick="${i}">
+            <div>
+              <strong>${R.esc(x.title)}</strong>
+              <p class="muted small">${R.esc(x.angle)}</p>
+              <p class="seed-line">훅 · ${R.esc(x.hook)}</p>
+              <p class="seed-line">첫 줄 · ${R.esc(x.opening)}</p>
+              <p class="muted small">${R.esc(x.soundNote)}</p>
+            </div>
+          </label>`
+        )
+        .join('')}
+      <div class="style-head" style="margin-top:12px">
+        <button class="btn is-red" data-seed-go>고른 후보 완성하기</button>
+        <button class="btn is-ghost" data-seed-again>후보 다시 뽑기</button>
+      </div>
+    </div>`;
+
+    seedOut.querySelector('[data-seed-again]').addEventListener('click', showSeeds);
+    seedOut.querySelector('[data-seed-go]').addEventListener('click', () => {
+      const picked = [...seedOut.querySelectorAll('[data-seed-pick]:checked')].map(
+        (el) => seeds[+el.dataset.seedPick]
+      );
+      if (!picked.length) return alert('완성할 후보를 하나 이상 고르세요.');
+      generate(false, picked);
+    });
+  }
 
   function pickedRef() {
     const id = root.querySelector('input[name=ref]:checked')?.value;
     return id ? savedRefs.find((r) => r.id === id) : null;
   }
 
-  function generate(append) {
+  function generate(append, seedList = null) {
     const genres = R.readPills(root, 'genre');
     const concept = root.querySelector('[data-f=concept]').value.trim();
     const duration = root.querySelector('.dur.on')?.dataset.dur || '3:30';
     const language = R.readPills(root, 'language')[0] || 'Korean';
-    const want = append ? 5 : parseInt(val('songCount'), 10) || 5;
+    // 씨앗을 골랐으면 그 개수만 만듭니다.
+    const want = seedList ? seedList.length : append ? 5 : parseInt(val('songCount'), 10) || 5;
     const craft = R.readPills(root, 'craft');
     const button = append ? out.querySelector('[data-more]') : btn;
     const target = append ? out.querySelector('[data-more-out]') : out;
 
     // 한 번에 여러 곡을 만들면 응답이 길어져 중간에 잘립니다.
     // 두 곡씩 나눠 만들고, 이미 만든 제목을 알려 줘서 겹치지 않게 합니다.
-    const BATCH = 2;
+    //
+    // 씨앗을 고른 경우에는 한 곡씩 만듭니다.
+    // 방향이 이미 정해져 있어 묶어 만들 이유가 없고,
+    // 한 번에 한 곡만 쓰면 그 곡에 들어가는 주의가 그만큼 두꺼워집니다.
+    const BATCH = seedList ? 1 : 2;
     const rounds = [];
     for (let left = want; left > 0; left -= BATCH) rounds.push(Math.min(BATCH, left));
 
@@ -746,7 +835,9 @@ export default function renderMusic(root) {
 
         for (let i = 0; i < rounds.length; i++) {
           target.innerHTML = `<div class="spinner"></div>
-            <p>${madeSongs.length} / ${want}곡 완성 · 다음 ${rounds[i]}곡 만드는 중…</p>
+            <p>${madeSongs.length} / ${want}곡 완성 · ${
+              seedList ? `「${R.esc(seedList[i].title)}」 쓰는 중…` : `다음 ${rounds[i]}곡 만드는 중…`
+            }</p>
             <div class="bar"><i style="width:${Math.round((madeSongs.length / want) * 100)}%"></i></div>
             <p class="muted small">나눠서 만들기 때문에 중간에 잘리지 않습니다.</p>`;
 
@@ -755,6 +846,7 @@ export default function renderMusic(root) {
               songWriting({
                 ...baseOptions,
                 songCount: rounds[i],
+                seed: seedList ? seedList[i] : null,
                 // 이미 만든 곡 수만큼 밀어서, 배치가 달라도 인트로가 겹치지 않게 합니다.
                 batchSeed: (append ? (latest?.data.songs.length || 0) : 0) + madeSongs.length,
                 avoidTitles: [...already, ...madeSongs.map((x) => x.title)],
@@ -792,6 +884,7 @@ export default function renderMusic(root) {
             duration,
           };
         }
+        if (seedList) seedOut.innerHTML = '';
         keepDraft();
         paintResult(latest.data, failures);
       },

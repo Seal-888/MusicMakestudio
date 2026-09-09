@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "python3 serve.py 8383",
-    "test": "npm run test:imports && npm run test:functions && npm run test:smoke && npm run test:flow && npm run test:draft && npm run test:reference && npm run test:storage && npm run test:seeds",
+    "test": "npm run test:imports && npm run test:functions && npm run test:smoke && npm run test:flow && npm run test:draft && npm run test:reference && npm run test:storage && npm run test:seeds && npm run test:hook",
     "test:imports": "node check-imports.mjs",
     "test:functions": "node check-functions.mjs",
     "test:smoke": "node smoke-test.mjs",
@@ -14,7 +14,8 @@
     "test:draft": "node check-draft.mjs",
     "test:reference": "node check-reference.mjs",
     "test:storage": "node check-storage.mjs",
-    "test:seeds": "node check-seeds.mjs"
+    "test:seeds": "node check-seeds.mjs",
+    "test:hook": "node check-hook.mjs"
   },
   "devDependencies": {
     "acorn": "^8.18.0",

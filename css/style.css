@@ -816,3 +816,22 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
   color: var(--ink);
   opacity: .85;
 }
+
+/* ── 훅 표시 ─────────────────────────────────── */
+.hook-badge {
+  margin: 6px 0 0;
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  display: inline-block;
+}
+.hook-badge b { font-weight: 600; }
+.hook-badge span { opacity: .7; }
+.hook-badge.is-ok {
+  background: rgba(221, 169, 63, .13);
+  color: var(--ink);
+}
+.hook-badge.is-weak {
+  background: rgba(190, 70, 60, .10);
+  color: #8d3a32;
+}

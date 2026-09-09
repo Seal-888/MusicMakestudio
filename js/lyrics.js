@@ -380,3 +380,97 @@ export function toSrt(subtitles) {
     .map((s, i) => `${i + 1}\n${toSrtTime(s.start)} --> ${toSrtTime(s.start + s.duration)}\n${s.text}\n`)
     .join('\n');
 }
+
+/**
+ * 가사를 구간별로 쪼갭니다. [Chorus - ...] 같은 태그를 경계로 씁니다.
+ * 돌려주는 값: [{ role: 'chorus', tag: '원문 태그', lines: ['...'] }, ...]
+ */
+export function splitSections(text) {
+  const out = [];
+  let cur = null;
+
+  for (const raw of (text || '').split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const tag = line.match(/^\[([^\]\-]+)/);
+    if (tag) {
+      cur = { role: tag[1].trim().toLowerCase().replace(/\s*\d+$/, ''), tag: line, lines: [] };
+      out.push(cur);
+      continue;
+    }
+    // 태그 앞에 나온 줄은 버리지 않고 담아 둡니다.
+    if (!cur) {
+      cur = { role: 'unknown', tag: '', lines: [] };
+      out.push(cur);
+    }
+    cur.lines.push(line);
+  }
+  return out;
+}
+
+/** 비교용으로 문장을 씻습니다. 문장부호와 대소문자 차이는 무시합니다. */
+function normLine(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * 후렴이 훅을 제대로 반복하는지 봅니다.
+ *
+ * 왜 필요한가:
+ * 언어 모델은 같은 문장을 두 번 쓰는 걸 게으른 출력으로 여겨 피합니다.
+ * 그래서 후렴 다섯 줄을 전부 다른 문장으로 채우고, 라임은 맞는데
+ * 귀에 남는 데가 없는 곡이 나옵니다. 지시만으로는 잘 안 지켜지므로
+ * 여기서 실제 결과를 세어 봅니다.
+ *
+ * 돌려주는 값: { hook, repeats, issues[] }
+ */
+export function checkHook(text) {
+  const chorus = splitSections(text).filter((x) => x.role === 'chorus' && x.lines.length);
+  if (!chorus.length) return { hook: '', repeats: 0, issues: [] };
+
+  const issues = [];
+  const first = chorus[0].lines;
+  const head = normLine(first[0]);
+  const tail = normLine(first[first.length - 1]);
+
+  if (!head) return { hook: '', repeats: 0, issues: [] };
+
+  // 첫 줄과 마지막 줄이 같아야 훅입니다.
+  if (head !== tail) {
+    issues.push({
+      kind: 'hook-frame',
+      label: '후렴이 훅으로 닫히지 않음',
+      detail: `첫 줄 "${first[0].slice(0, 24)}" / 끝 줄 "${first[first.length - 1].slice(0, 24)}"`,
+    });
+  }
+
+  // 곡 전체에서 훅이 몇 번 나오는지 셉니다.
+  const all = (text || '').split('\n').map(normLine);
+  const repeats = all.filter((l) => l && l === head).length;
+
+  const wanted = chorus.length * 2;
+  if (repeats < wanted) {
+    issues.push({
+      kind: 'hook-count',
+      label: '훅 반복이 모자람',
+      detail: `${repeats}번 나옴 · 후렴 ${chorus.length}번이면 ${wanted}번은 되어야 합니다`,
+    });
+  }
+
+  // 훅이 길면 따라 부를 수 없습니다.
+  const words = first[0].trim().split(/\s+/).length;
+  if (first[0].length > 40 || words > 9) {
+    issues.push({
+      kind: 'hook-long',
+      label: '훅이 김',
+      detail: `${first[0].length}자 · 한 호흡에 부를 수 있게 줄이세요`,
+    });
+  }
+
+  return { hook: first[0].trim(), repeats, issues };
+}

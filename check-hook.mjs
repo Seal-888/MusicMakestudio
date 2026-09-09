@@ -1,0 +1,146 @@
+/**
+ * 후렴 훅이 제대로 박히는지 확인합니다.
+ *
+ * 왜 필요한가:
+ * 영어 가사는 정독하지 않으면 훅이 반복되는지 눈에 안 들어옵니다.
+ * 게다가 언어 모델은 같은 문장을 두 번 쓰는 걸 피하는 성질이 있어서,
+ * 지시만으로는 잘 안 지켜집니다. 그래서 세어 보는 쪽을 검사에 둡니다.
+ *
+ * 쓰는 법:
+ *   node check-hook.mjs
+ */
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(process.env.APP_DIR || HERE);
+const appUrl = (rel) => pathToFileURL(path.join(ROOT, rel)).href;
+
+let failed = 0;
+const ok = (cond, label) => {
+  console.log(`  ${cond ? '✓' : '✗'} ${label}`);
+  if (!cond) failed++;
+};
+
+const { checkHook, splitSections } = await import(appUrl('js/lyrics.js'));
+const { songWriting, songSeeds } = await import(appUrl('js/prompts.js'));
+
+/* ── 프롬프트가 훅을 제대로 요구하는지 ────────── */
+console.log('\n프롬프트 지시:');
+{
+  const full = songWriting({
+    genres: 'dark pop', language: 'English', vocal: 'v', tempo: 't',
+    moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1,
+  });
+
+  ok(full.prompt.includes('후렴은 훅이 전부입니다'), '후렴 전용 섹션이 있음');
+  ok(full.prompt.includes('첫 줄은 훅입니다'), '첫 줄 훅 지시');
+  ok(full.prompt.includes('마지막 줄도 훅입니다'), '마지막 줄 훅 지시');
+  ok(full.prompt.includes('글자 하나 바꾸지 않고'), '변형 금지를 명시');
+  ok(full.prompt.includes('1행과 5행은 훅 원문 그대로'), '구조표에도 훅 위치를 박음');
+
+  // 열쇠말과 훅이 섞이지 않아야 합니다.
+  ok(
+    full.prompt.includes('훅 밖에서 곡을 묶어'),
+    '열쇠말이 훅과 분리됨 (예전에는 훅을 흩뿌리라고 말했음)'
+  );
+
+  const seeds = songSeeds({ genres: 'dark pop', language: 'English', moods: 'm', concept: 'c' });
+  ok(seeds.prompt.includes('글자 그대로 반복될'), '후보 단계에서도 훅을 반복 문장으로 정의');
+  ok(seeds.prompt.includes('4~7음절'), '훅 길이를 제한');
+}
+
+/* ── 구간 쪼개기 ───────────────────────────────── */
+console.log('\n구간 쪼개기:');
+{
+  const text = `[Intro - Soft Piano]
+[Verse 1 - Low Bass]
+first line
+second line
+[Chorus - Big Brass]
+hook line
+middle one
+hook line
+[Verse 2 - Low Bass]
+third line`;
+  const sec = splitSections(text);
+  ok(sec.length === 4, `구간 ${sec.length}개로 나뉨`);
+  ok(sec[0].lines.length === 0, '가사 없는 인트로도 구간으로 잡힘');
+  ok(sec[2].role === 'chorus', '후렴 태그를 알아봄');
+  ok(sec[1].role === 'verse', 'Verse 1 → verse (번호 제거)');
+}
+
+/* ── 훅 검사 ───────────────────────────────────── */
+console.log('\n훅 검사 — 잘 된 가사:');
+{
+  const good = `[Verse 1 - Soft]
+the hallway kept your name
+i left it where it fell
+[Chorus - Big]
+I closed the door
+you never heard it
+nothing left to burn
+so let it go
+I closed the door
+[Verse 2 - Soft]
+the winter did the rest
+[Chorus - Big]
+I closed the door
+you never heard it
+nothing left to burn
+so let it go
+I closed the door`;
+  const r = checkHook(good);
+  ok(r.hook === 'I closed the door', `훅을 찾아냄: "${r.hook}"`);
+  ok(r.repeats === 4, `반복 ${r.repeats}번으로 셈`);
+  ok(r.issues.length === 0, '문제 없음');
+}
+
+console.log('\n훅 검사 — 라임만 맞고 훅이 없는 가사:');
+{
+  const weak = `[Verse 1 - Soft]
+the hallway kept your name
+[Chorus - Big]
+I walked into the light
+you faded out of sight
+the morning came too bright
+and nothing felt alright
+i never said goodnight`;
+  const r = checkHook(weak);
+  ok(
+    r.issues.some((x) => x.kind === 'hook-frame'),
+    '후렴이 훅으로 닫히지 않음을 잡아냄'
+  );
+  ok(
+    r.issues.some((x) => x.kind === 'hook-count'),
+    '반복 부족을 잡아냄'
+  );
+  console.log(`     → ${r.issues.map((x) => x.label).join(' / ')}`);
+}
+
+console.log('\n훅 검사 — 세부 규칙:');
+{
+  // 문장부호와 대소문자 차이는 같은 훅으로 봅니다.
+  const punct = `[Chorus - Big]
+I closed the door.
+middle
+i closed the door`;
+  ok(checkHook(punct).issues.every((x) => x.kind !== 'hook-frame'), '문장부호·대소문자 차이는 같은 훅으로 봄');
+
+  // 너무 긴 훅
+  const long = `[Chorus - Big]
+i think i finally understood what you were trying to tell me back then
+middle
+i think i finally understood what you were trying to tell me back then`;
+  ok(
+    checkHook(long).issues.some((x) => x.kind === 'hook-long'),
+    '따라 부를 수 없이 긴 훅을 잡아냄'
+  );
+
+  // 후렴이 없으면 조용히 넘어갑니다.
+  ok(checkHook('[Verse 1 - Soft]\njust a line').issues.length === 0, '후렴이 없으면 트집 잡지 않음');
+  ok(checkHook('').hook === '', '빈 가사에서 터지지 않음');
+}
+
+console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
+process.exit(failed ? 1 : 0);

@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, songSeeds, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
 import { styles, songs, refs, jobs, draft } from '../store.js';
@@ -910,6 +910,7 @@ export default function renderMusic(root) {
             <h3>${R.esc(song.title)}</h3>
             <p class="muted small">다른 제목 후보: ${R.esc(song.titleAlt || '')}</p>
             ${lengthBadge(song.lyrics)}
+            ${hookBadge(song.lyrics)}
 
             <div class="style-head">
               ${R.copyBtn(song.lyrics, '가사 복사')}
@@ -1126,9 +1127,22 @@ export default function renderMusic(root) {
     });
   }
 
+  /**
+   * 훅이 제대로 박혔는지 한눈에 보여 줍니다.
+   * 영어 가사는 정독하지 않으면 반복 여부가 안 보이므로 세어서 알려 줍니다.
+   */
+  function hookBadge(lyrics) {
+    const { hook, repeats, issues } = checkHook(lyrics);
+    if (!hook) return '';
+    const bad = issues.some((x) => x.kind === 'hook-frame' || x.kind === 'hook-count');
+    return `<p class="hook-badge ${bad ? 'is-weak' : 'is-ok'}">
+      훅 <b>${R.esc(hook)}</b> <span>· ${repeats}번 반복</span>
+    </p>`;
+  }
+
   /** 규칙을 어긴 곳이 있으면 가사 위에 짧게 알려 줍니다. */
   function lintBox(song) {
-    const issues = checkLyrics(song.lyrics);
+    const issues = [...checkLyrics(song.lyrics), ...checkHook(song.lyrics).issues];
     const titleIssue = checkTitle(song.title);
     if (!issues.length && !titleIssue) return '';
 

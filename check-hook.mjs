@@ -46,8 +46,11 @@ console.log('\n프롬프트 지시:');
   );
 
   const seeds = songSeeds({ genres: 'dark pop', language: 'English', moods: 'm', concept: 'c' });
-  ok(seeds.prompt.includes('글자 그대로 반복될'), '후보 단계에서도 훅을 반복 문장으로 정의');
+  ok(seeds.prompt.includes('글자 그대로 되풀이될'), '후보 단계에서도 훅을 되풀이될 말로 정의');
   ok(seeds.prompt.includes('4~7음절'), '훅 길이를 제한');
+  ok(full.prompt.includes('문장일 필요는 없습니다'), '훅이 문장이 아니어도 된다고 알림');
+  ok(full.prompt.includes('Na na na'), '뜻 없는 소리도 훅으로 예시');
+  ok(seeds.prompt.includes('Runaway'), '후보 단계에도 단어 반복형 예시');
 }
 
 /* ── 구간 쪼개기 ───────────────────────────────── */
@@ -92,6 +95,7 @@ so let it go
 I closed the door`;
   const r = checkHook(good);
   ok(r.hook === 'I closed the door', `훅을 찾아냄: "${r.hook}"`);
+  ok(r.kind === 'line', '줄 훅으로 판정');
   ok(r.repeats === 4, `반복 ${r.repeats}번으로 셈`);
   ok(r.issues.length === 0, '문제 없음');
 }
@@ -107,14 +111,8 @@ the morning came too bright
 and nothing felt alright
 i never said goodnight`;
   const r = checkHook(weak);
-  ok(
-    r.issues.some((x) => x.kind === 'hook-frame'),
-    '후렴이 훅으로 닫히지 않음을 잡아냄'
-  );
-  ok(
-    r.issues.some((x) => x.kind === 'hook-count'),
-    '반복 부족을 잡아냄'
-  );
+  ok(r.issues.some((x) => x.kind === 'hook-none'), '훅 없는 후렴을 잡아냄');
+  ok(r.kind === '', '훅 형태가 없음으로 나옴');
   console.log(`     → ${r.issues.map((x) => x.label).join(' / ')}`);
 }
 
@@ -125,7 +123,7 @@ console.log('\n훅 검사 — 세부 규칙:');
 I closed the door.
 middle
 i closed the door`;
-  ok(checkHook(punct).issues.every((x) => x.kind !== 'hook-frame'), '문장부호·대소문자 차이는 같은 훅으로 봄');
+  ok(checkHook(punct).kind === 'line', '문장부호·대소문자 차이는 같은 훅으로 봄');
 
   // 너무 긴 훅
   const long = `[Chorus - Big]
@@ -140,6 +138,34 @@ i think i finally understood what you were trying to tell me back then`;
   // 후렴이 없으면 조용히 넘어갑니다.
   ok(checkHook('[Verse 1 - Soft]\njust a line').issues.length === 0, '후렴이 없으면 트집 잡지 않음');
   ok(checkHook('').hook === '', '빈 가사에서 터지지 않음');
+}
+
+console.log('\n훅 검사 — 문장이 아닌 훅:');
+{
+  const shapes = {
+    '단어를 붙여 되풀이': ['[Chorus - Big]\nRunaway, runaway, runaway\ni never learned to stay\nRunaway, runaway, runaway', 'line'],
+    '뜻 없는 소리': ['[Chorus - Big]\nNa na na, na na na\nyou said it once\nNa na na, na na na', 'line'],
+    '줄 안에서만 되풀이': ['[Chorus - Big]\nGravity, gravity, pulling me down\nno hands to hold\nfalling into gravity again', 'phrase'],
+    '포스트코러스에 있는 훅': ['[Chorus - Big]\nline one\nline two\n[Post-Chorus - Chant]\noh oh oh\noh oh oh', 'phrase'],
+    '한국어 단어 반복': ['[Chorus - Big]\n돌아와 돌아와\n아무말 없이\n돌아와 돌아와', 'line'],
+  };
+  for (const [label, [text, want]] of Object.entries(shapes)) {
+    const r = checkHook(text);
+    ok(r.kind === want && !r.issues.some((x) => x.kind === 'hook-none'),
+       `${label} → ${r.kind} 훅 "${r.hook}" ${r.repeats}번`);
+  }
+
+  // 관사나 조사만 되풀이되는 건 훅이 아닙니다.
+  const stop = '[Chorus - Big]\nthe night and the fall\nthe way you turn\nand the silence after';
+  ok(checkHook(stop).issues.some((x) => x.kind === 'hook-none'), '관사·조사 반복은 훅으로 안 쳐 줌');
+}
+
+console.log('\n구간 인식:');
+{
+  const roles = splitSections('[Post-Chorus - Chant]\na\n[Pre-Chorus - Build]\nb\n[Verse 2 - Low]\nc').map((x) => x.role);
+  ok(roles[0] === 'post-chorus', 'Post-Chorus를 온전히 읽음 (이름 속 하이픈에 안 잘림)');
+  ok(roles[1] === 'pre-chorus', 'Pre-Chorus도 마찬가지');
+  ok(roles[2] === 'verse', '연출 지시는 떼어 냄');
 }
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');

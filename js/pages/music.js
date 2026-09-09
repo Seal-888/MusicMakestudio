@@ -1132,11 +1132,16 @@ export default function renderMusic(root) {
    * 영어 가사는 정독하지 않으면 반복 여부가 안 보이므로 세어서 알려 줍니다.
    */
   function hookBadge(lyrics) {
-    const { hook, repeats, issues } = checkHook(lyrics);
+    const { hook, kind, repeats, issues } = checkHook(lyrics);
     if (!hook) return '';
-    const bad = issues.some((x) => x.kind === 'hook-frame' || x.kind === 'hook-count');
-    return `<p class="hook-badge ${bad ? 'is-weak' : 'is-ok'}">
-      훅 <b>${R.esc(hook)}</b> <span>· ${repeats}번 반복</span>
+
+    const weak = issues.some((x) => x.kind === 'hook-none');
+    // 같은 줄이 통째로 되풀이되는지, 짧은 말이 되풀이되는지 구분해 보여 줍니다.
+    const shape = kind === 'line' ? '줄' : kind === 'phrase' ? '말' : '';
+
+    return `<p class="hook-badge ${weak ? 'is-weak' : 'is-ok'}">
+      ${weak ? '훅 없음' : `훅${shape ? `<i>${shape}</i>` : ''}`}
+      <b>${R.esc(hook)}</b>${weak ? '' : `<span>· ${repeats}번</span>`}
     </p>`;
   }
 

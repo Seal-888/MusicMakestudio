@@ -393,9 +393,17 @@ export function splitSections(text) {
     const line = raw.trim();
     if (!line) continue;
 
-    const tag = line.match(/^\[([^\]\-]+)/);
+    const tag = line.match(/^\[([^\]]+)\]/);
     if (tag) {
-      cur = { role: tag[1].trim().toLowerCase().replace(/\s*\d+$/, ''), tag: line, lines: [] };
+      // 태그는 [Post-Chorus - Chant] 꼴입니다.
+      // 이름 자체에 하이픈이 들어가므로(Post-Chorus, Pre-Chorus)
+      // 아무 하이픈이 아니라 ' - ' 로만 연출 지시를 떼어 냅니다.
+      const role = tag[1]
+        .split(' - ')[0]
+        .trim()
+        .toLowerCase()
+        .replace(/\s*\d+$/, '');
+      cur = { role, tag: line, lines: [] };
       out.push(cur);
       continue;
     }
@@ -418,59 +426,149 @@ function normLine(s) {
     .trim();
 }
 
+/** 후렴 계열로 볼 구간들. 포스트코러스와 리프레인도 훅이 사는 자리입니다. */
+const CHORUS_ROLES = ['chorus', 'post-chorus', 'postchorus', 'refrain', 'hook', 'drop'];
+
+/** 훅으로 쳐 주지 않을 말들. 이것만 반복되는 건 훅이 아닙니다. */
+const HOOK_STOP = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'so', 'if', 'to', 'of', 'in', 'on', 'at', 'for',
+  'is', 'am', 'are', 'was', 'were', 'be', 'been', 'it', 'its', 'this', 'that', 'there',
+  'i', 'you', 'we', 'they', 'he', 'she', 'me', 'my', 'your', 'our', 'his', 'her',
+  '그', '그리고', '그런데', '나', '너', '우리', '내', '네', '것', '수', '더',
+]);
+
 /**
- * 후렴이 훅을 제대로 반복하는지 봅니다.
+ * 후렴에서 훅을 찾습니다.
  *
- * 왜 필요한가:
- * 언어 모델은 같은 문장을 두 번 쓰는 걸 게으른 출력으로 여겨 피합니다.
- * 그래서 후렴 다섯 줄을 전부 다른 문장으로 채우고, 라임은 맞는데
- * 귀에 남는 데가 없는 곡이 나옵니다. 지시만으로는 잘 안 지켜지므로
- * 여기서 실제 결과를 세어 봅니다.
+ * 훅은 문장일 수도 있고 아닐 수도 있습니다.
+ * 영어 팝에서는 한 단어를 세 번 붙이거나(Runaway, runaway, runaway),
+ * 뜻 없는 소리(Na na na)가 훅인 경우가 오히려 흔합니다.
+ * 그래서 두 가지를 다 봅니다.
  *
- * 돌려주는 값: { hook, repeats, issues[] }
+ *   line   — 같은 줄이 통째로 되풀이되는 형태
+ *   phrase — 짧은 말이 줄 안팎에서 되풀이되는 형태
+ *
+ * 왜 세어 보는가:
+ * 언어 모델은 같은 말을 두 번 쓰는 걸 게으른 출력으로 여겨 피합니다.
+ * 그래서 라임은 맞는데 귀에 남는 데가 없는 후렴이 나옵니다.
+ * 지시만으로는 잘 안 지켜지므로 결과를 직접 셉니다.
+ *
+ * 돌려주는 값: { hook, kind, repeats, issues[] }
  */
 export function checkHook(text) {
-  const chorus = splitSections(text).filter((x) => x.role === 'chorus' && x.lines.length);
-  if (!chorus.length) return { hook: '', repeats: 0, issues: [] };
+  const chorus = splitSections(text).filter(
+    (x) => CHORUS_ROLES.includes(x.role) && x.lines.length
+  );
+  if (!chorus.length) return { hook: '', kind: '', repeats: 0, issues: [] };
 
-  const issues = [];
+  const allLines = (text || '').split('\n').map(normLine).filter(Boolean);
+  const chorusLines = chorus.flatMap((c) => c.lines);
+
+  /* ── 1. 줄 훅: 후렴의 첫 줄과 끝 줄이 같은가 ── */
   const first = chorus[0].lines;
   const head = normLine(first[0]);
-  const tail = normLine(first[first.length - 1]);
+  const framed = first.length > 1 && head && head === normLine(first[first.length - 1]);
 
-  if (!head) return { hook: '', repeats: 0, issues: [] };
-
-  // 첫 줄과 마지막 줄이 같아야 훅입니다.
-  if (head !== tail) {
-    issues.push({
-      kind: 'hook-frame',
-      label: '후렴이 훅으로 닫히지 않음',
-      detail: `첫 줄 "${first[0].slice(0, 24)}" / 끝 줄 "${first[first.length - 1].slice(0, 24)}"`,
-    });
+  if (framed) {
+    const repeats = allLines.filter((l) => l === head).length;
+    return {
+      hook: first[0].trim(),
+      kind: 'line',
+      repeats,
+      issues: tooLong(first[0]),
+    };
   }
 
-  // 곡 전체에서 훅이 몇 번 나오는지 셉니다.
-  const all = (text || '').split('\n').map(normLine);
-  const repeats = all.filter((l) => l && l === head).length;
-
-  const wanted = chorus.length * 2;
-  if (repeats < wanted) {
-    issues.push({
-      kind: 'hook-count',
-      label: '훅 반복이 모자람',
-      detail: `${repeats}번 나옴 · 후렴 ${chorus.length}번이면 ${wanted}번은 되어야 합니다`,
-    });
+  /* ── 2. 말 훅: 짧은 말이 후렴 안에서 되풀이되는가 ── */
+  const phrase = findPhraseHook(chorusLines);
+  if (phrase && phrase.count >= 3) {
+    const whole = normLine(text).length ? countPhrase(text, phrase.words) : phrase.count;
+    return {
+      hook: phrase.text,
+      kind: 'phrase',
+      repeats: whole,
+      issues: [],
+    };
   }
 
-  // 훅이 길면 따라 부를 수 없습니다.
-  const words = first[0].trim().split(/\s+/).length;
-  if (first[0].length > 40 || words > 9) {
-    issues.push({
+  /* ── 3. 둘 다 아니면 훅이 없는 후렴입니다 ── */
+  return {
+    hook: first[0]?.trim() || '',
+    kind: '',
+    repeats: head ? allLines.filter((l) => l === head).length : 0,
+    issues: [
+      {
+        kind: 'hook-none',
+        label: '후렴에 되풀이되는 훅이 없음',
+        detail:
+          '같은 줄을 다시 쓰거나(첫 줄=끝 줄), 짧은 말을 세 번 이상 되풀이하세요. ' +
+          '단어 하나나 뜻 없는 소리도 훅이 됩니다.',
+      },
+      ...tooLong(first[0] || ''),
+    ],
+  };
+}
+
+/** 따라 부를 수 없이 긴 훅을 지적합니다. */
+function tooLong(line) {
+  const words = line.trim().split(/\s+/).filter(Boolean).length;
+  if (line.length <= 40 && words <= 9) return [];
+  return [
+    {
       kind: 'hook-long',
       label: '훅이 김',
-      detail: `${first[0].length}자 · 한 호흡에 부를 수 있게 줄이세요`,
-    });
-  }
+      detail: `${line.length}자 · 한 호흡에 부를 수 있게 줄이세요`,
+    },
+  ];
+}
 
-  return { hook: first[0].trim(), repeats, issues };
+/**
+ * 후렴 줄들에서 가장 많이 되풀이되는 짧은 말을 찾습니다.
+ * 한 단어부터 세 단어까지 보고, 조사나 관사만 남는 건 버립니다.
+ */
+function findPhraseHook(lines) {
+  const counts = new Map();
+
+  for (const line of lines) {
+    const words = normLine(line).split(' ').filter(Boolean);
+    for (let n = 1; n <= 3; n++) {
+      for (let i = 0; i + n <= words.length; i++) {
+        const gram = words.slice(i, i + n);
+        if (gram.every((w) => HOOK_STOP.has(w))) continue;
+        if (gram.join('').length < 2) continue;
+        const key = gram.join(' ');
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+  }
+  if (!counts.size) return null;
+
+  // 많이 나온 것 우선, 같으면 긴 쪽을 훅으로 봅니다.
+  let best = null;
+  for (const [text, count] of counts) {
+    const words = text.split(' ');
+    if (
+      !best ||
+      count > best.count ||
+      (count === best.count && words.length > best.words.length)
+    ) {
+      best = { text, count, words };
+    }
+  }
+  return best;
+}
+
+/** 곡 전체에서 그 말이 몇 번 나오는지 셉니다. */
+function countPhrase(text, words) {
+  const flat = normLine(text.replace(/\n/g, ' '));
+  const needle = words.join(' ');
+  let from = 0;
+  let n = 0;
+  for (;;) {
+    const at = flat.indexOf(needle, from);
+    if (at === -1) break;
+    n++;
+    from = at + needle.length;
+  }
+  return n;
 }

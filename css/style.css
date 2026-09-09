@@ -826,6 +826,12 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
   display: inline-block;
 }
 .hook-badge b { font-weight: 600; }
+.hook-badge i {
+  font-style: normal;
+  font-size: 11px;
+  opacity: .6;
+  margin-left: 1px;
+}
 .hook-badge span { opacity: .7; }
 .hook-badge.is-ok {
   background: rgba(221, 169, 63, .13);

@@ -32,7 +32,7 @@ function collectNames(node, into) {
 let problems = 0;
 
 for (const file of fs.readdirSync(path.join(ROOT, 'js/pages')).concat(
-  ['../render.js', '../lyrics.js', '../capcut.js', '../audio.js', '../visualizer.js', '../app.js']
+  ['../render.js', '../lyrics.js', '../audio.js', '../app.js']
 )) {
   const full = path.join(ROOT, 'js/pages', file);
   if (!full.endsWith('.js')) continue;

@@ -1,3 +1,5 @@
+import { toSrtTime } from './audio.js';
+
 /**
  * 붙여넣은 가사를 자막으로 쓸 수 있게 다듬습니다.
  * 구간 태그와 연출 지시문을 걷어내고, 화면에서 읽기 좋은 길이로 나눕니다.
@@ -370,4 +372,11 @@ export function pickBpm(text) {
   if (!valid.length) return null;
   // 범위로 적혀 있으면 가운데 값을 씁니다.
   return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+}
+
+/** 자막 목록을 SRT 문자열로 */
+export function toSrt(subtitles) {
+  return subtitles
+    .map((s, i) => `${i + 1}\n${toSrtTime(s.start)} --> ${toSrtTime(s.start + s.duration)}\n${s.text}\n`)
+    .join('\n');
 }

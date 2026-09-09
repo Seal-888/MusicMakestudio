@@ -2,7 +2,6 @@ import { settings, health, exportAll, importAll } from '../store.js';
 import { testGemini, listModels } from '../api/gemini.js';
 import { testKie } from '../api/kie.js';
 import { testYouTube } from '../api/youtube.js';
-import { testPexels } from '../api/pexels.js';
 import { toast } from '../ui.js';
 
 const SERVICES = [
@@ -47,20 +46,6 @@ const SERVICES = [
       ['비용', '완전 무료'],
     ],
     test: testYouTube,
-  },
-  {
-    id: 'pexels',
-    field: 'pexelsKey',
-    name: 'Pexels',
-    required: false,
-    sub: '영상 만들기에서 무료 사진을 찾습니다',
-    facts: [
-      ['무료 한도', '시간당 200회 / 월 20,000회'],
-      ['발급', '<a href="https://www.pexels.com/api/" target="_blank" rel="noopener">Pexels API →</a>'],
-      ['상업적 사용', '가능 (저작자 표기 권장)'],
-      ['비용', '평생 무료'],
-    ],
-    test: testPexels,
   },
 ];
 

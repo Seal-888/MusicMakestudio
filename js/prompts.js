@@ -964,38 +964,6 @@ export const DEFAULT_EXCLUDE =
 /* ────────────────────────────────
    5. 영상 아트워크 매칭
 ──────────────────────────────── */
-export function videoMatching({ title, style, lyrics, ratio, source, count = 3 }) {
-  const promptRule =
-    source === 'pexels'
-      ? 'prompt: Pexels에서 검색할 영어 검색어. 단어 2~4개, 사진으로 찍을 수 있는 대상만. 추상적인 단어는 넣지 마세요.'
-      : 'prompt: 이미지 생성용 영문 프롬프트. 사진 같은 묘사로 자세하게. 화면 구도와 빛, 색감까지 포함하세요.';
-
-  return {
-    temperature: 0.9,
-    maxOutputTokens: 4000,
-    thinkingLevel: 'low',
-    prompt: `당신은 유튜브 음악 영상의 비주얼 디렉터입니다.
-아래 음악에 어울리는 영상 아트워크를 ${count}개 매칭해 주세요.
-
-[음악]
-- 제목: ${title}
-- 스타일: ${style}
-- 가사 또는 주제: ${(lyrics || '').slice(0, 600) || '없음'}
-- 화면 비율: ${ratio}
-
-[작성 지침]
-- sceneTitle은 한국어로, prompt는 영어로 씁니다.
-- ${count}개가 서로 뚜렷하게 다른 장면이어야 합니다.
-- 가사와 분위기에 직접 닿아 있어야 합니다. 너무 추상적으로 가지 마세요.
-- sceneTitle은 짧은 한국어 장면 이름. 예) "비 내리는 카페", "노을 진 한강"
-- ${promptRule}
-
-JSON만 출력합니다.`,
-    schema: obj({
-      matches: S.objList({ sceneTitle: S.str, prompt: S.str }),
-    }),
-  };
-}
 
 /* ────────────────────────────────
    6. SEO 최적화 (제목 · 설명 · 태그)
@@ -1132,67 +1100,10 @@ JSON만 출력합니다.`,
 /* ────────────────────────────────
    8. 음원에서 가사 + 타임코드 뽑기
 ──────────────────────────────── */
-export function transcribeLyrics({ durationSec, language }) {
-  return {
-    temperature: 0.2,
-    maxOutputTokens: 8000,
-    thinkingLevel: 'low',
-    prompt: `함께 넘긴 음원을 듣고 가사를 받아 적고, 각 줄이 나오는 시각을 알려 주세요.
-
-[음원 정보]
-- 전체 길이: ${Math.floor(durationSec / 60)}분 ${Math.round(durationSec % 60)}초
-- 가사 언어: ${language || '들리는 대로'}
-
-[지침]
-- 실제로 **노래로 불린** 말만 적습니다.
-- 괄호 안의 연출 지시나 효과음 설명은 절대 넣지 않습니다.
-  예) (팡파레와 함께), (박수 소리 멀어지며) — 이런 것은 부르지 않은 글이므로 제외합니다.
-- 대괄호 구간 표시([Verse], [Chorus])도 넣지 않습니다.
-- 한 줄은 부르는 호흡 단위로 끊습니다. 보통 6~20자.
-- start와 end는 초 단위 숫자입니다. 0.1초 단위까지 적습니다.
-
-[시간 규칙 — 반드시 지킵니다]
-- 이 곡은 **${Math.round(durationSec)}초**에서 끝납니다.
-  **${Math.round(durationSec)}보다 큰 숫자는 어떤 경우에도 쓰지 않습니다.**
-- end는 항상 start보다 큽니다.
-- 한 줄의 길이(end - start)는 **10초를 넘지 않습니다.**
-- 다음 줄의 start는 앞 줄의 end보다 크거나 같습니다.
-- 전주·간주·후주처럼 노래가 없는 구간은 줄을 만들지 않고 건너뜁니다.
-- 확신이 서지 않는 구간은 줄을 만들지 말고 넘어갑니다. 틀린 시각보다 없는 게 낫습니다.
-- 허밍이나 의미 없는 발성은 넣지 않습니다.
-
-JSON만 출력합니다.`,
-    schema: obj({
-      lines: S.objList({ text: S.str, start: { type: 'NUMBER' }, end: { type: 'NUMBER' } }),
-    }),
-  };
-}
 
 /* ────────────────────────────────
    9. 자막 번역
 ──────────────────────────────── */
-export function translateLines({ lines, target, tone }) {
-  return {
-    temperature: 0.8,
-    maxOutputTokens: 400 * lines.length + 2000,
-    thinkingLevel: 'low',
-    prompt: `아래 자막을 ${target}로 옮겨 주세요.
-
-[지침]
-- **줄 수를 그대로 유지합니다.** ${lines.length}줄을 넣었으면 ${lines.length}줄을 돌려줍니다.
-  합치거나 나누지 마세요. 순서도 그대로입니다.
-- 노래 가사입니다. 사전적으로 옮기지 말고 ${tone}
-- 각 줄은 화면에 잠깐 뜨는 자막입니다. 원문과 비슷한 길이로 짧게 씁니다.
-- 원문이 비어 있으면 빈 문자열을 돌려줍니다.
-- 고유명사와 영어 후렴은 그대로 두는 편이 자연스러우면 그대로 둡니다.
-
-[원문]
-${lines.map((l, i) => `${i + 1}. ${l}`).join('\n')}
-
-JSON만 출력합니다.`,
-    schema: obj({ lines: S.strList }),
-  };
-}
 
 /* ────────────────────────────────
    10. 내 채널 분석
@@ -1255,41 +1166,6 @@ JSON만 출력합니다.`,
    받아쓰기보다 훨씬 정확합니다. 무엇을 부르는지는 이미 알고 있고,
    모델은 "언제 부르는지"만 찾으면 되기 때문입니다.
 ──────────────────────────────── */
-export function alignLyrics({ lines, durationSec }) {
-  return {
-    temperature: 0,
-    maxOutputTokens: 200 * lines.length + 3000,
-    thinkingLevel: 'low',
-    prompt: `함께 넘긴 음원을 듣고, 아래 가사가 **각각 몇 초에 불리는지** 찾아 주세요.
-
-이 곡의 가사는 이미 정확히 알고 있습니다. 새로 받아 적지 마세요.
-아래 ${lines.length}줄이 노래 안에서 언제 나오는지 시각만 찾으면 됩니다.
-
-[가사 — 부르는 순서대로입니다]
-${lines.map((l, i) => `${i + 1}. ${l}`).join('\n')}
-
-[규칙 — 반드시 지킵니다]
-- **${lines.length}줄을 모두, 순서 그대로 돌려줍니다.** 합치거나 빼거나 순서를 바꾸지 마세요.
-- text는 위에 적힌 글자를 **그대로** 옮겨 적습니다. 고치지 마세요.
-- 이 곡은 **${Math.round(durationSec)}초**에서 끝납니다. 그보다 큰 숫자는 쓰지 않습니다.
-- start는 그 줄의 첫 글자가 들리기 시작하는 시각입니다.
-- end는 그 줄의 마지막 글자가 끝나는 시각입니다. 항상 start보다 큽니다.
-- 줄의 순서대로 start가 커집니다. 뒤로 갈수록 시각이 커져야 합니다.
-- 앞 줄의 end는 다음 줄의 start보다 크지 않습니다.
-- 후렴처럼 같은 가사가 여러 번 나오면, 나오는 순서대로 각각 다른 시각을 넣습니다.
-- 도저히 못 찾겠는 줄은 앞뒤 줄 사이에 자연스럽게 끼워 넣습니다.
-  건너뛰지 말고 ${lines.length}줄을 채워 주세요.
-
-JSON만 출력합니다.`,
-    schema: obj({
-      lines: S.objList({
-        text: S.str,
-        start: { type: 'NUMBER' },
-        end: { type: 'NUMBER' },
-      }),
-    }),
-  };
-}
 
 /* ────────────────────────────────
    12. 이미 쓴 가사를 흘려 부르는 발음으로

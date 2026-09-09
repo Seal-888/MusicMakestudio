@@ -1,8 +1,7 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
-import { toSrt } from '../capcut.js';
 import { settings } from '../store.js';
 import { styles, songs, refs, jobs, draft } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';

@@ -3,13 +3,8 @@ import { getLeaveGuard, clearLeaveGuard, toast } from './ui.js';
 import renderSettings from './pages/settings.js';
 import renderPlanning from './pages/planning.js';
 import renderMusic from './pages/music.js';
-import renderVideo from './pages/video.js';
 import renderMetadata from './pages/metadata.js';
 import renderStyles from './pages/styles.js';
-import renderTimestamp from './pages/timestamp.js';
-import renderCapcut from './pages/capcut.js';
-import renderSrt from './pages/srt.js';
-import renderVisualizer from './pages/visualizer.js';
 import renderAnalyzer from './pages/analyzer.js';
 import renderRevenue from './pages/revenue.js';
 
@@ -17,15 +12,10 @@ const routes = {
   settings: renderSettings,
   planning: renderPlanning,
   music: renderMusic,
-  video: renderVideo,
   metadata: renderMetadata,
   styles: renderStyles,
   analyzer: renderAnalyzer,
   revenue: renderRevenue,
-  srt: renderSrt,
-  visualizer: renderVisualizer,
-  timestamp: renderTimestamp,
-  capcut: renderCapcut,
 };
 
 const view = document.getElementById('view');

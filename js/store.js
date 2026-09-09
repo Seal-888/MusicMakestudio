@@ -109,8 +109,6 @@ const DEFAULT_SETTINGS = {
   kieKey: '',
   kieModel: 'V5',
   youtubeKey: '',
-  pexelsKey: '',
-  capcutUser: '',
 };
 
 export const settings = {

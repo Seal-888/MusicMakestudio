@@ -118,6 +118,20 @@ const $ = (sel) => root.querySelector(sel);
 const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
 const settle = () => new Promise((r) => setTimeout(r, 60));
 
+console.log('\n입력 순서:');
+{
+  // 주제가 다른 설정을 지배하므로, 설정을 만지기 전에 보여야 합니다.
+  const html = root.innerHTML;
+  ok(
+    html.indexOf('data-f="concept"') < html.indexOf('data-mood-fit'),
+    '주제 칸이 분위기 칸보다 위에 있음'
+  );
+  ok(
+    html.indexOf('data-f="concept"') < html.indexOf('data-pills="genre"'),
+    '주제 칸이 장르보다도 위에 있음'
+  );
+}
+
 console.log('\n주제에 맞게 분위기 고르기:');
 {
   // 화면에 보이는 한글은 라벨이고 data-value는 영어입니다.

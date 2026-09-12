@@ -863,3 +863,22 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
   font-size: 12px;
   opacity: .7;
 }
+
+/* ── 주제 입력 — 다른 설정을 지배하므로 눈에 띄게 ── */
+.field.is-lead {
+  padding: 13px 14px 12px;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background: rgba(221, 169, 63, .07);
+  margin-bottom: 18px;
+}
+.field.is-lead > span { font-weight: 600; }
+.field.is-lead textarea { margin-top: 6px; }
+.field-hint {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: .75;
+}
+.field-hint b { font-weight: 600; opacity: 1; }

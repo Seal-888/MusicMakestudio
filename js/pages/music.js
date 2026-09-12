@@ -256,6 +256,13 @@ export default function renderMusic(root) {
     <div class="card">
       <span class="card-tag is-red">1 · 음악 옵션</span>
 
+      <label class="field is-lead">
+        <span>주제 / 컨셉 <small>필수 · 무엇에 대한 노래인지</small></span>
+        <textarea rows="4" data-f="concept" placeholder="예) 오래된 연인과 헤어진 뒤 처음 맞는 봄">${R.esc(DEFAULTS.concept)}</textarea>
+        <small class="field-hint">아래 설정이 주제와 부딪히면 설정이 이깁니다.
+        주제를 적은 뒤 분위기 칸의 <b>주제에 맞게 고르기</b>를 눌러 맞춰 두세요.</small>
+      </label>
+
       <div class="field">
         <p class="field-label">장르 <small>여러 개 고를 수 있습니다</small></p>
         ${group(GENRES, 'genre', { selected: DEFAULTS.genre })}
@@ -385,11 +392,6 @@ export default function renderMusic(root) {
         <p class="field-label">주요 악기 <small>여러 개 OK · 선택</small></p>
         ${R.pillGroup('instrument', opts(INSTRUMENTS), { selected: DEFAULTS.instrument, custom: '추가 요청 (예: 피아노 메인 + 스트링)' })}
       </div>
-
-      <label class="field">
-        <span>주제 / 컨셉 <small>필수 · 무엇에 대한 노래인지</small></span>
-        <textarea rows="3" data-f="concept" placeholder="예) 오래된 연인과 헤어진 뒤 처음 맞는 봄">${R.esc(DEFAULTS.concept)}</textarea>
-      </label>
 
       <div class="two-col">
         <label class="field">

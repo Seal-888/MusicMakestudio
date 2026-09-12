@@ -68,6 +68,19 @@ global.fetch = async (url, opts = {}) => {
   const cfg = sent.generationConfig || {};
   calls.push({ prompt, maxOutputTokens: cfg.maxOutputTokens, schema: cfg.responseSchema });
 
+  if (cfg.responseSchema?.properties?.picks) {
+    return jsonRes({
+      picks: [
+        { key: 'genre', pick: ['다크 팝', '트랩'], why: '터지는 감정에 맞는 무거운 저음' },
+        { key: 'mood', pick: ['에너지 폭발', '다크하고 강렬'], why: '분노를 지켜보지 않고 터뜨림' },
+        { key: 'tempo', pick: ['빠른 (130-150)'], why: '몰아치는 속도' },
+        { key: 'era', pick: ['없는시대감'], why: '목록에 없는 값' },
+        { key: 'nosuchfield', pick: ['아무거나'], why: '모르는 칸' },
+      ],
+      summary: '무겁고 빠르게 몰아치는 다크 팝.',
+    });
+  }
+
   if (cfg.responseSchema?.properties?.pick) {
     return jsonRes({
       pick: ['에너지 폭발', '긴장감 있는', '다크하고 강렬'],
@@ -130,6 +143,56 @@ console.log('\n입력 순서:');
     html.indexOf('data-f="concept"') < html.indexOf('data-pills="genre"'),
     '주제 칸이 장르보다도 위에 있음'
   );
+}
+
+console.log('\n주제로 설정 맞추기:');
+{
+  const labelsOn = (name) =>
+    [...root.querySelectorAll(`[data-pills="${name}"] .pill.on`)].map((p) => p.textContent);
+
+  $('[data-f=concept]').value = '';
+  click($('[data-fit]'));
+  await settle();
+  ok(calls.length === 0, '주제가 비면 호출하지 않음');
+
+  $('[data-f=concept]').value = '분노가 사람이 된 이야기';
+  click($('[data-fit]'));
+  await settle();
+
+  ok(calls.length === 1, '칸이 여러 개여도 호출은 한 번');
+  ok(calls[0].prompt.includes('설정끼리도 서로 맞아야'), '조합이 맞도록 지시함');
+  ok(calls[0].prompt.includes('【장르】'), '고를 수 있는 목록을 넘김');
+  ok(!calls[0].prompt.includes('【가사 언어】'), '가사 언어는 자동으로 안 건드림');
+  ok(!calls[0].prompt.includes('【곡 길이】'), '곡 길이도 안 건드림');
+
+  // 먼저 보여 주기만 하고 아직 켜지 않아야 합니다.
+  const beforeApply = labelsOn('mood');
+  ok(root.textContent.includes('무겁고 빠르게'), '어떤 소리가 될지 먼저 보여 줌');
+  ok(root.querySelectorAll('[data-fit-pick]').length === 3, '모르는 칸과 없는 값은 빼고 3칸만 제안');
+  ok(
+    JSON.stringify(labelsOn('mood')) === JSON.stringify(beforeApply),
+    '적용 전에는 아무것도 바뀌지 않음'
+  );
+
+  // 장르 칸만 꺼서, 끈 칸이 정말 안 바뀌는지 봅니다.
+  const genreBefore = labelsOn('genre');
+  root.querySelectorAll('[data-fit-pick]')[0].checked = false;
+  click($('[data-fit-go]'));
+  await settle();
+
+  ok(labelsOn('mood').includes('에너지 폭발'), '고른 칸은 켜짐');
+  ok(labelsOn('mood').includes('다크하고 강렬'), '여러 개 고르는 칸은 여러 개 켜짐');
+  ok(
+    JSON.stringify(labelsOn('genre')) === JSON.stringify(genreBefore),
+    '끈 칸은 손대지 않음'
+  );
+  ok(
+    labelsOn('tempo').length === 1 && labelsOn('tempo')[0] === '빠른 (130-150)',
+    `하나만 고르는 칸은 하나만 켜짐 (${labelsOn('tempo')[0]})`
+  );
+  ok(root.textContent.includes('맞췄습니다'), '무엇을 바꿨는지 알려 줌');
+
+  calls.length = 0;
 }
 
 console.log('\n주제에 맞게 분위기 고르기:');

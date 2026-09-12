@@ -1,5 +1,5 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, songSeeds, moodPick, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { songWriting, songSeeds, moodPick, settingsFit, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
 import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
@@ -168,12 +168,32 @@ const DURATIONS = [
 const opts = (arr) => arr.map(([label, value]) => ({ label, value }));
 
 /**
- * 분위기는 화면에 한글 라벨로 보이지만 실제 값은 영어입니다.
+ * 필은 화면에 한글 라벨로 보이지만 실제 값은 영어입니다.
  * (예: '여유로운 위협' → 'menacing but composed, unhurried')
  * 값이 그대로 Suno 스타일에 실려 가므로, 주고받을 때 둘을 오가야 합니다.
  */
-const toMoodValue = (label) => MOODS.find(([l]) => l === label)?.[1] || '';
-const toMoodLabel = (value) => MOODS.find(([, v]) => v === value)?.[0] || '';
+const pairsOf = (arr) => (Array.isArray(arr[0]?.[1]) ? arr.flatMap(([, list]) => list) : arr);
+const toValue = (arr, label) => pairsOf(arr).find(([l]) => l === label)?.[1] || '';
+const toLabel = (arr, value) => pairsOf(arr).find(([, v]) => v === value)?.[0] || '';
+const labelsOf = (arr) => pairsOf(arr).map(([l]) => l);
+
+const toMoodValue = (label) => toValue(MOODS, label);
+const toMoodLabel = (value) => toLabel(MOODS, value);
+
+/**
+ * 주제로 한 번에 맞출 수 있는 칸들.
+ *
+ * 가사 언어와 곡 길이, 사용 용도는 일부러 뺐습니다.
+ * 그건 곡마다 바뀌는 값이 아니라 채널이 정해 둔 값입니다.
+ */
+const FIT_FIELDS = [
+  { key: 'genre', label: '장르', multi: true, list: () => GENRES },
+  { key: 'vocal', label: '보컬 / 창법', multi: false, list: () => VOCALS },
+  { key: 'tempo', label: '템포', multi: false, list: () => TEMPOS },
+  { key: 'mood', label: '분위기', multi: true, list: () => MOODS },
+  { key: 'era', label: '시대감 / 스타일', multi: false, list: () => ERAS },
+  { key: 'instrument', label: '주요 악기', multi: true, list: () => INSTRUMENTS },
+];
 
 /**
  * 빌런 플레이리스트를 자주 만들기 때문에 처음부터 그 조합으로 켜 둡니다.
@@ -260,8 +280,12 @@ export default function renderMusic(root) {
         <span>주제 / 컨셉 <small>필수 · 무엇에 대한 노래인지</small></span>
         <textarea rows="4" data-f="concept" placeholder="예) 오래된 연인과 헤어진 뒤 처음 맞는 봄">${R.esc(DEFAULTS.concept)}</textarea>
         <small class="field-hint">아래 설정이 주제와 부딪히면 설정이 이깁니다.
-        주제를 적은 뒤 분위기 칸의 <b>주제에 맞게 고르기</b>를 눌러 맞춰 두세요.</small>
+        주제를 적은 뒤 <b>주제로 설정 맞추기</b>를 눌러 한 번에 맞춰 두세요.</small>
+        <div class="style-head" style="margin-top:9px">
+          <button class="btn is-gold" data-fit>주제로 설정 맞추기</button>
+        </div>
       </label>
+      <div data-fit-out></div>
 
       <div class="field">
         <p class="field-label">장르 <small>여러 개 고를 수 있습니다</small></p>
@@ -716,6 +740,115 @@ export default function renderMusic(root) {
    * 화면에서 둘이 떨어져 있어 부딪히는 줄 모르고 주제만 고쳐 쓰기 쉬운데,
    * 여기서 한 번에 정리합니다.
    */
+  /**
+   * 주제를 읽고 설정 전체를 한 번에 골라 줍니다.
+   *
+   * 바로 켜지 않고 먼저 보여 줍니다.
+   * 공들여 맞춰 둔 설정을 말없이 덮어쓰면 곤란하니까요.
+   */
+  const fitBtn = root.querySelector('[data-fit]');
+  const fitOut = root.querySelector('[data-fit-out]');
+
+  fitBtn.addEventListener('click', () => {
+    const concept = root.querySelector('[data-f=concept]').value.trim();
+    if (!concept) return alert('주제를 먼저 입력해 주세요.');
+
+    R.runTask({
+      button: fitBtn,
+      output: fitOut,
+      working: '주제에 맞는 소리 고르는 중',
+      task: () =>
+        callGemini(
+          settingsFit({
+            concept,
+            fields: FIT_FIELDS.map((f) => ({
+              key: f.key,
+              label: f.label,
+              multi: f.multi,
+              options: labelsOf(f.list()),
+            })),
+            current: Object.fromEntries(
+              FIT_FIELDS.map((f) => [
+                f.key,
+                R.readPills(root, f.key).map((v) => toLabel(f.list(), v)).filter(Boolean),
+              ])
+            ),
+          })
+        ),
+      onDone: (d) => paintFit(d),
+    });
+  });
+
+  /** 무엇이 어떻게 바뀌는지 먼저 보여 주고, 고른 것만 켭니다. */
+  function paintFit({ picks = [], summary = '' }) {
+    const rows = picks
+      .map((p) => {
+        const field = FIT_FIELDS.find((f) => f.key === p.key);
+        if (!field) return null;
+        const list = field.list();
+        const labels = (p.pick || []).filter((x) => toValue(list, x));
+        if (!labels.length) return null;
+        const before = R.readPills(root, field.key)
+          .map((v) => toLabel(list, v))
+          .filter(Boolean);
+        const same = before.length === labels.length && before.every((x) => labels.includes(x));
+        return { field, labels, before, same, why: p.why || '' };
+      })
+      .filter(Boolean);
+
+    if (!rows.length) {
+      fitOut.innerHTML = '<p class="muted">맞는 설정을 찾지 못했습니다.</p>';
+      return;
+    }
+
+    fitOut.innerHTML = `<div class="card">
+      <span class="card-tag is-gold">주제에 맞춘 설정</span>
+      ${summary ? `<p class="mood-why">${R.esc(summary)}</p>` : ''}
+      <p class="muted small">켤 것만 남기고 <b>적용</b>을 누르세요. 지금 설정과 같은 칸은 꺼 두었습니다.</p>
+      ${rows
+        .map(
+          (r, i) => `<label class="seed-item">
+            <input type="checkbox" data-fit-pick="${i}"${r.same ? '' : ' checked'}>
+            <div>
+              <strong>${R.esc(r.field.label)}</strong>
+              <p class="seed-line">${R.esc(r.labels.join(', '))}</p>
+              ${
+                r.before.length && !r.same
+                  ? `<p class="muted small">지금 · ${R.esc(r.before.join(', '))}</p>`
+                  : ''
+              }
+              ${r.why ? `<p class="muted small">${R.esc(r.why)}</p>` : ''}
+            </div>
+          </label>`
+        )
+        .join('')}
+      <div class="style-head" style="margin-top:12px">
+        <button class="btn is-red" data-fit-go>적용</button>
+        <button class="btn is-ghost" data-fit-close>닫기</button>
+      </div>
+    </div>`;
+
+    fitOut.querySelector('[data-fit-close]').addEventListener('click', () => {
+      fitOut.innerHTML = '';
+    });
+
+    fitOut.querySelector('[data-fit-go]').addEventListener('click', () => {
+      const on = [...fitOut.querySelectorAll('[data-fit-pick]:checked')].map(
+        (el) => rows[+el.dataset.fitPick]
+      );
+      if (!on.length) return alert('적용할 칸을 하나 이상 고르세요.');
+
+      const done = [];
+      for (const r of on) {
+        const values = r.labels.map((x) => toValue(r.field.list(), x)).filter(Boolean);
+        if (setPills(r.field.key, r.field.multi ? values : values.slice(0, 1))) {
+          done.push(r.field.label);
+        }
+      }
+      fitOut.innerHTML = `<p class="mood-why">${R.esc(done.join(', '))} 설정을 맞췄습니다.</p>`;
+    });
+  }
+
   const moodBtn = root.querySelector('[data-mood-fit]');
   const moodWhy = root.querySelector('[data-mood-why]');
 

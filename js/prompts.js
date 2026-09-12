@@ -577,6 +577,68 @@ JSON만 출력합니다.`,
   };
 }
 
+/**
+ * 주제를 읽고 음악 설정 전체를 한 번에 골라 줍니다.
+ *
+ * 왜 한 번에 부르는가:
+ * 칸마다 따로 물으면 각자 주제만 보고 고르기 때문에
+ * 장르는 트랩인데 악기는 어쿠스틱 기타인 조합이 나옵니다.
+ * 설정끼리도 서로 맞아야 하므로 한 자리에서 같이 고르게 합니다.
+ * 덤으로 호출도 한 번이면 끝납니다.
+ *
+ * 가사 언어와 곡 길이는 일부러 빼 두었습니다.
+ * 그건 곡이 아니라 채널이 정하는 값입니다.
+ */
+export function settingsFit({ concept, fields = [], current = {} }) {
+  const menu = fields
+    .map((f) => `【${f.label}】${f.multi ? ' (여러 개)' : ' (하나)'}\n${f.options.join(' · ')}`)
+    .join('\n\n');
+
+  const now = fields
+    .filter((f) => current[f.key]?.length)
+    .map((f) => `- ${f.label}: ${current[f.key].join(', ')}`)
+    .join('\n');
+
+  return {
+    temperature: 0.5, // 고르는 일입니다. 지어낼 필요가 없습니다.
+    maxOutputTokens: 4000,
+    thinkingLevel: 'low',
+    prompt: `당신은 곡의 사운드를 설계하는 음악 프로듀서입니다.
+아래 주제에 맞는 설정을 **주어진 목록 안에서만** 고르세요.
+
+════════ 주제 ════════
+${concept}
+
+${now ? `════════ 지금 켜져 있는 것 ════════\n${now}\n\n` : ''}════════ 고를 수 있는 것 ════════
+${menu}
+
+════════ 판단 기준 ════════
+- 주제가 말하는 **감정 상태 그대로**를 고르세요.
+  터지는 감정이 주제면 터지는 소리를 고릅니다. 그걸 지켜보는 소리가 아닙니다.
+- **설정끼리도 서로 맞아야 합니다.** 장르와 악기와 보컬과 템포가 한 곡에서
+  같이 울립니다. 따로따로 고르지 말고 하나의 소리를 떠올리며 고르세요.
+- 여러 개 고를 수 있는 칸도 3~5개면 충분합니다. 많이 켤수록 서로를 지웁니다.
+- 지금 켜져 있는 것이 주제와 부딪히면 과감히 바꾸세요.
+  다만 주제와 잘 맞는 것은 그대로 두어도 됩니다.
+- 목록에 없는 말은 만들어 내지 마세요. 글자 그대로 옮겨 적습니다.
+
+════════ 낼 것 ════════
+각 칸마다 고른 것을 담고, 왜 그렇게 골랐는지 한 줄 덧붙이세요.
+- key: 칸 이름 (위 【】 안의 말이 아니라 아래 목록의 영문 key)
+${fields.map((f) => `  ${f.key} = ${f.label}`).join('\n')}
+- pick: 고른 것. 목록에 있는 말 그대로.
+- why: 왜 이걸 골랐는지 한국어 한 줄. 짧게.
+
+마지막에 summary로 이 설정이 어떤 소리가 될지 한국어 한 줄을 덧붙이세요.
+
+JSON만 출력합니다.`,
+    schema: obj({
+      picks: S.objList({ key: S.str, pick: S.strList, why: S.str }),
+      summary: S.str,
+    }),
+  };
+}
+
 export function songSeeds({
   genres, language, moods, concept, persona = 'villain',
   seedCount = 5, avoidTitles = [], referenceStyle = null, seriesNote = '',

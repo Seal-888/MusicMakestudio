@@ -882,3 +882,11 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
   opacity: .75;
 }
 .field-hint b { font-weight: 600; opacity: 1; }
+
+/* ── 주제로 설정 맞추기 ─────────────────────── */
+.btn.is-gold {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff;
+}
+.btn.is-gold:hover { filter: brightness(1.06); }

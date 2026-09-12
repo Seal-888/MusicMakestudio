@@ -744,7 +744,7 @@ export default function renderMusic(root) {
             <input type="checkbox" data-seed-pick="${i}">
             <div>
               <strong>${R.esc(x.title)}</strong>
-              <p class="muted small">${R.esc(x.angle)}</p>
+              <p class="muted small">${R.esc(x.scene)}${x.to ? ` <b>→ ${R.esc(x.to)}</b>` : ''}</p>
               <p class="seed-line">훅 · ${R.esc(x.hook)}</p>
               <p class="seed-line">첫 줄 · ${R.esc(x.opening)}</p>
               <p class="muted small">${R.esc(x.soundNote)}</p>

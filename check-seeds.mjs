@@ -57,9 +57,9 @@ window.matchMedia = () => ({ matches: false, addEventListener() {} });
  */
 const calls = [];
 const FAKE_SEEDS = [
-  { title: '문은 내가 닫았어', angle: '떠난 쪽의 시선', hook: '문은 내가 닫았어', opening: '불은 껐어', soundNote: '느린 808에 현악' },
-  { title: '두 번째 봄', angle: '한참 뒤의 회상', hook: '봄이 또 왔더라', opening: '창을 열었어', soundNote: '피아노 중심, 담백하게' },
-  { title: '지켜본 사람', angle: '제3자 시점', hook: '나는 다 봤어', opening: '길 건너에서', soundNote: '차가운 신스 패드' },
+  { title: '문은 내가 닫았어', scene: '현관에서 상대를 막아선 채 문고리를 쥐고 있다', to: '상대', hook: '문은 내가 닫았어', opening: '불은 껐어', soundNote: '느린 808에 현악' },
+  { title: '두 번째 봄', scene: '창틀을 뜯어내며 밖으로 소리치는 중이다', to: '세상', hook: '봄이 또 왔더라', opening: '창을 열었어', soundNote: '피아노 중심, 담백하게' },
+  { title: '지켜본 사람', scene: '길 한복판에서 상대의 팔을 붙잡고 대답을 요구한다', to: '상대', hook: '나는 다 봤어', opening: '길 건너에서', soundNote: '차가운 신스 패드' },
 ];
 
 global.fetch = async (url, opts = {}) => {

@@ -51,6 +51,10 @@ console.log('\n프롬프트 지시:');
   ok(full.prompt.includes('문장일 필요는 없습니다'), '훅이 문장이 아니어도 된다고 알림');
   ok(full.prompt.includes('Na na na'), '뜻 없는 소리도 훅으로 예시');
   ok(seeds.prompt.includes('Runaway'), '후보 단계에도 단어 반복형 예시');
+  ok(seeds.prompt.includes('구경하지 마세요'), '관찰자 시점을 금지함');
+  ok(!seeds.prompt.includes('무관심'), '특정 태도를 예시로 주지 않음');
+  ok(seeds.prompt.includes('누구에게 하는 말인가'), '말 거는 상대를 요구함');
+  ok(seeds.prompt.includes('현재진행으로'), '지금 벌어지는 일을 요구함');
 }
 
 /* ── 구간 쪼개기 ───────────────────────────────── */

@@ -1,5 +1,5 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, songSeeds, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { songWriting, songSeeds, moodPick, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
 import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
@@ -166,6 +166,14 @@ const DURATIONS = [
 ];
 
 const opts = (arr) => arr.map(([label, value]) => ({ label, value }));
+
+/**
+ * 분위기는 화면에 한글 라벨로 보이지만 실제 값은 영어입니다.
+ * (예: '여유로운 위협' → 'menacing but composed, unhurried')
+ * 값이 그대로 Suno 스타일에 실려 가므로, 주고받을 때 둘을 오가야 합니다.
+ */
+const toMoodValue = (label) => MOODS.find(([l]) => l === label)?.[1] || '';
+const toMoodLabel = (value) => MOODS.find(([, v]) => v === value)?.[0] || '';
 
 /**
  * 빌런 플레이리스트를 자주 만들기 때문에 처음부터 그 조합으로 켜 둡니다.
@@ -338,7 +346,11 @@ export default function renderMusic(root) {
       </div>
 
       <div class="field">
-        <p class="field-label">분위기 / 무드 <small>여러 개 OK</small></p>
+        <p class="field-label">
+          분위기 / 무드 <small>여러 개 OK</small>
+          <button class="btn is-tiny" data-mood-fit>주제에 맞게 고르기</button>
+        </p>
+        <div data-mood-why></div>
         ${R.pillGroup('mood', opts(MOODS), { selected: DEFAULTS.mood, custom: '직접 입력 (예: 비 오는 새벽 감성) — 쉼표로 여러 개' })}
       </div>
 
@@ -694,6 +706,56 @@ export default function renderMusic(root) {
     if (bad) return alert(bad);
     generate(false);
   });
+
+  /**
+   * 주제를 읽고 분위기를 맞춰 줍니다.
+   *
+   * 분위기와 주제가 부딪히면 거의 언제나 분위기가 이깁니다.
+   * 화면에서 둘이 떨어져 있어 부딪히는 줄 모르고 주제만 고쳐 쓰기 쉬운데,
+   * 여기서 한 번에 정리합니다.
+   */
+  const moodBtn = root.querySelector('[data-mood-fit]');
+  const moodWhy = root.querySelector('[data-mood-why]');
+
+  moodBtn.addEventListener('click', () => {
+    const concept = root.querySelector('[data-f=concept]').value.trim();
+    if (!concept) return alert('주제를 먼저 입력해 주세요.');
+
+    R.runTask({
+      button: moodBtn,
+      output: moodWhy,
+      working: '주제 읽는 중',
+      task: () =>
+        callGemini(
+          moodPick({
+            concept,
+            genres: R.readPills(root, 'genre').join(', '),
+            options: MOODS.map(([label]) => label),
+            // 화면에 보이는 한글은 라벨이고 실제 값은 영어입니다.
+            // 모델에게는 읽을 수 있는 라벨로 주고받고, 켤 때만 값으로 되돌립니다.
+            current: R.readPills(root, 'mood').map(toMoodLabel).filter(Boolean),
+          })
+        ),
+      onDone: (d) => applyMood(d),
+    });
+  });
+
+  function applyMood({ pick = [], drop = [], why = '' }) {
+    // 목록에 없는 말이 오면 무시합니다. 켜지지도 않을 값입니다.
+    const on = pick.map(toMoodValue).filter(Boolean);
+    if (!on.length) {
+      moodWhy.innerHTML = '<p class="muted small">맞는 분위기를 찾지 못했습니다.</p>';
+      return;
+    }
+
+    setPills('mood', on);
+
+    const dropped = drop.filter((x) => toMoodValue(x) && !pick.includes(x));
+    moodWhy.innerHTML = `<p class="mood-why">
+      ${R.esc(why)}
+      ${dropped.length ? `<span>껐습니다 · ${R.esc(dropped.join(', '))}</span>` : ''}
+    </p>`;
+  }
 
   seedBtn.addEventListener('click', () => {
     const bad = missing();

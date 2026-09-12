@@ -68,6 +68,14 @@ global.fetch = async (url, opts = {}) => {
   const cfg = sent.generationConfig || {};
   calls.push({ prompt, maxOutputTokens: cfg.maxOutputTokens, schema: cfg.responseSchema });
 
+  if (cfg.responseSchema?.properties?.pick) {
+    return jsonRes({
+      pick: ['에너지 폭발', '긴장감 있는', '다크하고 강렬'],
+      drop: ['여유로운 위협', '관능적', '없는분위기'],
+      why: '주제가 터지는 분노라 여유로운 쪽과 부딪힙니다.',
+    });
+  }
+
   const isSeed = !!cfg.responseSchema?.properties?.seeds;
   const payload = isSeed
     ? { seeds: FAKE_SEEDS }
@@ -84,6 +92,10 @@ global.fetch = async (url, opts = {}) => {
         ],
       };
 
+  return jsonRes(payload);
+};
+
+function jsonRes(payload) {
   return {
     ok: true,
     status: 200,
@@ -91,7 +103,7 @@ global.fetch = async (url, opts = {}) => {
       candidates: [{ content: { parts: [{ text: JSON.stringify(payload) }] }, finishReason: 'STOP' }],
     }),
   };
-};
+}
 
 // API 키가 있어야 호출이 나갑니다.
 window.localStorage.setItem('plimusic:settings', JSON.stringify({ geminiKey: 'TEST-KEY' }));
@@ -105,6 +117,43 @@ renderMusic(root);
 const $ = (sel) => root.querySelector(sel);
 const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
 const settle = () => new Promise((r) => setTimeout(r, 60));
+
+console.log('\n주제에 맞게 분위기 고르기:');
+{
+  // 화면에 보이는 한글은 라벨이고 data-value는 영어입니다.
+  const onNow = () => [...root.querySelectorAll('[data-pills="mood"] .pill.on')].map((p) => p.textContent);
+
+  // 주제와 부딪히는 분위기를 일부러 켜 둡니다.
+  root.querySelectorAll('[data-pills="mood"] .pill').forEach((p) => {
+    p.classList.toggle('on', ['여유로운 위협', '관능적', '신비로운'].includes(p.textContent));
+  });
+  ok(onNow().includes('여유로운 위협'), '부딪히는 분위기를 켜 둔 상태에서 시작');
+
+  $('[data-f=concept]').value = '';
+  click($('[data-mood-fit]'));
+  await settle();
+  ok(calls.length === 0, '주제가 비면 호출하지 않음');
+
+  $('[data-f=concept]').value = '분노 그 자체가 사람이 된 이야기';
+  click($('[data-mood-fit]'));
+  await settle();
+
+  ok(calls.length === 1, 'Gemini를 한 번 호출함');
+  ok(calls[0].prompt.length < 1200, `프롬프트가 짧음 (${calls[0].prompt.length}자)`);
+  ok(
+    calls[0].prompt.split('지금 켜져 있는 것')[1]?.includes('여유로운 위협'),
+    '지금 켜진 분위기를 라벨로 알려 줌'
+  );
+  ok(calls[0].prompt.includes('에너지 폭발'), '고를 수 있는 목록을 넘김');
+
+  const after = onNow();
+  ok(after.includes('에너지 폭발') && after.includes('다크하고 강렬'), `골라 준 것이 켜짐 (${after.join(', ')})`);
+  ok(!after.includes('여유로운 위협'), '부딪히던 분위기가 꺼짐');
+  ok(root.textContent.includes('부딪힙니다'), '왜 그렇게 골랐는지 보여 줌');
+  ok(!root.textContent.includes('없는분위기'), '목록에 없는 값은 무시함');
+
+  calls.length = 0;
+}
 
 console.log('\n1단계 — 후보 뽑기:');
 ok(!!$('[data-seed]'), '"후보 먼저 보기" 버튼이 있음');

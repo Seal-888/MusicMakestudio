@@ -55,5 +55,33 @@ for (const file of files) {
     bad++;
   }
 }
+
+/* ── 라우터와 메뉴가 어긋나지 않는지 ──────────────
+ * 화면을 만들어 라우터에 등록해 놓고 메뉴에 넣는 걸 빠뜨리면,
+ * 주소로는 열리는데 아무도 찾지 못하는 화면이 됩니다.
+ * 실제로 '가사 자막'이 그렇게 한 번 사라졌습니다.
+ */
+let mismatched = 0;
+{
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const appjs = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+
+  const table = appjs.slice(appjs.indexOf('const routes = {'), appjs.indexOf('};', appjs.indexOf('const routes = {')));
+  const routes = [...table.matchAll(/^\s*([a-z]+):/gm)].map((m) => m[1]);
+  const menu = [...html.matchAll(/data-page="([a-z]+)"/g)].map((m) => m[1]);
+
+  const noMenu = routes.filter((r) => !menu.includes(r));
+  const noRoute = menu.filter((m) => !routes.includes(m));
+
+  if (noMenu.length || noRoute.length) {
+    if (noMenu.length) console.error(`✗ 라우터에는 있는데 메뉴에 없는 화면: ${noMenu.join(', ')}`);
+    if (noRoute.length) console.error(`✗ 메뉴에는 있는데 라우터에 없는 화면: ${noRoute.join(', ')}`);
+    mismatched = noMenu.length + noRoute.length;
+  } else {
+    console.log(`메뉴와 라우터가 일치합니다 (${routes.length}개 화면).`);
+  }
+}
+
 console.log(bad ? `\n${bad}개 파일을 불러오지 못했습니다.` : '\n모든 파일이 정상적으로 불러와집니다.');
-process.exit(bad ? 1 : 0);
+if (mismatched) console.log(`${mismatched}개 화면이 메뉴와 라우터에서 어긋납니다.`);
+process.exit(bad || mismatched ? 1 : 0);

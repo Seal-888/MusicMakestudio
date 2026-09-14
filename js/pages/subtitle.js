@@ -15,6 +15,7 @@ import { toast } from '../ui.js';
 export default function renderSubtitle(root) {
   let blocks = [];   // 원본 SRT에서 읽은 것 (시각 포함)
   let ko = [];       // 옮긴 한국어 줄
+  let en = [];       // 가사 원문으로 바로잡은 영어 줄
 
   root.innerHTML = `
     <h1>가사 자막</h1>
@@ -118,8 +119,12 @@ export default function renderSubtitle(root) {
 
   function paint(lines) {
     // 번호로 짝을 맞춥니다. 모델이 순서를 바꾸거나 빠뜨려도 어긋나지 않습니다.
-    const byN = new Map(lines.map((x) => [String(x.n).trim(), (x.ko || '').trim()]));
-    ko = blocks.map((_, i) => byN.get(String(i + 1)) || '');
+    const byN = new Map(lines.map((x) => [String(x.n).trim(), x]));
+    ko = blocks.map((_, i) => (byN.get(String(i + 1))?.ko || '').trim());
+    // 영어는 원문으로 바로잡힌 것을 쓰되, 못 찾았으면 자동 자막 그대로 둡니다.
+    en = blocks.map(
+      (b, i) => (byN.get(String(i + 1))?.en || '').trim() || b.text.replace(/\n/g, ' ').trim()
+    );
 
     const filled = ko.filter(Boolean).length;
     const out = $('[data-out]');
@@ -132,23 +137,38 @@ export default function renderSubtitle(root) {
             ? `<p class="muted small">빈 칸은 추임새이거나 옮길 말이 없는 자리입니다. 아래에서 직접 채우셔도 됩니다.</p>`
             : ''
         }
+        <div class="sub-head"><span>시각</span><span>영어 (교정됨)</span><span>한국어</span></div>
         <div class="sub-list">
           ${blocks
             .map(
               (b, i) => `<div class="sub-row">
                 <span class="sub-time">${fmt(b.start)}</span>
-                <span class="sub-en">${R.esc(b.text.replace(/\n/g, ' '))}</span>
+                <input type="text" data-en="${i}" value="${R.esc(en[i])}" placeholder="—">
                 <input type="text" data-ko="${i}" value="${R.esc(ko[i])}" placeholder="—">
               </div>`
             )
             .join('')}
         </div>
-        <div class="style-head" style="margin-top:12px">
-          <button class="btn is-red" data-dl-ko>한국어 SRT 내려받기</button>
-          <button class="btn is-ghost" data-dl-both>영어+한국어 두 줄로 내려받기</button>
-          <button class="btn is-ghost" data-copy>복사</button>
+        <p class="muted small" style="margin-top:10px"><b>트랙을 나눠 쓰시려면</b> 영어와 한국어를 따로 받아 캡컷에 각각 올리세요. 시각이 같아서 정확히 겹칩니다.</p>
+        <div class="style-head" style="margin-top:8px">
+          <button class="btn is-red" data-dl-en>영어 SRT</button>
+          <button class="btn is-red" data-dl-ko>한국어 SRT</button>
+          <button class="btn is-ghost" data-dl-both>두 줄 한 파일</button>
+          <button class="btn is-ghost" data-copy>한국어 복사</button>
         </div>
-        <p class="muted small">두 줄 버전은 위에 영어, 아래에 한국어입니다. 노래가 영어로 들리니 그 순서가 자연스럽습니다.</p>
+        <p class="muted small">「두 줄 한 파일」은 한 트랙에 영어와 한국어가 같이 들어갑니다. 따로 꾸미거나 위치를 달리할 수 없습니다.</p>
+        <details class="sub-tip">
+          <summary>캡컷에서 두 트랙으로 겹치는 법</summary>
+          <p>두 파일을 각각 자막 트랙으로 불러온 뒤 위치만 나눠 주세요. 시각이 같아 자동으로 맞습니다.</p>
+          <table>
+            <tr><th></th><th>화면 아래에서</th><th>크기</th></tr>
+            <tr><td>영어</td><td>24%</td><td>100%</td></tr>
+            <tr><td>한국어</td><td>18%</td><td>90%</td></tr>
+          </table>
+          <p>한국어를 조금 작게 하면 영어가 주가 되고 한국어가 보조로 읽힙니다.
+          노래가 영어로 들리니 그 쪽이 자연스럽습니다.</p>
+          <p>화면 아래 10%에는 아무것도 두지 마세요. 유튜브 진행 막대가 가립니다.</p>
+        </details>
       </div>`;
 
     out.querySelectorAll('[data-ko]').forEach((el) => {
@@ -156,12 +176,18 @@ export default function renderSubtitle(root) {
         ko[+el.dataset.ko] = el.value;
       });
     });
+    out.querySelectorAll('[data-en]').forEach((el) => {
+      el.addEventListener('input', () => {
+        en[+el.dataset.en] = el.value;
+      });
+    });
 
-    out.querySelector('[data-dl-ko]').addEventListener('click', () => download(false));
-    out.querySelector('[data-dl-both]').addEventListener('click', () => download(true));
+    out.querySelector('[data-dl-en]').addEventListener('click', () => download('en'));
+    out.querySelector('[data-dl-ko]').addEventListener('click', () => download('ko'));
+    out.querySelector('[data-dl-both]').addEventListener('click', () => download('both'));
     out.querySelector('[data-copy]').addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText(build(false));
+        await navigator.clipboard.writeText(build('ko'));
         toast('복사했습니다.');
       } catch {
         toast('복사하지 못했습니다. 내려받기를 쓰세요.');
@@ -175,25 +201,29 @@ export default function renderSubtitle(root) {
    * 한국어가 빈 칸은 두 버전 모두에서 뺍니다.
    * 추임새 자리라 영어만 남겨 두면 화면에 'yeah' 같은 것이 혼자 떠 버립니다.
    */
-  function build(both) {
+  function build(kind) {
+    const pick = (i) =>
+      kind === 'en'
+        ? (en[i] || '').trim()
+        : kind === 'ko'
+          ? (ko[i] || '').trim()
+          : [(en[i] || '').trim(), (ko[i] || '').trim()].filter(Boolean).join('\n');
+
+    // 한국어가 빈 칸은 어느 버전에서도 내보내지 않습니다.
+    // 추임새나 구간 태그 자리라, 영어만 혼자 떠 있으면 화면이 지저분해집니다.
     const subs = blocks
-      .map((b, i) => ({ b, ko: (ko[i] || '').trim() }))
-      .filter((x) => x.ko)
-      .map(({ b, ko: line }) => ({
-        start: b.start,
-        duration: b.duration,
-        text: both ? `${b.text.replace(/\n/g, ' ')}\n${line}` : line,
-      }));
+      .map((b, i) => ({ start: b.start, duration: b.duration, text: ko[i]?.trim() ? pick(i) : '' }))
+      .filter((x) => x.text);
     return toSrt(subs);
   }
 
-  function download(both) {
-    const text = build(both);
+  function download(kind) {
+    const text = build(kind);
     if (!text.trim()) return alert('내보낼 자막이 없습니다.');
     const blob = new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `subtitle-${both ? 'en-ko' : 'ko'}-${new Date().toISOString().slice(0, 10)}.srt`;
+    a.download = `subtitle-${kind}-${new Date().toISOString().slice(0, 10)}.srt`;
     a.click();
     URL.revokeObjectURL(a.href);
   }

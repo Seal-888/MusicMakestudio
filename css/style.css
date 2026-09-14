@@ -905,3 +905,27 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
 .sub-en { font-size: 13px; opacity: .75; }
 .sub-row input { font-size: 13px; padding: 5px 8px; }
 .mood-why.is-weak { background: rgba(190, 70, 60, .10); color: #8d3a32; }
+
+/* ── 가사 자막: 두 칸 편집 ───────────────────── */
+.sub-head {
+  display: grid;
+  grid-template-columns: 52px 1fr 1fr;
+  gap: 9px;
+  margin-top: 12px;
+  padding-bottom: 5px;
+  font-size: 12px;
+  opacity: .6;
+  border-bottom: 1px solid var(--paper-line);
+}
+.sub-row input { width: 100%; }
+.sub-tip { margin-top: 10px; font-size: 13px; }
+.sub-tip summary { cursor: pointer; opacity: .75; }
+.sub-tip p { margin: 8px 0; opacity: .8; line-height: 1.6; }
+.sub-tip table { border-collapse: collapse; margin: 8px 0; }
+.sub-tip th, .sub-tip td {
+  border: 1px solid var(--paper-line);
+  padding: 4px 12px;
+  text-align: left;
+  font-weight: 400;
+}
+.sub-tip th { opacity: .6; font-size: 12px; }

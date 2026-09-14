@@ -101,11 +101,11 @@ global.fetch = async (url, opts = {}) => {
                 text: JSON.stringify({
                   lines: [
                     // 일부러 순서를 뒤집고, 4번을 빠뜨리고, 없는 번호를 하나 넣습니다.
-                    { n: '3', ko: '양탄자는 기름과 쉰 술로 젖었고' },
-                    { n: '1', ko: '눈 마주치지 말랬지' },
-                    { n: '5', ko: '무릎 꿇고 있어' },
-                    { n: '99', ko: '있지도 않은 칸' },
-                    { n: '2', ko: '손끝에서 더러운 왕관이 돈다' },
+                    { n: '3', en: 'The carpet damp with oil and bitter wine.', ko: '양탄자는 기름과 쉰 술로 젖었고' },
+                    { n: '1', en: 'I told you not to look me in the eyes.', ko: '눈 마주치지 말랬지' },
+                    { n: '5', en: 'Keep your knees down', ko: '무릎 꿇고 있어' },
+                    { n: '99', en: 'nope', ko: '있지도 않은 칸' },
+                    { n: '2', en: 'My fingers slowly turn this dirty crown.', ko: '손끝에서 더러운 왕관이 돈다' },
                   ],
                 }),
               },
@@ -153,11 +153,20 @@ const p = calls[0].prompt;
 ok(p.includes('낮춤말로 씁니다'), '화자 말투를 지시함');
 ok(p.includes('시각은 적지 마세요'), '모델에게 시각을 만들지 못하게 함');
 ok(p.includes('The carpet damp with oil'), '정확한 가사 원문을 함께 넘김');
+ok(p.includes('가사 원문의 영어 한 줄'), '교정된 영어도 함께 내게 지시함');
 ok(p.includes('the carpet down with oil'), '틀린 자동 자막도 함께 넘겨 짝을 맞추게 함');
 ok(!/\d{2}:\d{2}:\d{2},\d{3}/.test(p), '프롬프트에 시각 자체를 넣지 않음');
 
 console.log('\n결과 화면:');
 ok(root.textContent.includes('4 / 5칸'), '채워진 칸 수를 정확히 셈 (없는 번호 99는 버림)');
+const enIn = [...root.querySelectorAll('[data-en]')];
+ok(enIn.length === 5, '영어 칸도 줄마다 있음');
+ok(
+  enIn[2].value === 'The carpet damp with oil and bitter wine.',
+  '자동 자막의 틀린 글자(down)가 원문(damp)으로 바로잡힘'
+);
+ok(enIn[3].value === 'yeah', '못 찾은 칸은 자동 자막 그대로 둠');
+
 const inputs = [...root.querySelectorAll('[data-ko]')];
 ok(inputs.length === 5, '칸 수만큼 줄이 그려짐');
 ok(inputs[0].value === '눈 마주치지 말랬지', '1번이 제자리에 들어감 (모델이 세 번째로 답했어도)');
@@ -190,11 +199,23 @@ ok(same, '시작 시각과 길이가 원본과 완전히 동일함');
 console.log(`     원본 1번 ${keep[0].start}s → 결과 ${after[0].start}s`);
 console.log(`     원본 끝  ${keep[3].start}s → 결과 ${after[3].start}s`);
 
-console.log('\n두 줄 버전:');
+console.log('\n영어 SRT — 다른 트랙으로 쓸 파일:');
+click(root.querySelector('[data-dl-en]'));
+await settle(30);
+const enSrt = parseSrt((await made.text()).replace(/^\uFEFF/, ''));
+ok(enSrt.length === 4, `추임새를 뺀 ${enSrt.length}칸`);
+ok(enSrt[0].text === 'I told you not to look me in the eyes.', '교정된 원문이 들어감');
+ok(!enSrt[0].text.includes('\n'), '영어만 한 줄');
+ok(
+  enSrt.every((b, i) => Math.abs(b.start - keep[i].start) < 0.002),
+  '한국어 파일과 시각이 완전히 같음 — 캡컷에서 그대로 겹침'
+);
+
+console.log('\n두 줄 한 파일:');
 click(root.querySelector('[data-dl-both]'));
 await settle(30);
 const both = parseSrt((await made.text()).replace(/^\uFEFF/, ''));
-ok(both.length === 4, '한국어가 빈 추임새 칸은 두 줄 버전에서도 빠짐');
+ok(both.length === 4, '한국어가 빈 추임새 칸은 여기서도 빠짐');
 ok(both[0].text.split('\n').length === 2, '한 칸에 두 줄');
 ok(both[0].text.startsWith('I told you'), '영어가 위');
 ok(both[0].text.endsWith('눈 마주치지 말랬지'), '한국어가 아래');
@@ -202,6 +223,10 @@ ok(
   both.every((b, i) => Math.abs(b.start - keep[i].start) < 0.002),
   '두 줄 버전도 시각이 그대로'
 );
+
+console.log('\n안내:');
+ok(root.textContent.includes('트랙을 나눠 쓰시려면'), '두 트랙 사용법을 알려 줌');
+ok(root.textContent.includes('24%'), '캡컷 위치값을 알려 줌');
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
 process.exit(failed ? 1 : 0);

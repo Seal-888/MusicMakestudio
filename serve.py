@@ -140,6 +140,13 @@ if __name__ == "__main__":
     with Server(("127.0.0.1", PORT), handler) as httpd:
         print(f"  서버 시작 · http://localhost:{PORT}")
         print(f"  폴더: {APP_DIR}")
+        try:
+            import re as _re
+            _v = open(os.path.join(APP_DIR, "js/version.js")).read()
+            print("  버전: " + _re.search(r'VERSION = "([^"]+)"', _v).group(1)
+                  + " · " + _re.search(r'BUILT = "([^"]+)"', _v).group(1))
+        except Exception:
+            pass
         print("  끄려면 Control+C")
         print()
         try:

@@ -131,6 +131,23 @@ const $ = (sel) => root.querySelector(sel);
 const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
 const settle = () => new Promise((r) => setTimeout(r, 60));
 
+console.log('\n버전 표시:');
+{
+  // app.js 는 라우터라 이 테스트에서 띄우지 않습니다.
+  // 버전이 만들어졌는지와 화면에 꽂을 자리·배선이 있는지를 확인합니다.
+  const v = await import(appUrl('js/version.js') + `?t=${Date.now()}`);
+  ok(/^v\d+$|^dev$/.test(v.VERSION), `버전이 만들어져 있음 (${v.VERSION})`);
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(v.BUILT), `날짜가 들어 있음 (${v.BUILT})`);
+
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  ok(html.includes('id="build"'), '화면에 버전 자리가 있음');
+  ok(!/>v\d+</.test(html), 'index.html 에 버전을 손으로 박아 두지 않음');
+
+  const appjs = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+  ok(appjs.includes("from './version.js'"), 'app.js 가 버전을 불러옴');
+  ok(appjs.includes("getElementById('build')"), 'app.js 가 그 자리에 찍음');
+}
+
 console.log('\n입력 순서:');
 {
   // 주제가 다른 설정을 지배하므로, 설정을 만지기 전에 보여야 합니다.

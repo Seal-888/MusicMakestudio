@@ -1,3 +1,4 @@
+import { VERSION, BUILT, COMMIT, DIRTY } from './version.js';
 import { health, styles, songs, usage } from './store.js';
 import { getLeaveGuard, clearLeaveGuard, toast } from './ui.js';
 import renderSettings from './pages/settings.js';
@@ -97,6 +98,17 @@ function checkUsage() {
 window.addEventListener('hashchange', render);
 window.addEventListener('health:change', paintStatus);
 window.addEventListener('store:change', paintCounts);
+
+/**
+ * 화면에 버전을 찍습니다.
+ * 새 파일을 받았는데 반영이 안 된 건지 한눈에 알 수 있어야 합니다.
+ */
+(function paintVersion() {
+  const el = document.getElementById('build');
+  if (!el) return;
+  el.textContent = `${VERSION} · ${BUILT.slice(5)}`;
+  el.title = `${VERSION} · ${COMMIT} · ${BUILT}${DIRTY ? ' · 저장 안 한 변경 있음' : ''}`;
+})();
 
 render();
 paintStatus();

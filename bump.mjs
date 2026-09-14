@@ -34,7 +34,12 @@ const hash = git('rev-parse --short HEAD', 'unknown');
 const date = git("log -1 --format=%ad --date=format:%Y-%m-%d", new Date().toISOString().slice(0, 10));
 const dirty = git('status --porcelain', '') ? true : false;
 
-const version = count === '0' ? 'dev' : `v${count}`;
+/**
+ * 고친 것이 남아 있으면 곧 커밋될 번호를 미리 씁니다.
+ * 그러지 않으면 커밋할 때마다 버전이 한 발씩 뒤처집니다.
+ */
+const next = dirty ? Number(count) + 1 : Number(count);
+const version = count === '0' ? 'dev' : `v${next}`;
 
 const body = `// 이 파일은 bump.mjs 가 만듭니다. 직접 고치지 마세요.
 export const VERSION = ${JSON.stringify(version)};

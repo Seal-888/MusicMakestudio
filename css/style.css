@@ -890,3 +890,18 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
   color: #fff;
 }
 .btn.is-gold:hover { filter: brightness(1.06); }
+
+/* ── 가사 자막 ───────────────────────────────── */
+.sub-list { margin-top: 10px; max-height: 460px; overflow-y: auto; }
+.sub-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 1fr;
+  gap: 9px;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--paper-line);
+}
+.sub-time { font-size: 12px; opacity: .6; }
+.sub-en { font-size: 13px; opacity: .75; }
+.sub-row input { font-size: 13px; padding: 5px 8px; }
+.mood-why.is-weak { background: rgba(190, 70, 60, .10); color: #8d3a32; }

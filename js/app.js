@@ -4,6 +4,7 @@ import renderSettings from './pages/settings.js';
 import renderPlanning from './pages/planning.js';
 import renderMusic from './pages/music.js';
 import renderMetadata from './pages/metadata.js';
+import renderSubtitle from './pages/subtitle.js';
 import renderStyles from './pages/styles.js';
 import renderAnalyzer from './pages/analyzer.js';
 import renderRevenue from './pages/revenue.js';
@@ -13,6 +14,7 @@ const routes = {
   planning: renderPlanning,
   music: renderMusic,
   metadata: renderMetadata,
+  subtitle: renderSubtitle,
   styles: renderStyles,
   analyzer: renderAnalyzer,
   revenue: renderRevenue,

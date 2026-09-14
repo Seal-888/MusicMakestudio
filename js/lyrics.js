@@ -572,3 +572,31 @@ function countPhrase(text, words) {
   }
   return n;
 }
+
+/**
+ * SRT 파일을 읽어 자막 덩어리로 나눕니다.
+ *
+ * 왜 필요한가:
+ * 시각은 우리가 만들지 않습니다. 캡컷 자동 자막이 이미 잡아 둔 것을 그대로 씁니다.
+ * 곡 길이만 보고 시각을 추정하면 반드시 밀립니다.
+ */
+/** SRT 파일을 읽어 자막 목록으로 */
+export function parseSrt(text, offsetSec = 0) {
+  const out = [];
+  const blocks = text.replace(/\r/g, '').trim().split(/\n\s*\n/);
+  for (const b of blocks) {
+    const lines = b.split('\n');
+    const timeLine = lines.find((l) => l.includes('-->'));
+    if (!timeLine) continue;
+    const [from, to] = timeLine.split('-->').map((t) => parseSrtTime(t.trim()));
+    const body = lines.slice(lines.indexOf(timeLine) + 1).join('\n').trim();
+    if (body) out.push({ text: body, start: from + offsetSec, duration: Math.max(0.1, to - from) });
+  }
+  return out;
+}
+
+function parseSrtTime(t) {
+  const m = /(\d+):(\d+):(\d+)[,.](\d+)/.exec(t);
+  if (!m) return 0;
+  return +m[1] * 3600 + +m[2] * 60 + +m[3] + +m[4] / 1000;
+}

@@ -58,7 +58,7 @@ if (!window.HTMLCanvasElement.prototype.getContext) {
 
 const pages = [
   ['설정', 'settings'], ['플리채널 기획', 'planning'], ['음악 만들기', 'music'],
-  ['메타데이터', 'metadata'], ['스타일 보관함', 'styles'],
+  ['메타데이터', 'metadata'], ['가사 자막', 'subtitle'], ['스타일 보관함', 'styles'],
   ['채널 분석기', 'analyzer'], ['수익 분석', 'revenue'],
 ];
 
@@ -66,7 +66,7 @@ const errors = [];
 window.addEventListener('error', (e) => errors.push(String(e.message)));
 
 const modFile = {
-  settings: 'settings.js', planning: 'planning.js', music: 'music.js', metadata: 'metadata.js',
+  settings: 'settings.js', planning: 'planning.js', music: 'music.js', metadata: 'metadata.js', subtitle: 'subtitle.js',
   styles: 'styles.js', analyzer: 'analyzer.js', revenue: 'revenue.js',
 };
 

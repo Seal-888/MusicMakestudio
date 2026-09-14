@@ -639,6 +639,61 @@ JSON만 출력합니다.`,
   };
 }
 
+/**
+ * 영어 가사를 화자에 맞춰 한국어로 옮깁니다.
+ *
+ * 시각은 이 함수가 만들지 않습니다.
+ * 캡컷 자동 자막이 잡아 둔 시각을 그대로 두고 글자만 갈아 끼웁니다.
+ * 번호와 글자만 주고받으므로 시각이 밀릴 여지가 없습니다.
+ *
+ * 자동 자막은 노래를 받아쓴 것이라 글자가 자주 틀립니다.
+ * 그래서 정확한 가사 원문을 함께 넘겨 짝을 맞추게 합니다.
+ */
+export function lyricsSubtitle({ blocks, lyrics, concept = '', persona = 'villain' }) {
+  const p = PERSONAS[persona] || PERSONAS.villain;
+  const list = blocks.map((b, i) => `${i + 1}. ${b.text.replace(/\n/g, ' ')}`).join('\n');
+
+  return {
+    temperature: 0.8,
+    maxOutputTokens: 6000,
+    thinkingLevel: 'medium',
+    prompt: `당신은 노래 가사를 우리말로 옮기는 번역가입니다.
+아래 자막 한 칸마다 한국어 한 줄을 냅니다.
+
+════════ 이 곡의 화자 ════════
+${concept ? concept + '\n' : ''}
+${p.guide}
+
+**이 화자의 말투로 옮기세요.** 사전적 번역이 아닙니다.
+같은 뜻이라도 이 사람이 할 법한 말로 바꿔야 합니다.
+
+════════ 어떻게 옮기나 ════════
+- **낮춤말로 씁니다.** 존댓말이나 설명하는 어투가 섞이면 힘이 죽습니다.
+- 직역해서 어색하면 뜻을 살려 다시 쓰세요. 노래는 문서가 아닙니다.
+- 한 줄은 한 호흡입니다. 화면에 뜨는 순간 읽혀야 하므로 **20자 안쪽**으로.
+- 되풀이되는 훅은 **매번 똑같이** 옮기세요. 조금씩 바꾸면 훅이 아니게 됩니다.
+- 영어 낱말을 그대로 두지 마세요. 고유명사만 예외입니다.
+- 추임새(yeah, uh, ooh)는 옮기지 말고 빈 문자열로 두세요.
+
+════════ 정확한 가사 원문 ════════
+자동 받아쓰기라 아래 자막의 글자가 틀려 있을 수 있습니다.
+이 원문에서 맞는 줄을 찾아 그 뜻으로 옮기세요.
+
+${lyrics}
+
+════════ 옮길 자막 ${blocks.length}칸 ════════
+${list}
+
+════════ 낼 것 ════════
+- n: 칸 번호 (위 번호 그대로)
+- ko: 그 칸의 한국어 한 줄. 옮길 것이 없으면 빈 문자열.
+
+**${blocks.length}칸 전부 내세요.** 번호를 건너뛰거나 합치지 마세요.
+시각은 적지 마세요. JSON만 출력합니다.`,
+    schema: obj({ lines: S.objList({ n: S.str, ko: S.str }) }),
+  };
+}
+
 export function songSeeds({
   genres, language, moods, concept, persona = 'villain',
   seedCount = 5, avoidTitles = [], referenceStyle = null, seriesNote = '',

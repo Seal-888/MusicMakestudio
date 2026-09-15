@@ -56,6 +56,7 @@ window.matchMedia = () => ({ matches: false, addEventListener() {} });
  * gemini.js의 실제 요청 구성과 응답 파싱까지 함께 검증됩니다.
  */
 const calls = [];
+let seedPromptLen = 0;
 const FAKE_SEEDS = [
   { title: '문은 내가 닫았어', scene: '현관에서 상대를 막아선 채 문고리를 쥐고 있다', to: '상대', hook: '문은 내가 닫았어', opening: '불은 껐어', soundNote: '느린 808에 현악' },
   { title: '두 번째 봄', scene: '창틀을 뜯어내며 밖으로 소리치는 중이다', to: '세상', hook: '봄이 또 왔더라', opening: '창을 열었어', soundNote: '피아노 중심, 담백하게' },
@@ -321,8 +322,10 @@ await settle();
 
 ok(calls.length === 1, 'Gemini를 한 번 호출함');
 const seedCall = calls[0];
-ok(seedCall.prompt.length < 2000, `씨앗 프롬프트가 짧음 (${seedCall.prompt.length}자)`);
+// 절대값이 아니라 완성 프롬프트와 견줍니다. 화자 지침이 길어져도 뜻은 유지됩니다.
+seedPromptLen = seedCall.prompt.length;
 ok(!seedCall.prompt.includes('구조 태그'), '전체 작사 규칙은 안 실림');
+ok(!seedCall.prompt.includes('줄 끝에 악기 신호'), '태그 규칙도 안 실림');
 // gemini.js가 thinking 몫을 얹으므로 절대값이 아니라 완성 호출과 견줍니다.
 const seedBudget = seedCall.maxOutputTokens;
 
@@ -341,6 +344,7 @@ click($('[data-seed-go]'));
 await new Promise((r) => setTimeout(r, 250));
 
 const full = calls.slice(1);
+const fullLenForCheck = full[0].prompt.length;
 ok(full.length === 2, `고른 2개만 생성 호출 (${full.length}회)`);
 ok(
   full.every((c) => c.prompt.includes('이 곡은 이미 정해졌습니다')),
@@ -355,6 +359,10 @@ ok(
 ok(!root.querySelector('.seed-item'), '완성 후 후보 목록이 치워짐');
 ok(root.textContent.includes('문은 내가 닫았어'), '완성 결과가 화면에 나옴');
 
+ok(
+  seedPromptLen < fullLenForCheck / 3,
+  `씨앗 프롬프트가 완성의 3분의 1 미만 (${seedPromptLen} vs ${fullLenForCheck}자)`
+);
 ok(
   seedBudget < full[0].maxOutputTokens / 2,
   `후보 단계 출력 예산이 완성의 절반 미만 (${seedBudget} vs ${full[0].maxOutputTokens})`

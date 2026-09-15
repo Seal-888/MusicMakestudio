@@ -63,6 +63,27 @@ console.log('\n프롬프트 지시:');
 }
 
 /* ── 구간 쪼개기 ───────────────────────────────── */
+console.log('\n빌런 화자:');
+{
+  const { PERSONAS } = await import(appUrl('js/prompts.js'));
+  const g = PERSONAS.villain.guide;
+  ok(g.includes('당한 사람이 있어야 합니다'), '피해자를 요구함');
+  ok(g.includes('구체적인 장면으로'), '한 짓을 장면으로 쓰게 함');
+  ok(g.includes('당한 사람의 반응도'), '상대의 반응까지 요구함');
+  ok(g.includes('정리'), '끝에서 교훈으로 닫는 것을 막음');
+  ok(!/미워하지 않습니다\.$/m.test(g) || g.includes('해쳤다는 게 더 서늘'), '미워하지 않음을 가해와 함께 씀');
+
+  const full = songWriting({
+    genres: 'dark pop', language: 'English', vocal: 'v', tempo: 't',
+    moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1, persona: 'villain',
+  });
+  ok(full.prompt.includes('당한 사람이 있어야'), '작사 프롬프트에 실림');
+  ok(full.prompt.includes('교훈으로 정리해 버리지 않았는가'), '자기검토에도 들어감');
+
+  const seeds = songSeeds({ genres: 'dark pop', language: 'English', moods: 'm', concept: 'c', persona: 'villain' });
+  ok(seeds.prompt.includes('당한 사람이 있어야'), '후보 단계에도 실림');
+}
+
 console.log('\n구간 쪼개기:');
 {
   const text = `[Intro - Soft Piano]

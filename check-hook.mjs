@@ -22,8 +22,8 @@ const ok = (cond, label) => {
   if (!cond) failed++;
 };
 
-const { checkHook, splitSections, checkInlineTags, checkOutro } = await import(appUrl('js/lyrics.js'));
-const { songWriting, songSeeds } = await import(appUrl('js/prompts.js'));
+const { checkHook, splitSections, checkInlineTags, checkOutro, checkLength } = await import(appUrl('js/lyrics.js'));
+const { songWriting, songSeeds, targetLines } = await import(appUrl('js/prompts.js'));
 
 /* ── 프롬프트가 훅을 제대로 요구하는지 ────────── */
 console.log('\n프롬프트 지시:');
@@ -246,6 +246,64 @@ console.log('\n아웃트로 마무리:');
   ok(checkOutro(hit).issues.length === 0, 'Final Kick Drum Hit 도 인정');
 
   ok(checkOutro('[Verse 1 - Soft]\nline').issues.length === 0, '아웃트로가 없으면 트집 잡지 않음');
+}
+
+console.log('\n곡 길이 — 선언한 줄 수와 구성표가 맞는가:');
+{
+  // 예전에는 totalLines 를 손으로 적어 두어 구성표와 어긋났습니다.
+  // 3:30 은 구간 합이 47줄인데 36줄이라고 적혀 있어 곡이 짧게 나왔습니다.
+  for (const d of ['2:00', '2:30', '3:00', '3:30', '4:00']) {
+    for (const form of ['standard', 'chorusFirst']) {
+      const want = targetLines({ duration: d, form });
+      const p = songWriting({
+        genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+        era: 'e', instruments: 'i', concept: 'c', songCount: 1, duration: d, form,
+      }).prompt;
+      const said = Number(p.match(/모두 합쳐 (\d+)줄/)?.[1]);
+      ok(said === want, `${d} ${form === 'chorusFirst' ? '도입부코러스' : '기본'} — 선언 ${said} = 계산 ${want}`);
+    }
+  }
+
+  const long = songWriting({
+    genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+    era: 'e', instruments: 'i', concept: 'c', songCount: 1, duration: '3:30',
+  }).prompt;
+  ok(long.includes('목표 길이는 3:30'), '목표 시간을 직접 알려 줌');
+  ok(long.includes('줄여 적는 순간'), '줄여 적으면 짧아진다고 경고함');
+}
+
+console.log('\n가사 분량 검사:');
+{
+  const line = 'a normal lyric line with enough words';
+  const full = '[Verse 1 - x]\n' + Array.from({ length: 47 }, (_, i) => line + ' ' + i).join('\n');
+  ok(checkLength(full, 47).issues.length === 0, '목표를 채우면 통과');
+  ok(checkLength(full, 47).lines === 47, '태그 줄은 빼고 셈');
+
+  const half = '[Verse 1 - x]\n' + Array.from({ length: 20 }, (_, i) => line + ' ' + i).join('\n');
+  ok(checkLength(half, 47).issues.some((x) => x.kind === 'too-short'), '모자라면 잡아냄');
+
+  const terse = '[Verse 1 - x]\n' + Array.from({ length: 45 }, () => 'burn it down').join('\n');
+  ok(
+    checkLength(terse, 47).issues.some((x) => x.kind === 'too-terse'),
+    '줄 수를 채워도 줄이 너무 짧으면 잡아냄'
+  );
+  ok(checkLength(full, 0).issues.length === 0, '목표가 없으면 트집 잡지 않음');
+}
+
+console.log('\n마지막 후렴 흔들기:');
+{
+  const on = songWriting({
+    genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+    era: 'e', instruments: 'i', concept: 'c', songCount: 1, crack: true,
+  }).prompt;
+  const off = songWriting({
+    genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+    era: 'e', instruments: 'i', concept: 'c', songCount: 1,
+  }).prompt;
+  ok(on.includes('Vocal Cracks Once, Then Flat Again'), '태그 문구를 그대로 알려 줌');
+  ok(on.includes('한 번뿐입니다'), '한 번만 흔들게 제한함');
+  ok(on.includes('훅은 끝까지 흔들리지 않아야'), '훅은 지키게 함');
+  ok(!off.includes('마지막 후렴에서 딱 한 번'), '끄면 안 실림');
 }
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');

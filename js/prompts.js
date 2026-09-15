@@ -384,9 +384,45 @@ export const SONG_FORMS = {
   },
 };
 
+/**
+ * 구성표에서 실제 가사 줄 수를 세어 냅니다.
+ *
+ * 왜 계산하는가:
+ * 예전에는 totalLines 를 손으로 적어 두었는데, 구성을 고칠 때마다 어긋났습니다.
+ * 3:30 구성은 구간 합이 47줄인데 36줄이라고 적혀 있었고, 프롬프트가
+ * "모두 합쳐 36줄"이라고 못 박는 바람에 모델이 줄을 줄여 곡이 짧게 나왔습니다.
+ * 이제 구성표에서 직접 세므로 어긋날 수가 없습니다.
+ */
+export function targetLines({ duration = '3:30', form = 'standard' } = {}) {
+  const table = form === 'chorusFirst' ? CHORUS_FIRST_STRUCTURES : SONG_STRUCTURES;
+  return countLines((table[duration] || table['3:30']).sections);
+}
+
+function countLines(sections) {
+  let chorus = 0;
+  let total = 0;
+  for (const [role, note] of sections) {
+    // '정확히 N줄' 과 '후렴 전문 N줄', '앞 4줄만' 을 모두 잡습니다.
+    const exact = note.match(/(\d+)줄/);
+    const repeat = /후렴 전문을 그대로/.test(note);
+    const extra = /추임새 한 줄 더/.test(note) ? 1 : 0;
+
+    if (repeat) {
+      total += chorus + extra;
+      continue;
+    }
+    if (!exact) continue;
+
+    const n = Number(exact[1]);
+    total += n + extra;
+    // 뒤에서 "후렴 전문을 그대로 다시"가 나오면 이 줄 수를 다시 씁니다.
+    if (/Chorus/.test(role) && !/Pre/.test(role)) chorus = n;
+  }
+  return total;
+}
+
 const SONG_STRUCTURES = {
   '2:00': {
-    totalLines: 19,
     sections: [
       ['Intro', '가사 없이 태그만. 8마디 정도의 짧은 전주'],
       ['Verse 1', '정확히 6줄'],
@@ -397,7 +433,6 @@ const SONG_STRUCTURES = {
     ],
   },
   '2:30': {
-    totalLines: 25,
     sections: [
       ['Intro', '가사 없이 태그만'],
       ['Verse 1', '정확히 6줄'],
@@ -409,7 +444,6 @@ const SONG_STRUCTURES = {
     ],
   },
   '3:00': {
-    totalLines: 30,
     sections: [
       ['Intro', '가사 없이 태그만'],
       ['Verse 1', '정확히 6줄'],
@@ -422,7 +456,6 @@ const SONG_STRUCTURES = {
     ],
   },
   '3:30': {
-    totalLines: 36,
     sections: [
       ['Intro', '가사 없이 태그만'],
       ['Verse 1', '정확히 7줄'],
@@ -437,7 +470,6 @@ const SONG_STRUCTURES = {
     ],
   },
   '4:00': {
-    totalLines: 43,
     sections: [
       ['Intro', '가사 없이 태그만. 조금 긴 전주'],
       ['Verse 1', '정확히 7줄'],
@@ -462,7 +494,6 @@ const SONG_STRUCTURES = {
  */
 const CHORUS_FIRST_STRUCTURES = {
   '2:00': {
-    totalLines: 19,
     sections: [
       ['Chorus (짧게)', '후렴의 앞 3줄만. 훅만 던지고 넘어갑니다'],
       ['Verse 1', '정확히 6줄'],
@@ -472,7 +503,6 @@ const CHORUS_FIRST_STRUCTURES = {
     ],
   },
   '2:30': {
-    totalLines: 25,
     sections: [
       ['Chorus (짧게)', '후렴의 앞 3줄만'],
       ['Verse 1', '정확히 7줄'],
@@ -483,7 +513,6 @@ const CHORUS_FIRST_STRUCTURES = {
     ],
   },
   '3:00': {
-    totalLines: 30,
     sections: [
       ['Chorus (짧게)', '후렴의 앞 3줄만'],
       ['Verse 1', '정확히 7줄'],
@@ -495,7 +524,6 @@ const CHORUS_FIRST_STRUCTURES = {
     ],
   },
   '3:30': {
-    totalLines: 36,
     sections: [
       ['Chorus (짧게)', '후렴의 앞 4줄만. 훅을 먼저 던집니다'],
       ['Verse 1', '정확히 7줄'],
@@ -505,11 +533,11 @@ const CHORUS_FIRST_STRUCTURES = {
       ['Pre-Chorus', '앞과 다른 가사로 정확히 4줄'],
       ['Chorus', '후렴 전문을 그대로 다시'],
       ['Bridge', '정확히 5줄. 여기서 판을 한 번 뒤집습니다'],
+      ['Chorus', '후렴 전문을 그대로 다시. 마지막 줄 뒤에 추임새 한 줄 더'],
       ['Outro', '후렴을 반쯤 부르다 잦아들게. 정확히 3줄'],
     ],
   },
   '4:00': {
-    totalLines: 43,
     sections: [
       ['Chorus (짧게)', '후렴의 앞 4줄만'],
       ['Verse 1', '정확히 8줄'],
@@ -636,6 +664,9 @@ ${menu}
 - 여러 개 고를 수 있는 칸도 3~5개면 충분합니다. 많이 켤수록 서로를 지웁니다.
 - 지금 켜져 있는 것이 주제와 부딪히면 과감히 바꾸세요.
   다만 주제와 잘 맞는 것은 그대로 두어도 됩니다.
+- **보컬은 화자에 맞춰 고르세요.** 주제에 화자의 성별 단서가 있으면 그대로 따릅니다.
+  단서가 없으면 **지금 켜져 있는 보컬을 그대로 두세요.** 임의로 바꾸지 마세요.
+  차가운 화자에 뜨거운 보컬을 붙이지 않습니다. 온도도 함께 봅니다.
 - 목록에 없는 말은 만들어 내지 마세요. 글자 그대로 옮겨 적습니다.
 
 ════════ 낼 것 ════════
@@ -803,7 +834,7 @@ export function songWriting({
   mumbling = false, rhyme = true, minimal = false,
   persona = 'villain', anchor = true,
   variety = true, batchSeed = 0, introMode = 'short', form = 'standard',
-  referenceFirst = false, introInStyle = false, seed = null,
+  referenceFirst = false, introInStyle = false, seed = null, crack = false,
 }) {
   const chorusFirst = form === 'chorusFirst';
   const table = chorusFirst ? CHORUS_FIRST_STRUCTURES : SONG_STRUCTURES;
@@ -975,7 +1006,21 @@ ${Array.from({ length: songCount }, (_, i) => {
 Final 로 시작하는 한 방을 반드시 넣으세요. 이 곡의 악기 중 하나로요.
   [Outro - Drums Drop Out, Then Bass Fades, Final Piano Chord Rings Out]
 
-════════ 가사 줄 끝에 악기 신호 넣기 ════════
+${crack
+      ? `════════ 마지막 후렴에서 딱 한 번 흔들기 ════════
+곡 내내 절제하던 목소리가 **마지막 후렴에서 한 번만** 무너졌다가 다시 돌아옵니다.
+
+- 마지막 후렴 태그에 그 지시를 넣습니다:
+  [Chorus - Final, Vocal Cracks Once, Then Flat Again]
+- **한 번뿐입니다.** 두 번 흔들면 그냥 감정적인 곡이 됩니다.
+- 무너지는 자리는 훅이 아니라 **훅 직전 줄**입니다. 훅은 끝까지 흔들리지 않아야 합니다.
+- 가사도 그 줄에서만 한 번 갈라집니다. 말을 끊거나, 같은 말을 두 번 뱉거나.
+- 그 뒤 마지막 훅은 처음과 똑같이, 아무 일 없었다는 듯이 돌아옵니다.
+
+감정을 눌러 온 곡일수록 이 한 번이 크게 들립니다. 원래 감정적인 곡이면 넣지 마세요.
+
+`
+      : ''}════════ 가사 줄 끝에 악기 신호 넣기 ════════
 구조 태그가 **구간 전체**를 정한다면, 이건 **그 순간 하나**를 찍습니다.
 가사 한 줄 끝에 대괄호로 악기 신호를 답니다.
 
@@ -1039,10 +1084,18 @@ ${anchor
 ════════ 이번 곡의 구성 ════════
 ${structure.map(([role, note], i) => `${i + 1}. [${role}] — ${note}`).join('\n')}
 
-**가사 줄은 모두 합쳐 ${plan.totalLines}줄입니다.** (후렴 반복까지 세어서)
-줄 수가 모자라면 곡이 목표보다 짧게 나옵니다. 위에 적힌 줄 수를 정확히 지켜 주세요.
+════════ 곡 길이 — ${duration} 를 채워야 합니다 ════════
+**이 곡의 목표 길이는 ${duration} 입니다.** 이보다 짧게 나오면 실패입니다.
+Suno는 가사가 끝나면 곡을 닫아 버리므로, 길이는 가사 분량이 결정합니다.
+
+**가사 줄은 모두 합쳐 ${countLines(structure)}줄입니다.** (후렴 반복까지 세어서)
+줄 수를 하나라도 줄이지 마세요. 구간을 합치거나 건너뛰지도 마세요.
+"반복"이나 "같은 후렴"이라고 적지 말고 **매번 가사 전문을 다시 적습니다.**
+줄여 적는 순간 곡이 1분 가까이 짧아집니다.
+
 한 줄은 8~12음절, 부를 때 한 호흡에 들어가는 길이로 씁니다.
-너무 짧은 줄만 이어지면 곡이 빨리 끝납니다.
+**세 음절짜리 짧은 줄만 이어 붙이면 줄 수를 채워도 곡이 짧게 끝납니다.**
+줄 수와 음절 수를 둘 다 지켜야 ${duration} 가 나옵니다.
 
 가사 본문은 ${lyricLang}로 씁니다. 태그와 연주 지시는 영어로 씁니다.
 맨 끝에 [End] 를 넣어 곡을 닫습니다.

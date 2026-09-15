@@ -625,3 +625,42 @@ export function checkOutro(text) {
     ],
   };
 }
+
+/**
+ * 가사 줄 수가 목표에 못 미치는지 봅니다.
+ *
+ * 왜 필요한가:
+ * Suno는 가사가 끝나면 곡을 닫습니다. 그래서 곡 길이는 가사 분량이 정합니다.
+ * 모델이 구간을 합치거나 "반복"이라고 줄여 적으면 곡이 1분 가까이 짧아지는데,
+ * 가사만 봐서는 몇 줄인지 세기 어려워 그냥 넘어가게 됩니다.
+ */
+export function checkLength(text, wantLines) {
+  if (!wantLines) return { lines: 0, issues: [] };
+
+  const lines = (text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !/^\[[^\]]*\]$/.test(l));
+
+  const issues = [];
+
+  if (lines.length < wantLines * 0.85) {
+    issues.push({
+      kind: 'too-short',
+      label: '가사가 모자람',
+      detail: `${lines.length}줄 · 목표 ${wantLines}줄 — 이대로면 곡이 짧게 끝납니다`,
+    });
+  }
+
+  // 줄 수를 채워도 줄이 너무 짧으면 곡이 빨리 끝납니다.
+  const short = lines.filter((l) => l.replace(/\[[^\]]*\]/g, '').trim().split(/\s+/).length <= 3);
+  if (lines.length >= 8 && short.length > lines.length * 0.4) {
+    issues.push({
+      kind: 'too-terse',
+      label: '짧은 줄이 너무 많음',
+      detail: `${short.length}/${lines.length}줄이 세 단어 이하 — 줄 수를 채워도 곡이 짧아집니다`,
+    });
+  }
+
+  return { lines: lines.length, issues };
+}

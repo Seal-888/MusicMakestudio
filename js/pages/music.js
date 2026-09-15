@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, songSeeds, moodPick, settingsFit, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { songWriting, songSeeds, moodPick, settingsFit, targetLines, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
 import { styles, songs, refs, jobs, draft } from '../store.js';
@@ -358,13 +358,15 @@ export default function renderMusic(root) {
           { label: '흘려 부르는 발음', value: 'mumbling' },
           { label: '열쇠말 반복', value: 'anchor' },
           { label: '곡마다 다르게', value: 'variety' },
+          { label: '마지막 후렴 한 번 흔들기', value: 'crack' },
         ], { selected: DEFAULTS.craft })}
         <p class="muted small">
           <b>라임 살리기</b> 후렴에 각운을 몰아 중독성을 높입니다 ·
           <b>여백 있게</b> 단문 위주로 설명을 걷어냅니다 ·
           <b>흘려 부르는 발음</b> gonna, feelin 처럼 실제 부르는 소리로 적습니다 (영어 가사용) ·
           <b>열쇠말 반복</b> 곡을 관통하는 한마디를 서너 번 되풀이해 기억에 남게 합니다 ·
-          <b>곡마다 다르게</b> BPM·후렴 진입·마무리를 곡마다 바꿔 플레이리스트가 지루해지지 않게 합니다
+          <b>곡마다 다르게</b> BPM·후렴 진입·마무리를 곡마다 바꿔 플레이리스트가 지루해지지 않게 합니다 ·
+          <b>마지막 후렴 한 번 흔들기</b> 절제된 보컬이 마지막 후렴에서 딱 한 번 무너졌다 돌아옵니다. 차가운 화자일수록 효과가 큽니다
         </p>
       </div>
 
@@ -1071,6 +1073,7 @@ export default function renderMusic(root) {
       anchor: craft.includes('anchor'),
       persona: R.readPills(root, 'persona')[0] || 'villain',
       variety: craft.includes('variety'),
+      crack: craft.includes('crack'),
       introMode: R.readPills(root, 'intro')[0] || 'short',
       introInStyle: wantsIntroInStyle(),
       form: R.readPills(root, 'form')[0] || 'standard',
@@ -1405,6 +1408,11 @@ export default function renderMusic(root) {
       ...checkHook(song.lyrics).issues,
       ...checkInlineTags(song.lyrics).issues,
       ...checkOutro(song.lyrics).issues,
+      // 곡 길이는 알약이 아니라 .dur 버튼으로 고릅니다.
+      ...checkLength(song.lyrics, targetLines({
+        duration: root.querySelector('.dur.on')?.dataset.dur || '3:30',
+        form: R.readPills(root, 'form')[0] || 'standard',
+      })).issues,
     ];
     const titleIssue = checkTitle(song.title);
     if (!issues.length && !titleIssue) return '';

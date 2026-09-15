@@ -38,6 +38,8 @@ console.log('\n프롬프트 지시:');
   ok(full.prompt.includes('마지막 줄도 훅입니다'), '마지막 줄 훅 지시');
   ok(full.prompt.includes('글자 하나 바꾸지 않고'), '변형 금지를 명시');
   ok(full.prompt.includes('1행과 5행은 훅 원문 그대로'), '구조표에도 훅 위치를 박음');
+  ok(full.prompt.includes('아웃트로 태그는 세 단으로'), '아웃트로를 세 단으로 끝내게 함');
+  ok(full.prompt.includes('Final 로 시작하는 한 방'), '마지막 한 방을 반드시 넣게 함');
 
   // 열쇠말과 훅이 섞이지 않아야 합니다.
   ok(

@@ -950,6 +950,15 @@ ${Array.from({ length: songCount }, (_, i) => {
 - Bridge — 곡 전체에서 가장 솔직한 한두 줄. 여기서 판을 한 번 뒤집습니다.
 - Outro — 답을 주지 말고 여운을 남깁니다.
 
+**아웃트로 태그는 세 단으로 씁니다.** 한 번에 사라지면 흐지부지 끝납니다.
+  1. 먼저 하나를 뺍니다      — drums drop out
+  2. 남은 것을 뺍니다        — guitar and bass fade out
+  3. 한 방으로 닫습니다      — final piano chord rings out
+
+마지막 단이 없으면 곡이 닫히지 않고 그냥 작아지다 맙니다.
+Final 로 시작하는 한 방을 반드시 넣으세요. 이 곡의 악기 중 하나로요.
+  [Outro - Drums Drop Out, Then Bass Fades, Final Piano Chord Rings Out]
+
 ════════ 후렴은 훅이 전부입니다 ════════
 여기가 곡이 기억되느냐 마느냐를 가릅니다. 다른 어떤 규칙보다 먼저 지키세요.
 

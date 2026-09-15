@@ -186,6 +186,28 @@ console.log('\n전주 없는 설정이면 스타일에도 넣기:');
   );
   ok(root.textContent.includes('태그만으로는 Suno가 전주를 붙입니다'), '왜 그런지 화면에 알려 줌');
 
+  // 화면에 보이는 것과 실제로 나가는 것이 같아야 합니다.
+  const onWhere = [...root.querySelectorAll('[data-pills="introWhere"] .pill.on')].map((p) => p.textContent);
+  ok(
+    onWhere.length === 1 && onWhere[0].includes('스타일에도'),
+    `켜진 알약이 실제 동작과 일치 (${onWhere.join(', ')})`
+  );
+  ok(
+    root.querySelector('[data-pills="introWhere"]').closest('.field').classList.contains('is-off'),
+    '고를 수 없음을 흐리게 표시'
+  );
+
+  // 되돌리면 다시 고를 수 있어야 합니다.
+  pick('intro', '짧게');
+  await settle(30);
+  ok(
+    !root.querySelector('[data-pills="introWhere"]').closest('.field').classList.contains('is-off'),
+    '인트로를 짧게로 되돌리면 다시 고를 수 있음'
+  );
+  ok(!root.textContent.includes('태그만으로는 Suno가'), '안내도 사라짐');
+  pick('intro', '전주 없이 바로');
+  await settle(30);
+
   // 도입부 코러스도 마찬가지입니다.
   pick('intro', '짧게');
   pick('form', '도입부 코러스');

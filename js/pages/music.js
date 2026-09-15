@@ -596,11 +596,15 @@ export default function renderMusic(root) {
    * 사용자가 무엇을 골랐든 항상 스타일에도 넣습니다.
    * 나머지 경우는 스타일을 깨끗하게 두는 편이 나아서 선택에 맡깁니다.
    */
-  function wantsIntroInStyle() {
+  /** 전주를 없애는 선택인가. 이 경우 '인트로 위치'는 고를 것이 없습니다. */
+  function introForced() {
     const introMode = R.readPills(root, 'intro')[0] || 'short';
     const form = R.readPills(root, 'form')[0] || 'standard';
-    if (introMode === 'none' || form === 'chorusFirst') return true;
-    return R.readPills(root, 'introWhere')[0] === 'style';
+    return introMode === 'none' || form === 'chorusFirst';
+  }
+
+  function wantsIntroInStyle() {
+    return introForced() || R.readPills(root, 'introWhere')[0] === 'style';
   }
 
   function refreshForm() {
@@ -620,18 +624,24 @@ export default function renderMusic(root) {
       }
     }
 
-    // 전주를 없애는 선택이면 '인트로 위치'는 고를 것이 없습니다. 항상 스타일에도 넣습니다.
+    // 전주를 없애는 선택이면 '인트로 위치'는 고를 것이 없습니다.
+    //
+    // 예전에는 고른 값을 그대로 둔 채 칸만 잠갔는데, 그러면
+    // '가사 태그에만'이 켜진 채로 굳어서 실제 동작과 정반대로 보였습니다.
+    // 이제 보이는 것과 실제로 나가는 것을 일치시킵니다.
     const whereField = root.querySelector('[data-pills="introWhere"]')?.closest('.field');
     if (whereField) {
-      const forced = wantsIntroInStyle() && R.readPills(root, 'introWhere')[0] !== 'style';
+      const forced = introForced();
+      if (forced) setPills('introWhere', ['style']);
       whereField.classList.toggle('is-off', forced);
+
       let note = whereField.querySelector('[data-where-forced]');
       if (forced && !note) {
         note = document.createElement('p');
         note.className = 'muted small';
         note.dataset.whereForced = '1';
         note.textContent =
-          '전주를 없애는 설정이라 스타일 프롬프트에도 함께 넣습니다. 태그만으로는 Suno가 전주를 붙입니다.';
+          '전주를 없애는 설정이라 스타일에도 자동으로 넣습니다. 태그만으로는 Suno가 전주를 붙입니다. 인트로를 "짧게"나 "보통"으로 바꾸면 다시 고를 수 있습니다.';
         whereField.appendChild(note);
       } else if (!forced && note) {
         note.remove();

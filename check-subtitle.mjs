@@ -170,7 +170,7 @@ await settle(200);
 ok(calls.length === 1, '한 번만 호출함');
 const p = calls[0].prompt;
 ok(p.includes('낮춤말로 씁니다'), '화자 말투를 지시함');
-ok(p.includes('이미 이긴 사람') || p.includes('여유'), '고른 화자(빌런)의 말투가 프롬프트에 실림');
+ok(p.includes('이미 저지른 사람'), '고른 화자(빌런)의 말투가 프롬프트에 실림');
 ok(p.includes('시각은 적지 마세요'), '모델에게 시각을 만들지 못하게 함');
 ok(p.includes('The carpet damp with oil'), '정확한 가사 원문을 함께 넘김');
 ok(p.includes('가사 원문의 영어 한 줄'), '교정된 영어도 함께 내게 지시함');

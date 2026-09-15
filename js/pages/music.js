@@ -585,6 +585,24 @@ export default function renderMusic(root) {
     refreshRefMode();
   });
 
+  /**
+   * 인트로 지시를 스타일 프롬프트에도 넣을지 정합니다.
+   *
+   * Suno는 가사창 태그보다 스타일 칸을 훨씬 세게 봅니다.
+   * 그래서 전주를 없애겠다고 골라 놓고 스타일에 그 말을 안 넣으면,
+   * Suno가 늘 하던 대로 10~20초짜리 빌드업을 붙여 버립니다.
+   *
+   * '전주 없이 바로'와 '도입부 코러스'는 전주를 없애는 것이 목적이므로
+   * 사용자가 무엇을 골랐든 항상 스타일에도 넣습니다.
+   * 나머지 경우는 스타일을 깨끗하게 두는 편이 나아서 선택에 맡깁니다.
+   */
+  function wantsIntroInStyle() {
+    const introMode = R.readPills(root, 'intro')[0] || 'short';
+    const form = R.readPills(root, 'form')[0] || 'standard';
+    if (introMode === 'none' || form === 'chorusFirst') return true;
+    return R.readPills(root, 'introWhere')[0] === 'style';
+  }
+
   function refreshForm() {
     const key = R.readPills(root, 'form')[0] || 'standard';
     const note = root.querySelector('[data-form-note]');
@@ -601,10 +619,30 @@ export default function renderMusic(root) {
           : '플레이리스트로 이어 들으려면 짧은 쪽이 좋습니다';
       }
     }
+
+    // 전주를 없애는 선택이면 '인트로 위치'는 고를 것이 없습니다. 항상 스타일에도 넣습니다.
+    const whereField = root.querySelector('[data-pills="introWhere"]')?.closest('.field');
+    if (whereField) {
+      const forced = wantsIntroInStyle() && R.readPills(root, 'introWhere')[0] !== 'style';
+      whereField.classList.toggle('is-off', forced);
+      let note = whereField.querySelector('[data-where-forced]');
+      if (forced && !note) {
+        note = document.createElement('p');
+        note.className = 'muted small';
+        note.dataset.whereForced = '1';
+        note.textContent =
+          '전주를 없애는 설정이라 스타일 프롬프트에도 함께 넣습니다. 태그만으로는 Suno가 전주를 붙입니다.';
+        whereField.appendChild(note);
+      } else if (!forced && note) {
+        note.remove();
+      }
+    }
   }
 
   root.addEventListener('click', (e) => {
     if (e.target.closest('[data-pills="form"]')) setTimeout(refreshForm, 0);
+    if (e.target.closest('[data-pills="intro"]')) setTimeout(refreshForm, 0);
+    if (e.target.closest('[data-pills="introWhere"]')) setTimeout(refreshForm, 0);
   });
   refreshForm();
   refreshRefMode();
@@ -1016,7 +1054,7 @@ export default function renderMusic(root) {
       persona: R.readPills(root, 'persona')[0] || 'villain',
       variety: craft.includes('variety'),
       introMode: R.readPills(root, 'intro')[0] || 'short',
-      introInStyle: R.readPills(root, 'introWhere')[0] === 'style',
+      introInStyle: wantsIntroInStyle(),
       form: R.readPills(root, 'form')[0] || 'standard',
     };
 

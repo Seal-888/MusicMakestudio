@@ -148,6 +148,62 @@ console.log('\n버전 표시:');
   ok(appjs.includes("getElementById('build')"), 'app.js 가 그 자리에 찍음');
 }
 
+console.log('\n전주 없는 설정이면 스타일에도 넣기:');
+{
+  const pick = (name, label) => {
+    const el = [...root.querySelectorAll(`[data-pills="${name}"] .pill`)].find((p) =>
+      p.textContent.includes(label)
+    );
+    if (el) click(el);
+    return el;
+  };
+
+  $('[data-f=concept]').value = '분노가 사람이 된 이야기';
+
+  // 기본 상태(짧게 + 가사 태그에만)에서는 스타일을 건드리지 않아야 합니다.
+  pick('form', '기본');
+  pick('intro', '짧게');
+  pick('introWhere', '가사 태그에만');
+  await settle(30);
+  calls.length = 0;
+  click($('[data-go]'));
+  await settle(250);
+  ok(
+    !calls[0].prompt.includes('스타일 프롬프트에 이 문장을 넣습니다'),
+    '기본 설정에서는 스타일을 깨끗하게 둠'
+  );
+
+  // '전주 없이 바로'를 고르면 사용자가 '가사 태그에만'을 골라도 스타일에 들어가야 합니다.
+  pick('intro', '전주 없이 바로');
+  await settle(30);
+  calls.length = 0;
+  click($('[data-go]'));
+  await settle(250);
+  ok(
+    calls[0].prompt.includes('no introduction at all'),
+    '전주 없이 바로 → 스타일에도 자동으로 들어감'
+  );
+  ok(root.textContent.includes('태그만으로는 Suno가 전주를 붙입니다'), '왜 그런지 화면에 알려 줌');
+
+  // 도입부 코러스도 마찬가지입니다.
+  pick('intro', '짧게');
+  pick('form', '도입부 코러스');
+  await settle(30);
+  calls.length = 0;
+  click($('[data-go]'));
+  await settle(250);
+  ok(
+    calls[0].prompt.includes('opens cold on the chorus hook at full energy'),
+    '도입부 코러스 → 스타일에도 자동으로 들어감'
+  );
+
+  // 되돌립니다.
+  pick('form', '기본');
+  pick('intro', '짧게');
+  await settle(30);
+  calls.length = 0;
+}
+
 console.log('\n입력 순서:');
 {
   // 주제가 다른 설정을 지배하므로, 설정을 만지기 전에 보여야 합니다.

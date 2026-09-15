@@ -22,7 +22,7 @@ const ok = (cond, label) => {
   if (!cond) failed++;
 };
 
-const { checkHook, splitSections } = await import(appUrl('js/lyrics.js'));
+const { checkHook, splitSections, checkInlineTags, checkOutro } = await import(appUrl('js/lyrics.js'));
 const { songWriting, songSeeds } = await import(appUrl('js/prompts.js'));
 
 /* ── 프롬프트가 훅을 제대로 요구하는지 ────────── */
@@ -40,6 +40,9 @@ console.log('\n프롬프트 지시:');
   ok(full.prompt.includes('1행과 5행은 훅 원문 그대로'), '구조표에도 훅 위치를 박음');
   ok(full.prompt.includes('아웃트로 태그는 세 단으로'), '아웃트로를 세 단으로 끝내게 함');
   ok(full.prompt.includes('Final 로 시작하는 한 방'), '마지막 한 방을 반드시 넣게 함');
+  ok(full.prompt.includes('가사 줄 끝에 악기 신호'), '줄 끝 악기 신호를 설명함');
+  ok(full.prompt.includes('두 줄에 하나 이하'), '신호 밀도를 제한함');
+  ok(full.prompt.includes('악기 목록에 이미 있어야'), '없는 악기를 부르지 않게 함');
 
   // 열쇠말과 훅이 섞이지 않아야 합니다.
   ok(
@@ -172,6 +175,56 @@ console.log('\n구간 인식:');
   ok(roles[0] === 'post-chorus', 'Post-Chorus를 온전히 읽음 (이름 속 하이픈에 안 잘림)');
   ok(roles[1] === 'pre-chorus', 'Pre-Chorus도 마찬가지');
   ok(roles[2] === 'verse', '연출 지시는 떼어 냄');
+}
+
+console.log('\n줄 끝 악기 신호:');
+{
+  const ok1 = `[Verse 1 - Soft Piano]
+the hallway kept your name [strings enter]
+i left it where it fell
+the winter did the rest [bass slide]
+and nothing came of it`;
+  ok(checkInlineTags(ok1).count === 2, '줄 끝 신호를 세어 냄');
+  ok(checkInlineTags(ok1).issues.length === 0, '규칙을 지킨 가사는 통과');
+
+  const midline = '[Verse 1 - Soft]\nthe hallway [brass stabs] kept your name';
+  ok(
+    checkInlineTags(midline).issues.some((x) => x.kind === 'inline-midline'),
+    '줄 중간에 넣은 신호를 잡아냄'
+  );
+
+  const state = '[Verse 1 - Soft]\nthe hallway kept your name [drums drop out]';
+  ok(
+    checkInlineTags(state).issues.some((x) => x.kind === 'inline-state'),
+    '빼는 지시를 줄 끝에 쓴 것을 잡아냄'
+  );
+  const only = '[Verse 1 - Soft]\nthe hallway kept your name [bass and drums only]';
+  ok(checkInlineTags(only).issues.some((x) => x.kind === 'inline-state'), '남기는 지시도 잡아냄');
+
+  const dense = `[Verse 1 - Soft]
+one [brass stabs]
+two [bass slide]
+three [drum fill]`;
+  ok(
+    checkInlineTags(dense).issues.some((x) => x.kind === 'inline-dense'),
+    '두 줄에 하나를 넘으면 잡아냄'
+  );
+
+  ok(checkInlineTags('[Verse 1 - Soft]\njust a line').issues.length === 0, '신호가 없어도 트집 잡지 않음');
+}
+
+console.log('\n아웃트로 마무리:');
+{
+  const open = '[Outro - Instrumentation Thins Out, Fades Out]\nlast line';
+  ok(checkOutro(open).issues.some((x) => x.kind === 'outro-open'), 'fades out 만 있으면 잡아냄');
+
+  const closed = '[Outro - Drums Drop Out, Then Bass Fades, Final Piano Chord Rings Out]\nlast line';
+  ok(checkOutro(closed).issues.length === 0, 'Final 한 방이 있으면 통과');
+
+  const hit = '[Outro - Everything Drops, Final Kick Drum Hit]\nlast line';
+  ok(checkOutro(hit).issues.length === 0, 'Final Kick Drum Hit 도 인정');
+
+  ok(checkOutro('[Verse 1 - Soft]\nline').issues.length === 0, '아웃트로가 없으면 트집 잡지 않음');
 }
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');

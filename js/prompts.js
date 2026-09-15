@@ -959,6 +959,32 @@ ${Array.from({ length: songCount }, (_, i) => {
 Final 로 시작하는 한 방을 반드시 넣으세요. 이 곡의 악기 중 하나로요.
   [Outro - Drums Drop Out, Then Bass Fades, Final Piano Chord Rings Out]
 
+════════ 가사 줄 끝에 악기 신호 넣기 ════════
+구조 태그가 **구간 전체**를 정한다면, 이건 **그 순간 하나**를 찍습니다.
+가사 한 줄 끝에 대괄호로 악기 신호를 답니다.
+
+  Your names are wiped clean from the marble floor [strings enter]
+  I burned the bridge and locked the heavy door [bass slide]
+
+지켜야 할 것 세 가지입니다.
+
+1. **줄 끝에만.** 줄 중간에 넣으면 무시됩니다.
+2. **두 줄에 하나 이하.** 촘촘하면 통째로 씹힙니다. 한 구간에 한두 개면 충분합니다.
+3. **시작되는 것만.** 이게 제일 중요합니다.
+
+   넣을 수 있음 — 그 순간 터지거나 들어오는 것
+     [brass stabs] [guitar riff] [drum fill] [strings enter]
+     [bass slide] [strings swell] [falsetto ad-lib] [full band enters]
+
+   넣을 수 없음 — 빼거나, 남기거나, 사라지는 것
+     [drums drop out] [bass and drums only] [fades out]
+   이런 건 구간 전체의 상태라 한 줄에 못 붙입니다. 구조 태그에 쓰세요.
+
+**여기 쓸 악기는 위 조건의 악기 목록에 이미 있어야 합니다.**
+없는 악기를 줄 끝에서 부르면 Suno가 무시합니다.
+
+대괄호는 지시이고, 소괄호는 실제로 불리는 가사입니다. 섞지 마세요.
+
 ════════ 후렴은 훅이 전부입니다 ════════
 여기가 곡이 기억되느냐 마느냐를 가릅니다. 다른 어떤 규칙보다 먼저 지키세요.
 
@@ -1256,6 +1282,9 @@ ${songCount >= 3
 - 곡마다 BPM이 서로 다른가
 - **모든 스타일에 곡이 어떻게 시작하는지가 적혀 있고, 곡마다 다른가**
 - **정해진 줄 수를 다 채웠는가** (모자라면 곡이 짧게 끝납니다)
+- 줄 끝 악기 신호가 두 줄에 하나를 넘지 않는가
+- 줄 끝 신호가 전부 '그 순간 시작되는 것'인가 (빼거나 사라지는 것은 아닌가)
+- 아웃트로가 세 단으로 끝나고 마지막에 Final 한 방이 있는가
 - **후렴의 첫 줄과 마지막 줄이 글자까지 똑같은 훅인가**
   (단어 반복형이나 소리형 훅도 마찬가지로 그대로 되풀이해야 합니다)
 - 훅이 4~7음절로 짧은가

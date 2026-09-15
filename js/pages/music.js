@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, songSeeds, moodPick, settingsFit, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
 import { styles, songs, refs, jobs, draft } from '../store.js';
@@ -1344,7 +1344,12 @@ export default function renderMusic(root) {
 
   /** 규칙을 어긴 곳이 있으면 가사 위에 짧게 알려 줍니다. */
   function lintBox(song) {
-    const issues = [...checkLyrics(song.lyrics), ...checkHook(song.lyrics).issues];
+    const issues = [
+      ...checkLyrics(song.lyrics),
+      ...checkHook(song.lyrics).issues,
+      ...checkInlineTags(song.lyrics).issues,
+      ...checkOutro(song.lyrics).issues,
+    ];
     const titleIssue = checkTitle(song.title);
     if (!issues.length && !titleIssue) return '';
 

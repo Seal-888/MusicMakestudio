@@ -547,3 +547,81 @@ function parseSrtTime(t) {
   if (!m) return 0;
   return +m[1] * 3600 + +m[2] * 60 + +m[3] + +m[4] / 1000;
 }
+
+/** 줄 끝 신호로 쓸 수 없는 것 — 구간 전체의 '상태'라 한 줄에 못 붙습니다. */
+const INLINE_BAD = /\b(drops?\s+out|only|fades?\s+out|thins?\s+out|continues|maintains?)\b/i;
+
+/**
+ * 가사 줄 끝에 붙인 악기 신호가 규칙을 지키는지 봅니다.
+ *
+ * 왜 필요한가:
+ * Suno는 줄 끝 대괄호를 '지금 이 순간 시작되는 것'으로만 읽습니다.
+ * 빼거나 사라지는 지시를 줄 끝에 붙이면 그 줄이 통째로 무시되고,
+ * 너무 촘촘하면 신호 전체가 씹힙니다.
+ * 프롬프트로 지시하되 결과는 여기서 세어 봅니다.
+ */
+export function checkInlineTags(text) {
+  const issues = [];
+  const lines = (text || '').split('\n').map((l) => l.trim()).filter(Boolean);
+
+  let tagged = 0;
+  let lyricLines = 0;
+
+  for (const line of lines) {
+    // 구조 태그 줄([Verse 1 - ...])은 대상이 아닙니다.
+    if (/^\[[^\]]*\]$/.test(line)) continue;
+    lyricLines++;
+
+    const m = line.match(/\[([^\]]+)\]\s*$/);
+    if (!m) {
+      // 줄 중간에 있는 대괄호는 무시됩니다.
+      if (/\[[^\]]+\]/.test(line)) {
+        issues.push({
+          kind: 'inline-midline',
+          label: '악기 신호가 줄 중간에 있음',
+          detail: line.slice(0, 40),
+        });
+      }
+      continue;
+    }
+
+    tagged++;
+    if (INLINE_BAD.test(m[1])) {
+      issues.push({
+        kind: 'inline-state',
+        label: '줄 끝에 쓸 수 없는 신호',
+        detail: `[${m[1]}] — 빼거나 남기는 지시는 구조 태그로 옮기세요`,
+      });
+    }
+  }
+
+  // 두 줄에 하나가 상한입니다.
+  if (lyricLines && tagged > Math.ceil(lyricLines / 2)) {
+    issues.push({
+      kind: 'inline-dense',
+      label: '악기 신호가 너무 촘촘함',
+      detail: `가사 ${lyricLines}줄에 ${tagged}개 — ${Math.ceil(lyricLines / 2)}개 이하로`,
+    });
+  }
+
+  return { count: tagged, issues };
+}
+
+/** 아웃트로가 한 방으로 닫히는지 봅니다. fades out 만 있으면 흐지부지 끝납니다. */
+export function checkOutro(text) {
+  const outro = splitSections(text).find((x) => x.role === 'outro');
+  if (!outro) return { issues: [] };
+
+  const tag = outro.tag.toLowerCase();
+  if (/\bfinal\b|\brings? out\b|\bhit\b|\bstrike\b/.test(tag)) return { issues: [] };
+
+  return {
+    issues: [
+      {
+        kind: 'outro-open',
+        label: '아웃트로가 닫히지 않음',
+        detail: '마지막에 Final 한 방을 넣으세요 (예: Final Piano Chord Rings Out)',
+      },
+    ],
+  };
+}

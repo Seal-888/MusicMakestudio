@@ -63,6 +63,12 @@ const VOCALS = [
     ['속삭이는 여성', 'whispered female vocal, close-miked'],
     ['재지한 여성', 'jazzy female vocal, smoky phrasing'],
     ['오페라틱 여성', 'operatic soprano vocal'],
+    // 빌런 화자용. 남성 쪽에만 있던 계열을 여성으로도 채웠습니다.
+    // 뜨겁지 않고 차가운 쪽이라 기존 여성 보컬과 성격이 다릅니다.
+    ['젊고 날 선 여성', 'young sharp female vocal, cold precise diction, effortless control'],
+    ['서늘한 미성 여성', 'smooth cool female vocal, silky upper register, restrained menace'],
+    ['나른한 여성', 'languid female vocal, half-spoken delivery, unbothered'],
+    ['지루해하는 여성', 'detached female vocal, flat affect, bored delivery, almost no vibrato'],
   ]],
   ['남성 보컬', [
     ['부드러운 남성', 'warm smooth male vocal, gentle delivery'],

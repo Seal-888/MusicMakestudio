@@ -192,16 +192,16 @@ console.log('\n전주 없는 설정이면 스타일에도 넣기:');
     onWhere.length === 1 && onWhere[0].includes('스타일에도'),
     `켜진 알약이 실제 동작과 일치 (${onWhere.join(', ')})`
   );
-  ok(
-    root.querySelector('[data-pills="introWhere"]').closest('.field').classList.contains('is-off'),
-    '고를 수 없음을 흐리게 표시'
-  );
+  const whereWrap = root.querySelector('[data-pills="introWhere"]').closest('.pills-wrap');
+  const introWrap = root.querySelector('[data-pills="intro"]').closest('.pills-wrap');
+  ok(whereWrap.classList.contains('is-off'), '인트로 위치만 고를 수 없게 표시');
+  ok(!introWrap.classList.contains('is-off'), '인트로는 계속 고를 수 있음 — 되돌릴 길이 있어야 함');
 
   // 되돌리면 다시 고를 수 있어야 합니다.
   pick('intro', '짧게');
   await settle(30);
   ok(
-    !root.querySelector('[data-pills="introWhere"]').closest('.field').classList.contains('is-off'),
+    !root.querySelector('[data-pills="introWhere"]').closest('.pills-wrap').classList.contains('is-off'),
     '인트로를 짧게로 되돌리면 다시 고를 수 있음'
   );
   ok(!root.textContent.includes('태그만으로는 Suno가'), '안내도 사라짐');
@@ -218,6 +218,14 @@ console.log('\n전주 없는 설정이면 스타일에도 넣기:');
   ok(
     calls[0].prompt.includes('opens cold on the chorus hook at full energy'),
     '도입부 코러스 → 스타일에도 자동으로 들어감'
+  );
+  ok(
+    root.querySelector('[data-pills="intro"]').closest('.pills-wrap').classList.contains('is-off'),
+    '도입부 코러스면 인트로 길이는 쓰이지 않으므로 잠김'
+  );
+  ok(
+    !root.querySelector('[data-pills="form"]').closest('.pills-wrap').classList.contains('is-off'),
+    '곡 구성은 계속 고를 수 있음 — 되돌릴 길이 있어야 함'
   );
 
   // 되돌립니다.

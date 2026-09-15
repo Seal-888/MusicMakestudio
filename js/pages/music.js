@@ -613,9 +613,10 @@ export default function renderMusic(root) {
     if (note) note.textContent = SONG_FORMS[key]?.note || '';
 
     const introField = root.querySelector('[data-pills="intro"]')?.closest('.field');
-    if (introField) {
+    const introWrap = root.querySelector('[data-pills="intro"]')?.closest('.pills-wrap');
+    if (introField && introWrap) {
       const off = key === 'chorusFirst';
-      introField.classList.toggle('is-off', off);
+      introWrap.classList.toggle('is-off', off);
       const label = introField.querySelector('.field-label small');
       if (label) {
         label.textContent = off
@@ -626,23 +627,24 @@ export default function renderMusic(root) {
 
     // 전주를 없애는 선택이면 '인트로 위치'는 고를 것이 없습니다.
     //
-    // 예전에는 고른 값을 그대로 둔 채 칸만 잠갔는데, 그러면
-    // '가사 태그에만'이 켜진 채로 굳어서 실제 동작과 정반대로 보였습니다.
-    // 이제 보이는 것과 실제로 나가는 것을 일치시킵니다.
-    const whereField = root.querySelector('[data-pills="introWhere"]')?.closest('.field');
-    if (whereField) {
+    // .field 를 잠그면 안 됩니다. 인트로와 인트로 위치가 같은 .field 안에 있어서,
+    // 위치를 잠그면 인트로까지 같이 잠겨 되돌릴 방법이 사라집니다.
+    // 알약 묶음(.pills-wrap)만 정확히 잠급니다.
+    const whereWrap = root.querySelector('[data-pills="introWhere"]')?.closest('.pills-wrap');
+    if (whereWrap) {
       const forced = introForced();
+      // 보이는 것과 실제로 나가는 것을 일치시킵니다.
       if (forced) setPills('introWhere', ['style']);
-      whereField.classList.toggle('is-off', forced);
+      whereWrap.classList.toggle('is-off', forced);
 
-      let note = whereField.querySelector('[data-where-forced]');
+      let note = whereWrap.parentElement.querySelector('[data-where-forced]');
       if (forced && !note) {
         note = document.createElement('p');
         note.className = 'muted small';
         note.dataset.whereForced = '1';
         note.textContent =
           '전주를 없애는 설정이라 스타일에도 자동으로 넣습니다. 태그만으로는 Suno가 전주를 붙입니다. 인트로를 "짧게"나 "보통"으로 바꾸면 다시 고를 수 있습니다.';
-        whereField.appendChild(note);
+        whereWrap.insertAdjacentElement('afterend', note);
       } else if (!forced && note) {
         note.remove();
       }

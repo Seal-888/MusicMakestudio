@@ -954,3 +954,7 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
 }
 .usage-bar i.is-full { background: #bd4a3e; }
 .usage p { margin-top: 6px; }
+
+/* 알약 묶음만 잠그기 — .field 를 잠그면 같은 칸의 다른 묶음까지 막힙니다 */
+.pills-wrap.is-off { opacity: .45; }
+.pills-wrap.is-off .pill { pointer-events: none; }

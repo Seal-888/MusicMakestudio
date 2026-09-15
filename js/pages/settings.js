@@ -1,4 +1,4 @@
-import { settings, health, exportAll, importAll } from '../store.js';
+import { settings, health, exportAll, importAll, usage } from '../store.js';
 import { testGemini, listModels } from '../api/gemini.js';
 import { testKie } from '../api/kie.js';
 import { testYouTube } from '../api/youtube.js';
@@ -125,7 +125,33 @@ export default function renderSettings(root) {
         <button class="btn sm is-ghost" data-act="import">파일에서 가져오기</button>
         <input type="file" accept="application/json" hidden data-import-file>
       </div>
+      ${usageBar()}
     </section>`;
+
+  /**
+   * 저장 공간이 얼마나 찼는지 보여 줍니다.
+   * 앱 시작 때 80%가 넘으면 알려 주기는 하지만,
+   * 그 전에 지금 상태를 확인할 곳이 없었습니다.
+   */
+  function usageBar() {
+    const { bytes, ratio } = usage();
+    const pct = Math.round(ratio * 100);
+    const kb = (bytes / 1024).toFixed(0);
+    const level = ratio >= 0.8 ? 'is-full' : ratio >= 0.5 ? 'is-half' : '';
+    return `<div class="usage">
+      <div class="usage-head">
+        <span>저장 공간</span>
+        <b class="${level}">${pct}% · ${kb}KB</b>
+      </div>
+      <div class="usage-bar"><i class="${level}" style="width:${Math.max(2, pct)}%"></i></div>
+      <p class="muted small">브라우저가 주는 칸은 5MB 안팎입니다.
+      ${
+        ratio >= 0.8
+          ? '가득 차면 저장이 실패합니다. 백업을 내려받고 오래된 곡을 지워 주세요.'
+          : '넘치면 오래된 것부터 밀려납니다.'
+      }</p>
+    </div>`;
+  }
 
   SERVICES.forEach((svc) => wireService(root, svc));
   wireBackup(root);

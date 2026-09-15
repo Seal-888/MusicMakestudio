@@ -60,9 +60,6 @@ async function kie(path, { method = 'GET', body = null } = {}) {
   return data.data ?? data;
 }
 
-export async function getCredit() {
-  return kie('chat/credit');
-}
 
 /**
  * 노래 생성 요청. 바로 결과가 오지 않고 작업 번호만 돌아옵니다.
@@ -104,9 +101,6 @@ export async function generateSong({
   return taskId;
 }
 
-export async function getTask(taskId) {
-  return kie(`generate/record-info?taskId=${encodeURIComponent(taskId)}`);
-}
 
 const DONE = ['SUCCESS', 'complete', 'COMPLETE'];
 const FAILED = [

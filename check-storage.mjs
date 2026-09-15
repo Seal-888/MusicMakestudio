@@ -107,5 +107,39 @@ console.log('\n저장 공간이 꽉 찬 상황:');
   ok(usage().bytes > 0, `용량 계산 동작 (${(usage().bytes / 1024).toFixed(1)}KB)`);
 }
 
+/* ── 설정 화면에 저장 공간이 보이는지 ────────── */
+console.log('\n설정 화면의 저장 공간 표시:');
+{
+  const { JSDOM } = await import('jsdom');
+  const fs = await import('fs');
+  const dom = new JSDOM(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), { url: 'https://t.local/' });
+  const { window } = dom;
+  global.window = window;
+  global.document = window.document;
+  global.CustomEvent = window.CustomEvent;
+  global.HTMLElement = window.HTMLElement;
+  global.Blob = window.Blob;
+  global.URL = window.URL;
+  global.location = window.location;
+  Object.defineProperty(global, 'navigator', { value: window.navigator, configurable: true });
+  window.matchMedia = () => ({ matches: false, addEventListener() {} });
+
+  const { store } = mockBrowser();
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: global.localStorage });
+  // 곡을 잔뜩 넣어 공간을 차지하게 합니다.
+  const { songs } = await import(appUrl('js/store.js') + '?t=3');
+  for (let i = 0; i < 40; i++) songs.add({ title: 'song' + i, lyrics: 'x'.repeat(900) });
+
+  const { default: renderSettings } = await import(appUrl('js/pages/settings.js') + '?t=3');
+  const root = window.document.createElement('div');
+  window.document.body.appendChild(root);
+  renderSettings(root);
+
+  ok(!!root.querySelector('.usage-bar'), '저장 공간 막대가 그려짐');
+  ok(/저장 공간[\s\S]*?\d+% · \d+KB/.test(root.textContent), '비율과 용량이 보임');
+  const w = root.querySelector('.usage-bar i')?.style.width || '';
+  ok(/^\d+%$/.test(w), `막대 길이가 비율을 따름 (${w})`);
+}
+
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
 process.exit(failed ? 1 : 0);

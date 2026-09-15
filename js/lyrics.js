@@ -5,79 +5,9 @@ import { toSrtTime } from './audio.js';
  * 구간 태그와 연출 지시문을 걷어내고, 화면에서 읽기 좋은 길이로 나눕니다.
  */
 
-/** [Verse - ...] 같은 구간 표시와 ( 연출 지시 )를 걷어냅니다. */
-export function stripDirections(text) {
-  return (text || '')
-    .split('\n')
-    .map((line) => {
-      let out = '';
-      let depth = 0;
-      for (const ch of line) {
-        if (ch === '[' || ch === '(' || ch === '（') depth++;
-        else if (ch === ']' || ch === ')' || ch === '）') depth = Math.max(0, depth - 1);
-        else if (depth === 0) out += ch;
-      }
-      return out.replace(/\s+/g, ' ').trim();
-    })
-    .filter((line) => line && !/^[-–—·.]+$/.test(line));
-}
 
-/**
- * 긴 줄을 화면에서 읽을 수 있는 길이로 나눕니다.
- * 말이 끊기지 않게 띄어쓰기 자리에서 자릅니다.
- */
-export function splitForReading(line, maxChars = 32) {
-  if (line.length <= maxChars) return [line];
 
-  const words = line.split(' ');
-  const out = [];
-  let cur = '';
 
-  for (const w of words) {
-    const next = cur ? `${cur} ${w}` : w;
-    if (next.length > maxChars && cur) {
-      out.push(cur);
-      cur = w;
-    } else {
-      cur = next;
-    }
-  }
-  if (cur) out.push(cur);
-
-  // 마지막 조각이 너무 짧으면 앞줄에 붙입니다.
-  if (out.length > 1 && out[out.length - 1].length < 6) {
-    out[out.length - 2] += ' ' + out.pop();
-  }
-  return out;
-}
-
-/** 가사 전문을 자막용 줄 목록으로 바꿉니다. */
-export function lyricsToLines(text, maxChars = 32) {
-  const lines = [];
-  for (const raw of stripDirections(text)) {
-    for (const piece of splitForReading(raw, maxChars)) lines.push(piece);
-  }
-  return lines;
-}
-
-/**
- * 시간이 정해진 줄들을 읽기 좋게 다듬습니다.
- * 너무 짧게 스치거나 너무 오래 남지 않게 하고, 겹침을 없앱니다.
- */
-export function tidyTiming(cues, duration, { minDur = 1.2, maxDur = 7 } = {}) {
-  const out = cues
-    .filter((c) => c.text && Number.isFinite(c.start) && c.start < duration)
-    .sort((a, b) => a.start - b.start);
-
-  return out.map((c, i) => {
-    const next = out[i + 1];
-    let end = Number.isFinite(c.end) && c.end > c.start ? c.end : c.start + minDur;
-    end = Math.max(end, c.start + minDur);
-    end = Math.min(end, c.start + maxDur, duration);
-    if (next) end = Math.min(end, next.start - 0.05);
-    return { text: c.text, start: c.start, duration: Math.max(0.4, end - c.start) };
-  });
-}
 
 /**
  * 모델이 돌려준 가사를 사람이 읽고 Suno가 이해할 수 있게 다듬습니다.
@@ -219,6 +149,23 @@ export function checkTitle(title) {
  * 넉넉하게 어림하면 가사가 모자라도 괜찮아 보여서, 결국 짧은 곡이 나옵니다.
  * 조금 짧게 어림하는 편이 가사를 더 쓰게 만들어 목표에 가까워집니다.
  */
+/** 구간 태그와 괄호 안 연출 지시를 걷어내고 실제 가사 줄만 남깁니다. */
+function stripDirections(text) {
+  return (text || '')
+    .split('\n')
+    .map((line) => {
+      let out = '';
+      let depth = 0;
+      for (const ch of line) {
+        if (ch === '[' || ch === '(' || ch === '（') depth++;
+        else if (ch === ']' || ch === ')' || ch === '）') depth = Math.max(0, depth - 1);
+        else if (depth === 0) out += ch;
+      }
+      return out.replace(/\s+/g, ' ').trim();
+    })
+    .filter((line) => line && !/^[-–—·.]+$/.test(line));
+}
+
 export function estimateDuration(text) {
   const lines = stripDirections(text);
   if (!lines.length) return null;

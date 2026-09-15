@@ -929,3 +929,28 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
   font-weight: 400;
 }
 .sub-tip th { opacity: .6; font-size: 12px; }
+
+/* ── 저장 공간 ───────────────────────────────── */
+.usage { margin-top: 16px; }
+.usage-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+.usage-head b.is-half { color: #9a6b18; }
+.usage-head b.is-full { color: #8d3a32; }
+.usage-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(196, 158, 110, .18);
+  overflow: hidden;
+}
+.usage-bar i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transition: width .3s;
+}
+.usage-bar i.is-full { background: #bd4a3e; }
+.usage p { margin-top: 6px; }

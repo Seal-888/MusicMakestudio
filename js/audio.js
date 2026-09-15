@@ -41,41 +41,7 @@ function readDurationFallback(file) {
   });
 }
 
-/**
- * 파일 여러 개를 순서대로 재서 누적 시작 시각까지 계산합니다.
- * onProgress로 진행 상황을 화면에 보여 줄 수 있습니다.
- */
-export async function measureTracks(files, onProgress = null) {
-  const tracks = [];
-  let cursor = 0;
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    onProgress?.(i + 1, files.length, file.name);
-    const duration = await readDuration(file);
-    tracks.push({
-      file,
-      name: file.name,
-      title: cleanTitle(file.name),
-      duration,
-      start: cursor,
-      end: cursor + duration,
-    });
-    cursor += duration;
-  }
-
-  return { tracks, total: cursor };
-}
-
-/** 파일명에서 제목만 남깁니다. 확장자, 앞번호, 흔한 접미사를 떼어 냅니다. */
-export function cleanTitle(filename) {
-  return filename
-    .replace(/\.[^.]+$/, '')
-    .replace(/^\s*\d{1,3}[\s._\-)]+/, '')
-    .replace(/[\s_]*\(?(final|master|mix|v\d+)\)?$/i, '')
-    .replace(/_/g, ' ')
-    .trim();
-}
 
 /** 초 → 0:00 또는 1:02:03 */
 export function toTimestamp(seconds, { forceHours = false } = {}) {
@@ -96,7 +62,3 @@ export function toSrtTime(seconds) {
   )},${pad(ms % 1000, 3)}`;
 }
 
-/** 초 → 캡컷이 쓰는 마이크로초 */
-export function toMicros(seconds) {
-  return Math.round(seconds * 1000000);
-}

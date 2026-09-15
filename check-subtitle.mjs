@@ -137,6 +137,25 @@ await settle(20);
 ok(root.textContent.includes('자막 5칸'), '칸 수를 세어 보여 줌');
 ok(root.textContent.includes('1:05'), '끝나는 시각을 보여 줌');
 
+console.log('\n화자 성격 알약:');
+{
+  const pills = [...root.querySelectorAll('[data-pills="persona"] .pill')];
+  ok(pills.length === 4, `알약 ${pills.length}개가 그려짐`);
+  ok(pills.filter((p) => p.classList.contains('on')).length === 1, '처음에 하나만 켜져 있음');
+
+  const defiant = pills.find((p) => p.textContent.includes('반항'));
+  defiant.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  ok(defiant.classList.contains('on'), '누르면 켜짐');
+  ok(
+    pills.filter((p) => p.classList.contains('on')).length === 1,
+    '하나만 고르는 묶음이라 앞의 것은 꺼짐'
+  );
+
+  const back = pills.find((p) => p.textContent.includes('빌런'));
+  back.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  ok(back.classList.contains('on') && !defiant.classList.contains('on'), '다시 바꿀 수 있음');
+}
+
 console.log('\n빠진 값 확인:');
 click($('[data-go]'));
 await settle(30);
@@ -151,6 +170,7 @@ await settle(200);
 ok(calls.length === 1, '한 번만 호출함');
 const p = calls[0].prompt;
 ok(p.includes('낮춤말로 씁니다'), '화자 말투를 지시함');
+ok(p.includes('이미 이긴 사람') || p.includes('여유'), '고른 화자(빌런)의 말투가 프롬프트에 실림');
 ok(p.includes('시각은 적지 마세요'), '모델에게 시각을 만들지 못하게 함');
 ok(p.includes('The carpet damp with oil'), '정확한 가사 원문을 함께 넘김');
 ok(p.includes('가사 원문의 영어 한 줄'), '교정된 영어도 함께 내게 지시함');

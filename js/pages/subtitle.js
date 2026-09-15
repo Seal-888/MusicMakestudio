@@ -68,6 +68,9 @@ export default function renderSubtitle(root) {
     </div>
   `;
 
+  // 알약을 눌렀을 때 켜지고 꺼지게 합니다. 이걸 빠뜨리면 그려지기만 하고 눌리지 않습니다.
+  R.wirePills(root);
+
   const $ = (s) => root.querySelector(s);
   const info = $('[data-srt-info]');
 

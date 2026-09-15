@@ -89,4 +89,26 @@ for (const file of fs.readdirSync(path.join(ROOT, 'js/pages')).concat(
   }
 }
 console.log(problems ? `\n${problems}개 파일에 문제가 있습니다.` : '\n모든 함수 호출이 정상입니다.');
+
+/* ── 알약을 그려 놓고 눌리게 하는 걸 빠뜨리지 않았는지 ──
+ * pillGroup 으로 알약을 그려도 wirePills 를 부르지 않으면
+ * 화면에는 멀쩡히 보이는데 눌러도 아무 일이 없습니다.
+ * 문법 검사로도, 화면 검사로도 안 잡힙니다.
+ * 실제로 '가사 자막'에서 이 일이 있었습니다.
+ */
+{
+  const dir = path.join(ROOT, 'js/pages');
+  const missing = [];
+  for (const name of fs.readdirSync(dir).filter((f) => f.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(dir, name), 'utf8');
+    if (src.includes('pillGroup(') && !src.includes('wirePills(')) missing.push(name);
+  }
+  if (missing.length) {
+    console.error(`✗ 알약을 그려 놓고 wirePills 를 부르지 않은 화면: ${missing.join(', ')}`);
+    problems += missing.length;
+  } else {
+    console.log('알약이 있는 화면은 모두 눌리게 연결돼 있습니다.');
+  }
+}
+
 process.exit(problems ? 1 : 0);

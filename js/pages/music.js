@@ -205,22 +205,33 @@ const FIT_FIELDS = [
  * 빌런 플레이리스트를 자주 만들기 때문에 처음부터 그 조합으로 켜 둡니다.
  * 알약을 눌러 언제든 바꿀 수 있고, "기본값으로 되돌리기"로 다시 불러옵니다.
  */
+/**
+ * 처음 화면에 켜 두는 값입니다.
+ *
+ * 빌런은 장르가 아니라 **태도**입니다.
+ * 예전 기본값은 그 태도를 다크 팝·트랩·시네마틱 세 장르로 굳혀 두었고,
+ * 그래서 어떤 주제를 넣어도 비슷한 소리가 나왔습니다.
+ * 같은 화자라도 곡에 따라 록·재즈·EDM·동양풍이 더 맞을 수 있습니다.
+ *
+ * 그래서 장르와 악기는 **바탕만** 켜 두고 나머지는 비워 둡니다.
+ * 곡마다 '주제로 설정 맞추기'로 채우는 것이 맞는 순서입니다.
+ * 다만 발랄하거나 평화로운 쪽은 이 채널과 끝까지 어울리지 않으므로,
+ * 그 방향으로는 처음부터 가지 않게 어두운 바탕 하나는 남겨 둡니다.
+ */
 const DEFAULTS = {
-  genre: ['dark pop', 'cinematic orchestral', 'trap'],
+  // 장르는 하나만. 여기서 출발해 주제에 맞게 넓히는 편이 낫습니다.
+  genre: ['dark pop'],
   // 빌런은 소리를 지를 때보다 여유로울 때 위협적입니다.
   // 다만 저음만 쓰면 나이 든 인상이 되므로, 젊고 날 선 음색을 기본으로 둡니다.
   vocal: 'young sharp male tenor, cold precise diction, effortless control',
   language: 'English',
   tempo: 'mid tempo 90-110 BPM',
-  mood: [
-    'dark and intense',
-    'menacing but composed, unhurried', // 소리 지르지 않는 위협감
-    'sensual, sultry',
-    'epic, grand, cinematic',
-    'mysterious, enigmatic',
-  ],
+  // 태도만 남기고 소리의 색은 비웠습니다.
+  // '웅장한', '관능적', '신비로운'은 곡마다 달라야 할 것이라 뺐습니다.
+  mood: ['dark and intense', 'menacing but composed, unhurried'],
   era: 'modern 2020s',
-  instrument: ['orchestral strings', 'analog synthesizer', '808 bass, trap drums', 'grand piano'],
+  // 특정 편성으로 굳지 않게 둘만 켜 둡니다.
+  instrument: ['orchestral strings', 'grand piano'],
   // 곡마다 주제가 다르므로 비워 둡니다. 화자 설정이 빌런 색을 잡아 줍니다.
   concept: '',
   craft: ['rhyme', 'minimal', 'anchor', 'variety'],

@@ -265,6 +265,13 @@ console.log('\n주제로 설정 맞추기:');
 
   ok(calls.length === 1, '칸이 여러 개여도 호출은 한 번');
   ok(calls[0].prompt.includes('설정끼리도 서로 맞아야'), '조합이 맞도록 지시함');
+  ok(calls[0].prompt.includes('앞 곡에서 쓰던 설정'), '현재 설정을 기본값으로 여기지 않게 함');
+  ok(calls[0].prompt.includes('이유를 댈 수 있어야'), '그대로 두려면 근거를 요구함');
+  ok(calls[0].prompt.includes('분노는 록이, 권태는 재즈가'), '장르를 넓게 보게 함');
+  ok(calls[0].prompt.includes('밝고 편안한 쪽으로는 가지 않습니다'), '채널과 안 맞는 방향은 배제함');
+  const { settingsFit } = await import(appUrl('js/prompts.js'));
+  const t = settingsFit({ concept: 'x', fields: [{ key: 'genre', label: '장르', multi: true, options: ['a'] }] }).temperature;
+  ok(t >= 0.7, `폭을 주는 온도 (${t}) — 낮으면 늘 무난한 답만 나옴`);
   ok(calls[0].prompt.includes('【장르】'), '고를 수 있는 목록을 넘김');
   ok(!calls[0].prompt.includes('【가사 언어】'), '가사 언어는 자동으로 안 건드림');
   ok(!calls[0].prompt.includes('【곡 길이】'), '곡 길이도 안 건드림');

@@ -306,5 +306,20 @@ console.log('\n마지막 후렴 흔들기:');
   ok(!off.includes('마지막 후렴에서 딱 한 번'), '끄면 안 실림');
 }
 
+console.log('\n처음 켜 두는 값이 한 장르로 굳지 않았는가:');
+{
+  const fs2 = await import('fs');
+  const src = fs2.readFileSync(path.join(ROOT, 'js/pages/music.js'), 'utf8');
+  const block = src.match(/const DEFAULTS = \{[\s\S]*?\n\};/)[0];
+  const count = (key) => (block.match(new RegExp(key + ": \\[([^\\]]*)\\]"))?.[1].match(/'/g)?.length || 0) / 2;
+
+  ok(count('genre') <= 2, `장르 기본값이 ${count('genre')}개 — 넓힐 여지를 남김`);
+  ok(count('mood') <= 3, `분위기 기본값이 ${count('mood')}개 — 곡마다 채우게 둠`);
+  ok(count('instrument') <= 3, `악기 기본값이 ${count('instrument')}개`);
+  // 채널 성격은 남아 있어야 합니다.
+  ok(/dark/.test(block), '어두운 바탕은 남아 있음');
+  ok(/menacing/.test(block), '위협적인 태도는 남아 있음');
+}
+
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
 process.exit(failed ? 1 : 0);

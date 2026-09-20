@@ -154,6 +154,23 @@ console.log('\n화자 성격 알약:');
   const back = pills.find((p) => p.textContent.includes('빌런'));
   back.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   ok(back.classList.contains('on') && !defiant.classList.contains('on'), '다시 바꿀 수 있음');
+
+  // 고르고 나서야 어떤 지시인지 알면 늦습니다.
+  ok(root.textContent.includes('감정을 설명하지 않고'), '고른 말투가 화면에 보임');
+  defiant.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await settle(20);
+  ok(root.textContent.includes('상대에게 직접 말을 건다'), '바꾸면 설명도 따라 바뀜');
+  back.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await settle(20);
+}
+
+console.log('\n화자마다 말투가 다른가:');
+{
+  const { PERSONAS } = await import(appUrl('js/prompts.js'));
+  const voices = Object.values(PERSONAS).map((x) => x.voice);
+  ok(voices.every(Boolean), '네 화자 모두 번역용 말투가 있음');
+  ok(new Set(voices).size === 4, '네 개가 서로 다름');
+  ok(voices.every((v) => v.length < 150), `작사 지침보다 훨씬 짧음 (최대 ${Math.max(...voices.map((v) => v.length))}자)`);
 }
 
 console.log('\n빠진 값 확인:');
@@ -170,7 +187,12 @@ await settle(200);
 ok(calls.length === 1, '한 번만 호출함');
 const p = calls[0].prompt;
 ok(p.includes('낮춤말로 씁니다'), '화자 말투를 지시함');
-ok(p.includes('이미 저지른 사람'), '고른 화자(빌런)의 말투가 프롬프트에 실림');
+ok(p.includes('감정을 설명하지 않고 한 일만 말한다'), '고른 말투(빌런)가 실림');
+// 가사를 '쓸 때'의 지침은 번역에 방해가 되므로 실리면 안 됩니다.
+ok(!p.includes('당한 사람이 있어야'), '작사용 지침은 안 실림');
+ok(!p.includes('빠져나가려 하지 마세요'), '도망 금지 지침도 안 실림');
+ok(p.includes('새로 짓지 말고 있는 것을 옮기세요'), '재창작을 막음');
+ok(p.includes('곡 내용을 따릅니다'), '말투와 곡이 어긋나면 곡을 따르게 함');
 ok(p.includes('시각은 적지 마세요'), '모델에게 시각을 만들지 못하게 함');
 ok(p.includes('The carpet damp with oil'), '정확한 가사 원문을 함께 넘김');
 ok(p.includes('가사 원문의 영어 한 줄'), '교정된 영어도 함께 내게 지시함');

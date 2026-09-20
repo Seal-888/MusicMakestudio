@@ -48,17 +48,21 @@ export default function renderSubtitle(root) {
       </label>
 
       <label class="field">
-        <span>이 곡의 화자 <small>말투를 정합니다</small></span>
+        <span>이 곡이 어떤 이야기인가 <small>옮길 때의 기준이 됩니다</small></span>
         <textarea rows="3" data-concept placeholder="예) 이 곡은 7대 죄악 중 교만이다. 가장 높은 자리에 올라선 사람이..."></textarea>
+        <small class="field-hint">음악 만들기에 넣었던 주제를 그대로 붙여 넣으시면 됩니다.
+        아래 말투와 어긋나면 이쪽을 따릅니다.</small>
       </label>
 
       <div class="field">
-        <p class="field-label">화자 성격</p>
+        <p class="field-label">옮길 때의 말투 <small>어떻게 들리게 할지</small></p>
         ${R.pillGroup(
           'persona',
-          Object.entries(PERSONAS).map(([k, v]) => ({ label: v.label, value: k })),
+          // 라벨에서 '— 설명' 부분을 떼어 짧게 보여 줍니다. 여기서는 말투만 고르면 됩니다.
+          Object.entries(PERSONAS).map(([k, v]) => ({ label: v.label.split(' — ')[0], value: k })),
           { multi: false, selected: ['villain'] }
         )}
+        <div class="muted small" data-voice-note></div>
       </div>
 
       <div class="style-head">
@@ -73,6 +77,18 @@ export default function renderSubtitle(root) {
 
   const $ = (s) => root.querySelector(s);
   const info = $('[data-srt-info]');
+
+  /** 고른 말투가 실제로 어떤 지시인지 보여 줍니다. 고르고 나서야 알면 늦습니다. */
+  function paintVoice() {
+    const key = R.readPills(root, 'persona')[0] || 'villain';
+    const v = PERSONAS[key]?.voice || '';
+    const el = $('[data-voice-note]');
+    if (el) el.textContent = v.replace(/\n/g, ' ');
+  }
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-pills="persona"]')) setTimeout(paintVoice, 0);
+  });
+  paintVoice();
 
   /** SRT를 읽어 몇 칸인지 보여 줍니다. 여기서 시각이 확정됩니다. */
   function readSrt(text) {

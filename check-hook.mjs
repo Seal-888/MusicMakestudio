@@ -323,5 +323,19 @@ console.log('\n처음 켜 두는 값이 한 장르로 굳지 않았는가:');
   ok(/menacing/.test(block), '위협적인 태도는 남아 있음');
 }
 
+console.log('\n프롬프트에서도 충돌을 막는가:');
+{
+  const b = { genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+              era: 'e', instruments: 'i', concept: 'c', songCount: 1 };
+  const both = songWriting({ ...b, rhyme: true, minimal: true }).prompt;
+  ok(!both.includes('라임과 리듬'), '둘 다 켜져 오면 라임 지시는 안 실림');
+  ok(both.includes('════════ 여백'), '여백 지시만 실림');
+
+  const r = songWriting({ ...b, rhyme: true }).prompt;
+  ok(r.includes('라임과 리듬') && !r.includes('════════ 여백'), '라임만 켜면 라임만');
+  const mi = songWriting({ ...b, minimal: true }).prompt;
+  ok(!mi.includes('라임과 리듬') && mi.includes('════════ 여백'), '여백만 켜면 여백만');
+}
+
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
 process.exit(failed ? 1 : 0);

@@ -235,6 +235,33 @@ console.log('\n전주 없는 설정이면 스타일에도 넣기:');
   calls.length = 0;
 }
 
+console.log('\n라임과 여백은 같이 못 켬:');
+{
+  const craft = (label) =>
+    [...root.querySelectorAll('[data-pills="craft"] .pill')].find((p) => p.textContent.includes(label));
+  const on = (label) => craft(label).classList.contains('on');
+
+  ok(on('라임 살리기'), '기본값은 라임');
+  ok(!on('여백 있게'), '여백은 기본으로 꺼져 있음');
+
+  click(craft('여백 있게'));
+  await settle(30);
+  ok(on('여백 있게'), '여백을 켜면 켜짐');
+  ok(!on('라임 살리기'), '라임이 자동으로 꺼짐');
+
+  click(craft('라임 살리기'));
+  await settle(30);
+  ok(on('라임 살리기') && !on('여백 있게'), '반대로도 동작함');
+
+  // 다른 작사 방식은 서로 영향이 없어야 합니다.
+  const before = on('열쇠말 반복');
+  click(craft('여백 있게'));
+  await settle(30);
+  ok(on('열쇠말 반복') === before, '관계없는 항목은 그대로');
+  click(craft('라임 살리기'));
+  await settle(30);
+}
+
 console.log('\n입력 순서:');
 {
   // 주제가 다른 설정을 지배하므로, 설정을 만지기 전에 보여야 합니다.

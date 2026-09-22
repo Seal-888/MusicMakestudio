@@ -234,7 +234,11 @@ const DEFAULTS = {
   instrument: ['orchestral strings', 'grand piano'],
   // 곡마다 주제가 다르므로 비워 둡니다. 화자 설정이 빌런 색을 잡아 줍니다.
   concept: '',
-  craft: ['rhyme', 'minimal', 'anchor', 'variety'],
+  // '라임 살리기'와 '여백 있게'는 서로 부딪힙니다.
+  // 라임을 맞추려면 줄 끝에 특정 단어가 와야 해서 문장이 길어지는데,
+  // 여백은 단문을 요구합니다. 둘 다 켜면 라임이 이깁니다.
+  // 훅의 중독성이 더 중요하므로 라임을 기본으로 둡니다.
+  craft: ['rhyme', 'anchor', 'variety'],
   persona: 'villain',
   intro: 'short',
   introWhere: 'tag',
@@ -372,8 +376,8 @@ export default function renderMusic(root) {
           { label: '마지막 후렴 한 번 흔들기', value: 'crack' },
         ], { selected: DEFAULTS.craft })}
         <p class="muted small">
-          <b>라임 살리기</b> 후렴에 각운을 몰아 중독성을 높입니다 ·
-          <b>여백 있게</b> 단문 위주로 설명을 걷어냅니다 ·
+          <b>라임 살리기</b> 후렴에 각운을 몰아 중독성을 높입니다. 대신 줄이 길어집니다 ·
+          <b>여백 있게</b> 단문 위주로 설명을 걷어냅니다. 라임과 같이 쓸 수 없어 하나를 고르면 다른 하나가 꺼집니다ㆍ몰아치는 곡이면 라임, 말이 없어야 하는 곡이면 여백 ·
           <b>흘려 부르는 발음</b> gonna, feelin 처럼 실제 부르는 소리로 적습니다 (영어 가사용) ·
           <b>열쇠말 반복</b> 곡을 관통하는 한마디를 서너 번 되풀이해 기억에 남게 합니다 ·
           <b>곡마다 다르게</b> BPM·후렴 진입·마무리를 곡마다 바꿔 플레이리스트가 지루해지지 않게 합니다 ·
@@ -670,7 +674,30 @@ export default function renderMusic(root) {
     }
   }
 
+  /**
+   * '라임 살리기'와 '여백 있게'는 같이 켤 수 없습니다.
+   *
+   * 라임은 줄 끝에 특정 단어를 놓아야 하므로 문장이 길어지고,
+   * 여백은 한 줄에 장면 하나만 담으라고 합니다. 정면으로 부딪힙니다.
+   * 둘 다 켜면 지시가 구체적인 라임이 이겨서, 여백을 켠 보람이 없습니다.
+   */
+  const CRAFT_CONFLICT = { rhyme: 'minimal', minimal: 'rhyme' };
+
   root.addEventListener('click', (e) => {
+    const craftPill = e.target.closest('[data-pills="craft"] .pill');
+    if (craftPill) {
+      setTimeout(() => {
+        if (!craftPill.classList.contains('on')) return;
+        const foe = CRAFT_CONFLICT[craftPill.dataset.value];
+        if (!foe) return;
+        const other = root.querySelector(`[data-pills="craft"] .pill[data-value="${foe}"]`);
+        if (other?.classList.contains('on')) {
+          other.classList.remove('on');
+          toast(`"${other.textContent}"를 껐습니다. 라임과 여백은 같이 쓸 수 없습니다.`);
+        }
+      }, 0);
+    }
+
     if (e.target.closest('[data-pills="form"]')) setTimeout(refreshForm, 0);
     if (e.target.closest('[data-pills="intro"]')) setTimeout(refreshForm, 0);
     if (e.target.closest('[data-pills="introWhere"]')) setTimeout(refreshForm, 0);

@@ -71,7 +71,9 @@ console.log('\n빌런 화자:');
   ok(g.includes('구체적인 장면으로'), '한 짓을 장면으로 쓰게 함');
   ok(g.includes('당한 사람의 반응도'), '상대의 반응까지 요구함');
   ok(g.includes('정리'), '끝에서 교훈으로 닫는 것을 막음');
-  ok(!/미워하지 않습니다\.$/m.test(g) || g.includes('해쳤다는 게 더 서늘'), '미워하지 않음을 가해와 함께 씀');
+  ok(g.includes('터지는 곡이면 터뜨립니다'), '터지는 곡에서 소리칠 수 있음');
+  ok(!g.includes('**말투는 조용합니다.**'), '조용함을 화자의 조건으로 못 박지 않음');
+  ok(g.includes('주제에 분노나 폭발이 있으면 그쪽을 따릅니다'), '주제가 말투를 이김');
 
   const full = songWriting({
     genres: 'dark pop', language: 'English', vocal: 'v', tempo: 't',

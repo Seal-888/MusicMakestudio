@@ -22,7 +22,7 @@ const ok = (cond, label) => {
   if (!cond) failed++;
 };
 
-const { checkHook, splitSections, checkInlineTags, checkOutro, checkLength } = await import(appUrl('js/lyrics.js'));
+const { checkHook, splitSections, checkInlineTags, checkOutro, checkLength, checkRepeats } = await import(appUrl('js/lyrics.js'));
 const { songWriting, songSeeds, targetLines } = await import(appUrl('js/prompts.js'));
 
 /* ── 프롬프트가 훅을 제대로 요구하는지 ────────── */
@@ -335,6 +335,55 @@ console.log('\n프롬프트에서도 충돌을 막는가:');
   ok(r.includes('라임과 리듬') && !r.includes('════════ 여백'), '라임만 켜면 라임만');
   const mi = songWriting({ ...b, minimal: true }).prompt;
   ok(!mi.includes('라임과 리듬') && mi.includes('════════ 여백'), '여백만 켜면 여백만');
+}
+
+console.log('\nA. 도입부 코러스가 곡 속도를 따르는가:');
+{
+  const b = { genres: 'x', language: 'English', instruments: 'i', concept: 'c', era: 'e',
+              songCount: 1, form: 'chorusFirst', introInStyle: true };
+  const slow = songWriting({ ...b, vocal: 'languid male vocal', tempo: 'slow 70-90 BPM', moods: 'sensual, sultry' }).prompt;
+  const fast = songWriting({ ...b, vocal: 'male tenor', tempo: 'fast 130-150 BPM', moods: 'explosive energy' }).prompt;
+  const calmButLoud = songWriting({ ...b, vocal: 'v', tempo: 'mid tempo', moods: 'dark and intense, explosive energy' }).prompt;
+  ok(slow.includes('Low and Close'), '느리고 관능적인 곡 → 낮고 가깝게');
+  ok(!slow.includes('Full Energy From The First Bar'), '느린 곡엔 full energy 를 안 붙임');
+  ok(slow.includes('low and close rather than loud'), '스타일 문장도 따라 바뀜');
+  ok(fast.includes('Full Energy From The First Bar'), '빠르고 터지는 곡 → 그대로 최대 에너지');
+  ok(calmButLoud.includes('Full Energy From The First Bar'), '에너지 단어가 있으면 터뜨리는 쪽 우선');
+}
+
+console.log('\nD. 빌런 도망 목록에 영어 예시:');
+{
+  const { PERSONAS } = await import(appUrl('js/prompts.js'));
+  const g = PERSONAS.villain.guide;
+  ok(g.includes('you do the same to me'), '변명의 영어 예시가 있음');
+  ok(g.includes("it's the only way we feel free"), '합리화의 영어 예시가 있음');
+  ok(g.includes('특히 브릿지에서 자주 나옵니다'), '브릿지를 특히 경계하게 함');
+}
+
+console.log('\nE. 반대 성별 보컬 자동 제외:');
+{
+  const b = { genres: 'x', language: 'English', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1 };
+  ok(songWriting({ ...b, vocal: 'languid male vocal' }).prompt.includes('female vocals 를 반드시'), '남성 → female vocals 제외');
+  ok(songWriting({ ...b, vocal: 'detached female vocal' }).prompt.includes('male vocals 를 반드시'), '여성 → male vocals 제외');
+  const duet = songWriting({ ...b, vocal: 'male and female duet' }).prompt;
+  ok(!duet.includes('female vocals 를 반드시') && !duet.includes('male vocals 를 반드시'), '듀엣이면 아무것도 안 뺌');
+}
+
+console.log('\nF. 훅이 아닌 말의 반복:');
+{
+  const lust = `[Verse 1 - x]
+I search the dresser but there's nothing there
+[Verse 2 - x]
+I look in the mirror, see there's nothing there
+[Bridge - x]
+We build a fire but find nothing there`;
+  ok(checkRepeats(lust).issues.some((x) => x.detail.includes('nothing there')), '절·브릿지에 세 번 나오면 잡음');
+  const twice = '[Verse 1 - x]\nthere is nothing there\n[Verse 2 - x]\nyou see nothing there';
+  ok(checkRepeats(twice).issues.length === 0, '두 번까지는 봐 줌');
+  const chorus = '[Chorus - x]\nnothing there\nnothing there\nnothing there';
+  ok(checkRepeats(chorus).issues.length === 0, '후렴 안의 반복은 셈에서 뺌');
+  const common = '[Verse 1 - x]\nsaid it to me\ngave it to me\nthrew it to me';
+  ok(checkRepeats(common).issues.length === 0, "'to me' 같은 흔한 꼬리는 무시");
 }
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');

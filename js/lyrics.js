@@ -664,3 +664,46 @@ export function checkLength(text, wantLines) {
 
   return { lines: lines.length, issues };
 }
+
+/**
+ * 훅이 아닌 말이 곡 안에서 세 번 넘게 되풀이되는지 봅니다.
+ *
+ * 왜 필요한가:
+ * 훅은 되풀이해야 하지만, 훅이 아닌 말이 되풀이되면 성의 없어 보입니다.
+ * 모델이 라임을 맞추려고 같은 줄 끝(nothing there 같은 것)을
+ * 절마다 다시 쓰는 일이 잦은데, 가사만 훑어서는 잘 안 보입니다.
+ * 후렴 안의 반복은 셈에서 뺍니다. 후렴은 원래 되풀이하는 자리입니다.
+ */
+export function checkRepeats(text) {
+  const sections = splitSections(text);
+  const chorusSet = new Set(['chorus', 'post-chorus', 'postchorus', 'refrain', 'hook']);
+  const counts = new Map();
+
+  for (const sec of sections) {
+    if (chorusSet.has(sec.role) || sec.role === 'outro') continue;
+    for (const raw of sec.lines) {
+      const line = raw.replace(/\[[^\]]*\]/g, '').replace(/\([^)]*\)/g, '');
+      const words = normLine(line).split(' ').filter(Boolean);
+      // 줄 끝 두 단어 — 라임을 맞추려고 되풀이되는 자리입니다.
+      // 'to me', 'at the' 처럼 관사·대명사만 남는 건 흔한 말이라 셈에서 뺍니다.
+      if (words.length >= 2) {
+        const tail = words.slice(-2);
+        if (tail.every((w) => HOOK_STOP.has(w))) continue;
+        const key = tail.join(' ');
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  const issues = [];
+  for (const [phrase, n] of counts) {
+    if (n >= 3) {
+      issues.push({
+        kind: 'repeat-tail',
+        label: '같은 말이 되풀이됨',
+        detail: `"${phrase}" ${n}번 — 후렴이 아닌 곳이라 성의 없어 보입니다`,
+      });
+    }
+  }
+  return { issues };
+}

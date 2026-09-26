@@ -38,9 +38,15 @@ export const PERSONAS = {
 
 **빠져나가려 하지 마세요.** 이 넷은 모두 도망입니다.
 - 변명 — 어쩔 수 없었다, 나도 당했다, 그럴 만했다
+  (영어로는 you do the same to me / we're both the same / I had no choice)
 - 설명 — 왜 그랬는지 사정을 늘어놓기
+  (because I was hurt before / that's just how I was raised)
 - 뉘우침 — 미안하다, 후회한다, 그러지 말 걸
+  (I'm sorry / I wish I hadn't / I regret it)
 - **정리** — 곡 끝에서 깨달음이나 교훈으로 닫기
+  (it's the only way we feel free / maybe someday I'll change / that's the price of love)
+**특히 브릿지에서 자주 나옵니다.** 브릿지는 판을 뒤집는 자리라서 모델이 반성이나 합리화로
+뒤집으려 합니다. 뒤집더라도 **더 차갑게** 뒤집으세요. 한 단계 더 나간 무심함으로.
 마지막이 제일 자주 나옵니다. 끝에서 정리하면 그때까지 쌓은 것이 전부 없어집니다.
 **그대로 두고 끝내세요.** 답을 주지 않는 것이 이 화자의 태도입니다.
 
@@ -698,10 +704,13 @@ ${menu}
   같은 화자라도 곡에 따라 록·재즈·팝·EDM·동양풍이 더 맞을 수 있습니다.
   분노는 록이, 권태는 재즈가, 과시는 EDM이 더 맞을 수 있습니다.
   목록 전체를 훑고, 뻔한 답이 아닌 쪽이 더 맞는지 한 번은 따져 보세요.
-- **다만 밝고 편안한 쪽으로는 가지 않습니다.**
+- **다만 편안하고 다정한 쪽으로는 가지 않습니다.**
   희망찬, 따스한 위로, 순수한 평화, 포근한 구름, 귀여운 — 이런 방향은
   이 화자와 끝까지 어울리지 않습니다. 장르가 무엇이든 서늘함은 남아 있어야 합니다.
-  밝은 장르를 고르더라도 분위기와 보컬로 온도를 낮추세요.
+- **시끄럽고 과한 것은 어두울 수 있습니다.** 헷갈리지 마세요.
+  축제 분위기, 에너지 폭발은 밝은 쪽이 아닙니다. 흥청망청 망가져 가는 곡,
+  통제를 잃고 터지는 곡에는 오히려 이쪽이 맞습니다. 주제가 그러면 켜세요.
+  피할 것은 '밝음'이 아니라 '편안함'입니다.
 - **보컬은 화자에 맞춰 고르세요.** 주제에 화자의 성별 단서가 있으면 그대로 따릅니다.
   단서가 없으면 **지금 켜져 있는 보컬을 그대로 두세요.** 임의로 바꾸지 마세요.
   차가운 화자에 뜨거운 보컬을 붙이지 않습니다. 온도도 함께 봅니다.
@@ -867,6 +876,24 @@ JSON만 출력합니다.`,
   };
 }
 
+/**
+ * 보컬 성별과 반대되는 목소리를 피할 요소에 넣도록 알려 줍니다.
+ * 코러스나 하모니에 다른 성별 목소리가 끼어드는 일이 잦기 때문입니다.
+ * 듀엣이나 혼성 코러스는 양쪽이 다 필요하므로 아무것도 빼지 않습니다.
+ */
+function oppositeVoiceNote(vocal = '') {
+  const v = vocal || '';
+  if (/duet|mixed|choir/i.test(v)) return '';
+  const hasFemale = /female|girl|woman|soprano/i.test(v);
+  const hasMale = /\bmale\b|\bman\b|tenor|baritone|\bboy\b/i.test(v.replace(/female/gi, ''));
+  if (hasFemale && hasMale) return '';
+  if (hasMale)
+    return '\n  **보컬이 남성이므로 female vocals 를 반드시 넣습니다.** 코러스나 하모니에 여성 목소리가 끼어들기 쉽습니다.';
+  if (hasFemale)
+    return '\n  **보컬이 여성이므로 male vocals 를 반드시 넣습니다.** 코러스나 하모니에 남성 목소리가 끼어들기 쉽습니다.';
+  return '';
+}
+
 export function songWriting({
   genres, language, vocal, tempo, moods, era, situations, instruments, concept,
   duration = '3:30', songCount = 1,
@@ -878,6 +905,16 @@ export function songWriting({
   referenceFirst = false, introInStyle = false, seed = null, crack = false,
 }) {
   const chorusFirst = form === 'chorusFirst';
+  /**
+   * 느리거나 차분한 곡인가.
+   * 도입부 코러스는 원래 첫 소절부터 최대 에너지로 터뜨리는데,
+   * 74 BPM 나른한 곡에 그걸 시키면 곡 성격과 정면으로 부딪힙니다.
+   * 그래서 이런 곡은 훅을 먼저 두되 낮고 가깝게 시작하게 합니다.
+   */
+  const slow = /very slow|slow 70|50-70|70-90/i.test(tempo || '');
+  const calm = /calm|serene|sorrow|melanchol|lonely|somber|bleak|sultry|dreamy|meditat/i.test(moods || '');
+  const loud = /explosive|energy|intense|festive|high octane|driving/i.test(moods || '');
+  const quietOpen = (slow || calm) && !loud;
   const table = chorusFirst ? CHORUS_FIRST_STRUCTURES : SONG_STRUCTURES;
   const plan = table[duration] || table['3:30'];
   const structure = plan.sections;
@@ -960,11 +997,22 @@ Suno는 대괄호 태그를 읽고 그 구간의 편곡을 실제로 바꿉니�
 ${chorusFirst
       ? `════════ 후렴으로 시작하는 곡입니다 ════════
 이 곡은 전주 없이 **후렴부터** 시작합니다. 첫 몇 초 안에 훅이 나와야 합니다.
-
+${quietOpen
+        ? `
+**다만 이 곡은 느리고 차분한 곡입니다.** 훅은 먼저 나오되 터뜨리지 않습니다.
+낮고 가깝게, 귀에 대고 말하듯 시작합니다. 크기는 뒤의 후렴에서 키웁니다.
+`
+        : ''}
 - 첫 구간의 태그를 이렇게 씁니다:
-  [Chorus - Cold Open, Hook Upfront, Full Energy From The First Bar]
+  ${quietOpen
+        ? '[Chorus - Cold Open, Hook Upfront, Low and Close]'
+        : '[Chorus - Cold Open, Hook Upfront, Full Energy From The First Bar]'}
 ${introInStyle
-        ? `- 스타일 프롬프트에는 이 문장을 넣습니다:\n  The track opens cold on the chorus hook at full energy, no build-up, no introduction.`
+        ? `- 스타일 프롬프트에는 이 문장을 넣습니다:\n  ${
+            quietOpen
+              ? 'The track opens cold on the chorus hook, no introduction, low and close rather than loud.'
+              : 'The track opens cold on the chorus hook at full energy, no build-up, no introduction.'
+          }`
         : '- 스타일에는 인트로 이야기를 넣지 않습니다. 태그로만 지정합니다.'}
 - 첫 후렴은 **뒤에 나오는 후렴보다 짧게** 자릅니다. 훅만 던지고 벌스로 내려갑니다.
 - 첫 후렴에서 편성을 다 쓰지 마세요. 뒤의 후렴이 더 커져야 곡이 살아납니다.
@@ -1363,7 +1411,7 @@ ${introInStyle
 ──── 함께 낼 것 ────
 - style: 위 규격대로 쓴 영어 프롬프트
 - exclude: 이 곡에서 나오면 안 되는 소리. Suno의 Exclude Styles 칸에 넣을 영어 목록.
-  잡음 계열을 기본으로 넣고, 이 곡에 안 맞는 요소를 더합니다.
+  잡음 계열을 기본으로 넣고, 이 곡에 안 맞는 요소를 더합니다.${oppositeVoiceNote(vocal)}
 - styleNote: 이 곡의 스타일을 왜 이렇게 잡았는지 한국어 한 줄.
   가사의 어떤 점 때문에 이렇게 만들었는지 적습니다.
 

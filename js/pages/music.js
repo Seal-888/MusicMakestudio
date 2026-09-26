@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, songSeeds, moodPick, settingsFit, targetLines, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
 import { styles, songs, refs, jobs, draft } from '../store.js';
@@ -80,6 +80,8 @@ const VOCALS = [
     ['젊고 날 선 남성', 'young sharp male tenor, cold precise diction, effortless control'],
     ['서늘한 미성 남성', 'smooth cool male vocal, silky upper register, restrained menace'],
     ['나른한 남성', 'languid male vocal, half-spoken delivery, unbothered'],
+    // 색욕·나태처럼 감정을 거세한 곡용. 비브라토를 없애는 것이 핵심입니다.
+    ['지루해하는 남성', 'detached male vocal, flat affect, bored delivery, almost no vibrato'],
     ['소년', 'boy soprano vocal'],
     ['재지한 남성', 'jazzy male crooner vocal'],
     ['오페라틱 남성', 'operatic tenor vocal'],
@@ -1446,6 +1448,7 @@ export default function renderMusic(root) {
       ...checkHook(song.lyrics).issues,
       ...checkInlineTags(song.lyrics).issues,
       ...checkOutro(song.lyrics).issues,
+      ...checkRepeats(song.lyrics).issues,
       // 곡 길이는 알약이 아니라 .dur 버튼으로 고릅니다.
       ...checkLength(song.lyrics, targetLines({
         duration: root.querySelector('.dur.on')?.dataset.dur || '3:30',

@@ -5,6 +5,7 @@
   "description": "PLI Music Studio — AI 음악 채널 작업실 (로컬 실행)",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "start": "python3 serve.py 8383",
     "test": "npm run version && npm run test:imports && npm run test:functions && npm run test:smoke && npm run test:flow && npm run test:draft && npm run test:reference && npm run test:storage && npm run test:seeds && npm run test:hook && npm run test:subtitle && npm run test:review",
     "test:imports": "node check-imports.mjs",

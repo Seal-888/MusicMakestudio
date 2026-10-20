@@ -3,3 +3,10 @@ node_modules/
 __MACOSX/
 ._*
 __pycache__/
+
+# API 키가 그대로 들어 있는 파일 — 저장소가 공개이므로 절대 올리지 않습니다.
+# (API 설정 → 파일로 내보내기 로 받은 백업. 이름을 바꿔 둔 경우도 함께)
+plimusic-backup*.json
+*backup*.json
+.env
+.env.*

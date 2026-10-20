@@ -35,6 +35,13 @@ xattr -d com.apple.quarantine run.command
 이 브라우저의 localStorage에만 저장됩니다. 어디로도 전송되지 않고, 이 폴더 안에도 기록되지 않습니다.
 대신 **브라우저 데이터를 지우면 같이 사라집니다.** API 설정 맨 아래 "파일로 내보내기"로 가끔 백업해 두세요.
 
+**백업 파일에는 API 키가 그대로 들어 있습니다.** 이 저장소는 공개이므로 백업 파일은 앱 폴더 밖(다운로드 폴더 등)에 두세요.
+실수로 넣어도 올라가지 않게 두 겹으로 막아 두었습니다.
+
+- `.gitignore` — `plimusic-backup*.json` 같은 백업 파일 이름은 `git add` 에서 빠집니다.
+- `.githooks/pre-commit` — 이름을 바꿨거나 `git add -f` 로 넣어도, 커밋할 내용에 API 키(`AIza…`)가 보이면 커밋을 멈춥니다.
+  `npm install` 을 한 번 하면 자동으로 켜집니다. (`npm install` 없이 켜려면 `git config core.hooksPath .githooks`)
+
 ## 만들어진 것 / 만들 것
 
 - [x] 1단계 — 뼈대, 화면 이동, API 설정, 연결 테스트, 백업

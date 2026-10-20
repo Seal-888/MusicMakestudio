@@ -1,0 +1,37 @@
+#!/bin/sh
+# 커밋 직전에 API 키가 섞여 들어가지 않았는지 봅니다.
+#
+# .gitignore 는 이름으로만 막습니다. 백업 파일 이름을 바꿨거나 git add -f 로 넣으면 뚫립니다.
+# 그래서 실제로 올라갈 내용(staged)에서 키 모양을 직접 찾습니다.
+#
+# 정말 키가 아닌데 막혔다면: git commit --no-verify
+
+fail=0
+
+# 1) 백업 파일처럼 생긴 파일
+names=$(git diff --cached --name-only --diff-filter=ACMR | grep -iE '(^|/)(plimusic-backup[^/]*|[^/]*backup[^/]*\.json|\.env(\..*)?)$')
+if [ -n "$names" ]; then
+  echo ""
+  echo "  ✗ 백업·비밀 파일은 올릴 수 없습니다:"
+  echo "$names" | sed 's/^/      /'
+  fail=1
+fi
+
+# 2) 내용 속의 키 — Google(Gemini·YouTube) 키와, 키 칸에 긴 값이 들어간 백업 형태
+keys=$(git diff --cached -U0 --diff-filter=ACMR | grep -E '^\+' | grep -nE 'AIza[0-9A-Za-z_-]{30,}|"(geminiKey|youtubeKey|kieKey)"[[:space:]]*:[[:space:]]*"[^"]{12,}"')
+if [ -n "$keys" ]; then
+  echo ""
+  echo "  ✗ API 키로 보이는 값이 들어 있습니다:"
+  # 키 전체를 화면에 다시 찍지 않도록 앞부분만 보여 줍니다.
+  echo "$keys" | sed -E 's/(AIza[0-9A-Za-z_-]{4})[0-9A-Za-z_-]+/\1…/g; s/("(geminiKey|youtubeKey|kieKey)"[[:space:]]*:[[:space:]]*"[^"]{4})[^"]*/\1…/g' | cut -c1-160 | sed 's/^/      /'
+  fail=1
+fi
+
+if [ "$fail" = 1 ]; then
+  echo ""
+  echo "  커밋을 멈췄습니다. 위 파일을 빼고 다시 커밋하세요:"
+  echo "      git restore --staged <파일>"
+  echo ""
+  exit 1
+fi
+exit 0

@@ -407,7 +407,20 @@ export const SONG_FORMS = {
     label: '도입부 코러스',
     note: '후렴을 먼저 들려주고 시작합니다. 첫 몇 초에 훅이 나옵니다.',
   },
+  threeActs: {
+    label: '3막 7장 (이야기형)',
+    note: '설정 → 대립 → 해결의 세 막, 일곱 장면으로 이야기가 흘러갑니다. 같은 훅이 막마다 다른 뜻으로 들립니다.',
+  },
 };
+
+/** 고른 구성과 길이에 맞는 구성표. 화면과 프롬프트가 같은 표를 봅니다. */
+export function songStructure({ duration = '3:30', form = 'standard' } = {}) {
+  const table =
+    form === 'chorusFirst' ? CHORUS_FIRST_STRUCTURES
+    : form === 'threeActs' ? THREE_ACT_STRUCTURES
+    : SONG_STRUCTURES;
+  return (table[duration] || table['3:30']).sections;
+}
 
 /**
  * 구성표에서 실제 가사 줄 수를 세어 냅니다.
@@ -419,8 +432,7 @@ export const SONG_FORMS = {
  * 이제 구성표에서 직접 세므로 어긋날 수가 없습니다.
  */
 export function targetLines({ duration = '3:30', form = 'standard' } = {}) {
-  const table = form === 'chorusFirst' ? CHORUS_FIRST_STRUCTURES : SONG_STRUCTURES;
-  return countLines((table[duration] || table['3:30']).sections);
+  return countLines(songStructure({ duration, form }));
 }
 
 function countLines(sections) {
@@ -578,6 +590,116 @@ const CHORUS_FIRST_STRUCTURES = {
     ],
   },
 };
+
+/**
+ * 3막 7장 — 노래 한 곡을 짧은 이야기 한 편으로 씁니다.
+ *
+ * 막과 장은 **가사를 쓰는 사람을 위한 설계도**일 뿐, 태그에는 들어가지 않습니다.
+ * 태그는 [Verse 1 - ...] 꼴 그대로 둡니다. 그래야 Suno가 편곡을 바꾸고,
+ * 훅·아웃트로·줄 수 검사도 그대로 돌아갑니다.
+ *
+ * 각 구간의 세 번째 값이 몇 장에 속하는지입니다. 한 장이 여러 구간에 걸칠 수 있습니다.
+ * 짧은 길이(2:00~3:00)는 마지막 후렴을 둘 자리가 없어 7장을 아웃트로가 맡습니다.
+ */
+export const ACTS = [
+  { name: '1막 · 설정', goal: '화자가 누구이고, 어디에 있고, 무엇을 원하는지 세웁니다.' },
+  { name: '2막 · 대립', goal: '원하는 것과 막아서는 것이 부딪히며 판이 커집니다.' },
+  { name: '3막 · 해결', goal: '부딪힘이 끝나고, 화자는 처음과 다른 자리에 섭니다.' },
+];
+
+export const SCENES = [
+  { act: 0, name: '발단', beat: '평소의 장면 하나. 아무 일 없어 보이지만 균열이 살짝 비칩니다. 설명하지 말고 보여 줍니다.' },
+  { act: 0, name: '계기', beat: '일이 벌어집니다. 화자를 움직이게 만드는 한 순간. 음절을 조금 촘촘하게 올립니다.' },
+  { act: 0, name: '결심', beat: '화자가 훅으로 자기 입장을 선언합니다. 여기서 1막이 닫힙니다.' },
+  { act: 1, name: '심화', beat: '상대가 맞서거나 상황이 나빠집니다. 1절과 다른 장소·시간의 새 장면으로, 판돈이 커집니다.' },
+  { act: 1, name: '중간점', beat: '같은 훅이 돌아오지만 이제 다른 뜻으로 들립니다. 화자가 처음엔 몰랐던 것을 알게 됩니다.' },
+  { act: 1, name: '위기', beat: '가장 낮은 순간. 숨겨 온 진실이 드러나고 판이 뒤집힙니다. 곡 전체에서 가장 솔직한 줄을 여기 둡니다.' },
+  { act: 2, name: '절정과 결말', beat: '훅이 세 번째 뜻을 얻고, 화자가 끝내 선택한 자리를 보여 줍니다. 답을 설명하지 않고 장면으로 닫습니다.' },
+];
+
+const THREE_ACT_STRUCTURES = {
+  '2:00': {
+    sections: [
+      ['Intro', '가사 없이 태그만. 8마디 정도의 짧은 전주', 1],
+      ['Verse 1', '정확히 5줄', 1],
+      ['Pre-Chorus', '정확히 2줄', 2],
+      ['Chorus', '정확히 4줄 · 1행과 4행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 4줄', 4],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 2줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Outro', '정확히 3줄. 훅을 한 번 비틀어 결말을 보여 줍니다', 7],
+    ],
+  },
+  '2:30': {
+    sections: [
+      ['Intro', '가사 없이 태그만', 1],
+      ['Verse 1', '정확히 6줄', 1],
+      ['Pre-Chorus', '정확히 3줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 5줄', 4],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 3줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Outro', '정확히 4줄. 훅을 한 번 비틀어 결말을 보여 줍니다', 7],
+    ],
+  },
+  '3:00': {
+    sections: [
+      ['Intro', '가사 없이 태그만', 1],
+      ['Verse 1', '정확히 6줄', 1],
+      ['Pre-Chorus', '정확히 3줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 6줄', 4],
+      ['Pre-Chorus', '앞과 다른 가사로 정확히 3줄', 5],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 4줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Outro', '정확히 3줄. 훅을 한 번 비틀어 결말을 보여 줍니다', 7],
+    ],
+  },
+  '3:30': {
+    sections: [
+      ['Intro', '가사 없이 태그만', 1],
+      ['Verse 1', '정확히 7줄', 1],
+      ['Pre-Chorus', '정확히 4줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 7줄', 4],
+      ['Pre-Chorus', '앞과 다른 가사로 정확히 4줄', 5],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 5줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Chorus', '후렴 전문을 그대로 다시. 마지막 줄 뒤에 추임새 한 줄 더', 7],
+      ['Outro', '정확히 4줄', 7],
+    ],
+  },
+  '4:00': {
+    sections: [
+      ['Intro', '가사 없이 태그만. 조금 긴 전주', 1],
+      ['Verse 1', '정확히 7줄', 1],
+      ['Pre-Chorus', '정확히 4줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 7줄', 4],
+      ['Pre-Chorus', '앞과 다른 가사로 정확히 4줄', 5],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Instrumental Solo', '가사 없이 태그만. 16마디 정도의 간주. 위기 직전의 숨 고르기', 6],
+      ['Bridge', '정확히 6줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Chorus', '후렴 전문을 그대로 다시. 마지막 줄 뒤에 추임새 한 줄 더', 7],
+      ['Outro', '정확히 5줄', 7],
+    ],
+  },
+};
+
+/** 3막 7장 구성표를 막 → 장 → 구간 순으로 펼쳐 프롬프트에 넣을 글로 만듭니다. */
+function actOutline(structure) {
+  let n = 0;
+  return ACTS.map((act, a) => {
+    const scenes = SCENES.map((sc, i) => ({ ...sc, no: i + 1 })).filter((sc) => sc.act === a);
+    const body = scenes.map((sc) => {
+      const parts = structure
+        .filter((x) => x[2] === sc.no)
+        .map(([role, note]) => `     ${++n}. [${role}] — ${note}`);
+      return `  ${sc.no}장 ${sc.name} — ${sc.beat}\n${parts.join('\n')}`;
+    });
+    return `■ ${act.name} — ${act.goal}\n${body.join('\n')}`;
+  }).join('\n\n');
+}
 
 const DENSITY = {
   light: '한 줄을 짧게. 여백이 느껴지게 씁니다.',
@@ -905,6 +1027,7 @@ export function songWriting({
   referenceFirst = false, introInStyle = false, seed = null, crack = false,
 }) {
   const chorusFirst = form === 'chorusFirst';
+  const threeActs = form === 'threeActs';
   /**
    * 느리거나 차분한 곡인가.
    * 도입부 코러스는 원래 첫 소절부터 최대 에너지로 터뜨리는데,
@@ -915,9 +1038,7 @@ export function songWriting({
   const calm = /calm|serene|sorrow|melanchol|lonely|somber|bleak|sultry|dreamy|meditat/i.test(moods || '');
   const loud = /explosive|energy|intense|festive|high octane|driving/i.test(moods || '');
   const quietOpen = (slow || calm) && !loud;
-  const table = chorusFirst ? CHORUS_FIRST_STRUCTURES : SONG_STRUCTURES;
-  const plan = table[duration] || table['3:30'];
-  const structure = plan.sections;
+  const structure = songStructure({ duration, form });
   const isInstrumental = language === 'instrumental';
   const lyricLang = isInstrumental ? '연주 지시문' : language;
 
@@ -953,10 +1074,13 @@ ${seed
 - 소리: ${seed.soundNote}
 
 **후렴 훅과 첫 줄은 위 문장을 그대로 씁니다.** 다듬는 정도는 괜찮지만 갈아엎지 마세요.
-제목도 위 것을 씁니다. 이 장면 밖으로 나가지 않습니다.
+제목도 위 것을 씁니다.${threeActs ? '' : ' 이 장면 밖으로 나가지 않습니다.'}
 
-곡 전체가 **그 장면 안에서** 일어납니다. 지나간 일로 돌리지 마세요.
-화자는 그 일을 겪는 중이고, 위에 적힌 상대에게 말하고 있습니다.
+${threeActs
+      ? `이 장면이 **1장 발단**입니다. 뒤의 장들은 여기서 이어지는 사건으로 씁니다.
+시간은 앞으로만 흐릅니다. 회상으로 돌리지 말고, 화자는 위에 적힌 상대에게 말합니다.`
+      : `곡 전체가 **그 장면 안에서** 일어납니다. 지나간 일로 돌리지 마세요.
+화자는 그 일을 겪는 중이고, 위에 적힌 상대에게 말하고 있습니다.`}
 스타일 프롬프트는 위 '소리'를 출발점으로 삼아 규격에 맞게 살을 붙입니다.
 
 `
@@ -1078,7 +1202,21 @@ ${Array.from({ length: songCount }, (_, i) => {
 - 편성의 중심 악기를 곡마다 바꿉니다.
 
 `
-      : ''}════════ 구간마다 하는 일이 다릅니다 ════════
+      : ''}${threeActs
+      ? `════════ 3막 7장 — 노래 한 곡이 이야기 한 편입니다 ════════
+이 곡은 세 막, 일곱 장면으로 흘러갑니다. 아래 "이번 곡의 구성"에 장마다 맡을 일이 있습니다.
+
+- **막과 장은 설계도입니다. 가사에 적지 마세요.** "1막", "Scene 3" 같은 말을 태그나 가사에 넣지 않습니다.
+  태그는 [Verse 1 - ...] 처럼 구간 이름 그대로 씁니다. 장의 분위기는 연주 지시로 드러냅니다.
+- **시간은 앞으로만 흐릅니다.** 2절이 1절을 되풀이하면 2막이 없는 것입니다. 장마다 새 일이 하나씩 벌어져야 합니다.
+- **훅은 같고 뜻이 바뀝니다.** 후렴 가사는 매번 글자 그대로 같지만,
+  앞 장에서 일어난 일 때문에 3장에서는 선언, 5장에서는 깨달음, 7장(마지막 후렴이나 아웃트로)에서는 결말로 들려야 합니다.
+  뜻을 바꾸는 일은 후렴이 아니라 **그 앞 구간의 가사**가 합니다.
+- 6장 위기에서 판을 뒤집을 사실은 1~2장에 미리 한 번 흘려 둡니다. 뜬금없는 반전은 반전이 아닙니다.
+- 7장은 처음 장면으로 돌아오되, 화자는 처음과 다른 자리에 서 있어야 합니다.
+
+`
+      : `════════ 구간마다 하는 일이 다릅니다 ════════
 - Verse 1 — 상황을 던져 놓습니다. 설명하지 말고 장면 하나로.
 - Pre-Chorus — 한 단계 올립니다. 음절을 조금 촘촘하게.
 - Chorus — 훅을 터뜨립니다. 아래 후렴 규칙을 그대로 따르세요.
@@ -1086,6 +1224,7 @@ ${Array.from({ length: songCount }, (_, i) => {
 - Bridge — 곡 전체에서 가장 솔직한 한두 줄. 여기서 판을 한 번 뒤집습니다.
 - Outro — 답을 주지 말고 여운을 남깁니다.
 
+`}
 **아웃트로 태그는 세 단으로 씁니다.** 한 번에 사라지면 흐지부지 끝납니다.
   1. 먼저 하나를 뺍니다      — drums drop out
   2. 남은 것을 뺍니다        — guitar and bass fade out
@@ -1170,8 +1309,10 @@ ${anchor
 훅을 대신하는 것이 아니라 훅 밖에서 곡을 묶어 주는 역할입니다.`
       : ''}
 
-════════ 이번 곡의 구성 ════════
-${structure.map(([role, note], i) => `${i + 1}. [${role}] — ${note}`).join('\n')}
+════════ 이번 곡의 구성${threeActs ? ' — 3막 7장' : ''} ════════
+${threeActs
+      ? actOutline(structure)
+      : structure.map(([role, note], i) => `${i + 1}. [${role}] — ${note}`).join('\n')}
 
 ════════ 곡 길이 — ${duration} 를 채워야 합니다 ════════
 **이 곡의 목표 길이는 ${duration} 입니다.** 이보다 짧게 나오면 실패입니다.

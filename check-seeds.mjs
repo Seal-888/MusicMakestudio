@@ -228,9 +228,24 @@ console.log('\n전주 없는 설정이면 스타일에도 넣기:');
     '곡 구성은 계속 고를 수 있음 — 되돌릴 길이 있어야 함'
   );
 
+  // 3막 7장 — 인트로는 기본처럼 고를 수 있고, 길이 아래 구성이 막·장으로 바뀝니다.
+  pick('form', '3막 7장 (이야기형)');
+  await settle(30);
+  ok(
+    !root.querySelector('[data-pills="intro"]').closest('.pills-wrap').classList.contains('is-off'),
+    '3막 7장은 인트로 길이를 그대로 고를 수 있음'
+  );
+  ok($('[data-dur-note]').textContent.includes('7장 절정과 결말'), '3막 7장 → 길이 아래 구성도 막·장으로 바뀜');
+  calls.length = 0;
+  click($('[data-go]'));
+  await settle(250);
+  ok(calls[0].prompt.includes('이번 곡의 구성 — 3막 7장'), '3막 7장 → 프롬프트에 그대로 넘어감');
+
   // 되돌립니다.
   pick('form', '기본');
   pick('intro', '짧게');
+  await settle(30);
+  ok(!$('[data-dur-note]').textContent.includes('장'), '기본으로 되돌리면 길이 아래 구성도 되돌아옴');
   await settle(30);
   calls.length = 0;
 }

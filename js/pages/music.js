@@ -1,5 +1,5 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, songSeeds, moodPick, settingsFit, targetLines, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, ACTS, SCENES, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
 import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
 import { settings } from '../store.js';
@@ -166,12 +166,36 @@ const INSTRUMENTS = [
 
 /** 곡 길이별 구성 미리보기 — 무엇이 만들어질지 눌러보기 전에 보여 줍니다. */
 const DURATIONS = [
-  ['2:00', '짧게', 'intro → verse → chorus → outro'],
-  ['2:30', '컴팩트', 'intro → verse → chorus → verse → chorus → outro'],
-  ['3:00', '표준', 'intro → verse → pre → chorus → verse → chorus → outro'],
-  ['3:30', '추천', 'intro → verse → pre → chorus → verse → pre → chorus → bridge → chorus → outro'],
-  ['4:00', '길게', '3:30 구성 + 간주(Instrumental Solo) 구간 추가'],
+  ['2:00', '짧게'],
+  ['2:30', '컴팩트'],
+  ['3:00', '표준'],
+  ['3:30', '추천'],
+  ['4:00', '길게'],
 ];
+
+/**
+ * 곡 길이 아래에 보여 줄 구성.
+ *
+ * 예전에는 길이마다 문장을 손으로 적어 두었는데, 실제 구성표와 어긋나 있었고
+ * (2:00 에 2절이 빠져 있는 등) 도입부 코러스를 골라도 기본 구성을 보여 줬습니다.
+ * 이제 프롬프트가 쓰는 구성표를 그대로 읽습니다.
+ */
+const ROLE_SHORT = { 'pre-chorus': 'pre', 'instrumental solo': 'solo' };
+function structureText(duration, form) {
+  const sections = songStructure({ duration, form });
+  const name = (role) => {
+    const r = role.toLowerCase().replace(/\s*\d+$/, '').replace(/\s*\(.*\)$/, '');
+    return ROLE_SHORT[r] || r;
+  };
+  if (form !== 'threeActs') return sections.map(([role]) => name(role)).join(' → ');
+  return ACTS.map((act, a) =>
+    `${act.name.split(' · ')[0]}: ` +
+    SCENES.map((sc, i) => ({ ...sc, no: i + 1 }))
+      .filter((sc) => sc.act === a)
+      .map((sc) => `${sc.no}장 ${sc.name}(${sections.filter((x) => x[2] === sc.no).map(([r]) => name(r)).join('+')})`)
+      .join(' → ')
+  ).join(' / ');
+}
 
 const opts = (arr) => arr.map(([label, value]) => ({ label, value }));
 
@@ -428,8 +452,8 @@ export default function renderMusic(root) {
         <p class="field-label">곡 길이 <small>구조가 자동으로 맞춰집니다</small></p>
         <div class="durations" data-durations>
           ${DURATIONS.map(
-            ([d, note, structure]) =>
-              `<button type="button" class="dur${d === '3:30' ? ' on' : ''}" data-dur="${d}" data-structure="${R.esc(structure)}">
+            ([d, note]) =>
+              `<button type="button" class="dur${d === '3:30' ? ' on' : ''}" data-dur="${d}">
                 <b>${d}</b><span>${note}</span>
               </button>`
           ).join('')}
@@ -711,6 +735,9 @@ export default function renderMusic(root) {
     applyDefaults();
     root.querySelectorAll('input[name=ref]').forEach((r) => (r.checked = r.value === ''));
     refreshRefMode();
+    // 구성이 바뀌었을 수 있으니 구성 설명·인트로 잠금·길이 아래 구성을 다시 맞춥니다.
+    refreshForm();
+    showStructure();
     toast('기본값으로 되돌렸습니다');
   });
 
@@ -720,8 +747,13 @@ export default function renderMusic(root) {
   const durNote = root.querySelector('[data-dur-note]');
   const showStructure = () => {
     const on = durBox.querySelector('.dur.on');
-    durNote.textContent = on ? on.dataset.structure : '';
+    const form = R.readPills(root, 'form')[0] || 'standard';
+    durNote.textContent = on ? structureText(on.dataset.dur, form) : '';
   };
+  // 구성을 바꾸면 길이 아래 구성도 따라 바뀌어야 합니다.
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-pills="form"]')) setTimeout(showStructure, 0);
+  });
   durBox.addEventListener('click', (e) => {
     const btn = e.target.closest('.dur');
     if (!btn) return;
@@ -1171,6 +1203,9 @@ export default function renderMusic(root) {
         return { songs: madeSongs, failures };
       },
       onDone: ({ songs: made, failures }) => {
+        // 길이 검사는 만들 때 쓴 구성으로 해야 합니다.
+        // 화면의 구성을 보면, 만든 뒤 구성을 바꾸거나 이어서 하기로 돌아왔을 때 엉뚱한 목표로 셉니다.
+        for (const song of made) Object.assign(song, { duration, form: baseOptions.form });
         if (append && latest) {
           latest.data.songs.push(...made);
         } else {
@@ -1451,8 +1486,8 @@ export default function renderMusic(root) {
       ...checkRepeats(song.lyrics).issues,
       // 곡 길이는 알약이 아니라 .dur 버튼으로 고릅니다.
       ...checkLength(song.lyrics, targetLines({
-        duration: root.querySelector('.dur.on')?.dataset.dur || '3:30',
-        form: R.readPills(root, 'form')[0] || 'standard',
+        duration: song.duration || root.querySelector('.dur.on')?.dataset.dur || '3:30',
+        form: song.form || R.readPills(root, 'form')[0] || 'standard',
       })).issues,
     ];
     const titleIssue = checkTitle(song.title);

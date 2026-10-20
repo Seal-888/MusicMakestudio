@@ -4,14 +4,14 @@
 
 ## 시작하기
 
-1. 이 폴더의 위치: `/Users/kjun/playlist/makepli/plimusic-studio`
+1. 이 폴더를 원하는 곳에 둡니다.
 2. `run.command`를 더블클릭하세요. 터미널이 열리고 브라우저가 뜹니다.
 3. 처음이라면 **API 설정**에서 키를 넣고 **테스트**를 눌러 초록불을 확인하세요.
 
 `run.command`가 안 열리면 터미널에서 한 번만:
 
 ```bash
-cd /Users/kjun/playlist/makepli/plimusic-studio
+cd <이 폴더 경로>
 chmod +x run.command
 xattr -d com.apple.quarantine run.command
 ```
@@ -24,12 +24,12 @@ xattr -d com.apple.quarantine run.command
 
 ## 왜 파일을 그냥 열면 안 되나요
 
-캡컷 내보내기가 쓰는 폴더 쓰기 기능은 `http://localhost`에서만 동작합니다.
-`file://`로 열면 그 기능이 막히고 모듈도 안 불러와집니다. 꼭 `run.command`로 여세요.
+`file://`로 열면 ES 모듈을 불러오지 못하고, kie.ai 우회 통로(`/kie`, `/grab`)도 없습니다.
+꼭 `run.command`로 여세요.
 
 ## 브라우저
 
-**Chrome 또는 Edge**를 쓰세요. 캡컷 내보내기가 Safari와 Firefox에서는 동작하지 않습니다.
+**Chrome 또는 Edge**를 권합니다.
 
 ## 키는 어디에 저장되나요
 
@@ -39,24 +39,23 @@ xattr -d com.apple.quarantine run.command
 ## 만들어진 것 / 만들 것
 
 - [x] 1단계 — 뼈대, 화면 이동, API 설정, 연결 테스트, 백업
-- [x] 2단계 — 채널 기획 · 레퍼런스 분석 · 비주얼 팔레트 · 음악 만들기 · 영상 만들기
-- [x] 3단계 — 타임스탬프 · 스타일 보관함 · 메타데이터 · SEO 최적화
-- [x] 4-A단계 — 캡컷 자동 편집기
-- [x] 4-B단계 — 가사 자막 (Suno 타임코드 기반)
-- [x] 번역 SRT · AI 가사 추출
+- [x] 2단계 — 채널 기획 · 레퍼런스 분석 · 음악 만들기
+- [x] 3단계 — 스타일 보관함 · 메타데이터 · SEO 최적화
+- [x] 4단계 — 가사 자막 (캡컷 자동 자막 시각 + 가사 교정 · 한/영 SRT)
 - [x] 5단계 — 채널 분석기 · 수익 분석
+- [-] 영상 만들기 · 타임스탬프 · 파형 영상 · 캡컷 자동 편집기는 쓰지 않아 제거했습니다 (커밋 14cf85a)
 
 ## 고치기 전에 검사부터
 
 의존성을 한 번만 받아 두면 됩니다.
 
 ```bash
-cd /Users/kjun/playlist/makepli/plimusic-studio
+cd <이 폴더 경로>
 npm install
 npm test
 ```
 
-7종이 모두 통과하면 안전한 상태입니다. 화면이 열리는지, 버튼이 실제로 동작하는지,
+11종이 모두 통과하면 안전한 상태입니다. 화면이 열리는지, 버튼이 실제로 동작하는지,
 저장이 조용히 실패하지 않는지까지 브라우저 없이 확인합니다.
 코드를 고친 뒤에는 항상 한 번 돌려 보세요.
 
@@ -68,14 +67,16 @@ css/style.css       전체 스타일
 js/app.js           페이지 전환
 js/store.js         localStorage (키, 보관함)
 js/ui.js            알림 같은 공용 조각
-js/api/             Gemini · kie.ai · YouTube · Pexels 호출
-js/audio.js         곡 길이 재기 (타임스탬프와 캡컷이 같이 씀)
-js/capcut.js        캡컷 프로젝트 생성기
-js/capcut-template.js  실제 캡컷 출력에서 뽑은 뼈대
-js/prompts.js       Gemini 프롬프트 6종 ← 결과가 마음에 안 들면 여기를 고치세요
+js/api/             Gemini · kie.ai(Suno) · YouTube 호출
+js/audio.js         곡 길이 재기
+js/lyrics.js        가사 규칙 검사 · 자막 줄 맞추기
+js/prompts.js       Gemini 프롬프트 ← 결과가 마음에 안 들면 여기를 고치세요
 js/render.js        결과 화면 공용 조각
+js/version.js       bump.mjs가 만드는 버전 표시 (직접 고치지 않음)
 js/pages/           화면별 코드
-docs/               캡컷 draft 포맷 해독 문서
+docs/               캡컷 draft 포맷 해독 문서 (기능은 제거됨, 참고용)
+serve.py            로컬 서버 + kie.ai 우회 통로
+bump.mjs            git 커밋 수로 버전 갱신
 check-*.mjs         브라우저 없이 도는 검사들 (npm test)
 ```
 

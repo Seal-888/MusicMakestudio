@@ -45,6 +45,14 @@ function buildConfig({ model, schema, temperature, maxOutputTokens, thinkingLeve
 }
 
 /**
+ * 키는 주소(?key=)가 아니라 헤더로 보냅니다.
+ * 주소에 실으면 브라우저 기록·개발자 도구·프록시 로그에 그대로 남습니다.
+ */
+function keyHeader(key) {
+  return { 'x-goog-api-key': key };
+}
+
+/**
  * 사용 가능한 모델 목록. generateContent를 지원하는 것만 골라서 돌려줍니다.
  * 구글이 모델을 예고 없이 내리는 일이 있어서, 목록을 직접 읽어옵니다.
  */
@@ -52,7 +60,7 @@ export async function listModels() {
   const key = settings.get('geminiKey');
   if (!key) throw new ApiError('Gemini 키가 없습니다.', 0);
 
-  const res = await fetch(`${BASE}/models?key=${encodeURIComponent(key)}&pageSize=200`);
+  const res = await fetch(`${BASE}/models?pageSize=200`, { headers: keyHeader(key) });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new ApiError(body?.error?.message || `모델 목록을 못 받았습니다 (${res.status})`, res.status);
@@ -87,10 +95,10 @@ async function requestOnce({ prompt, model, key, config, extraParts = [], retry 
 
   function doFetch() {
     return fetch(
-      `${BASE}/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      `${BASE}/models/${model}:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...keyHeader(key) },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [...extraParts, { text: prompt }] }],
           generationConfig: config,

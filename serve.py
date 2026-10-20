@@ -6,15 +6,17 @@
 1. 캐시 금지 헤더를 붙여서, 파일을 바꾸면 새로고침만으로 바로 반영되게 합니다.
 2. 브라우저가 kie.ai를 직접 못 부를 때(CORS) 대신 불러 줍니다.
    /kie/... 로 들어온 요청을 https://api.kie.ai/... 로 그대로 넘깁니다.
-   /grab?url=... 은 완성된 mp3를 받아 오는 통로입니다.
+   /grab?url=... 은 완성된 mp3를 받아 오는 통로입니다. (공인 https 주소만)
 
 전부 127.0.0.1에서만 돌기 때문에 밖에서는 접근할 수 없습니다.
 """
 
 import functools
 import http.server
+import ipaddress
 import json
 import os
+import socket
 import socketserver
 import sys
 import urllib.request
@@ -29,6 +31,46 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8383
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 KIE = "https://api.kie.ai"
 ALLOWED_GRAB = ("https://",)
+# 이 이름으로 들어온 요청만 받습니다. 아래 _host_ok 설명 참고.
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
+
+
+def _host_ok(host):
+    """
+    브라우저가 보낸 Host 가 이 컴퓨터를 가리키는지 확인합니다.
+
+    127.0.0.1 에서만 돌아도, 아무 웹사이트나 자기 도메인을 잠깐 127.0.0.1 로
+    돌려 놓는 방법(DNS rebinding)으로 이 서버를 부를 수 있습니다.
+    그런 요청은 Host 에 그 사이트 이름이 실려 오므로 여기서 걸러집니다.
+    """
+    return (host or "").split(":")[0] in LOCAL_HOSTS
+
+
+def _public_url(url):
+    """
+    /grab 이 집 안 기기(공유기 관리 화면, 사내망 등)를 대신 열어 주지 않도록,
+    주소가 가리키는 IP 가 모두 공인 IP 인지 확인합니다.
+    """
+    host = urllib.parse.urlparse(url).hostname
+    if not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return False
+    return all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos)
+
+
+class _CheckedRedirect(urllib.request.HTTPRedirectHandler):
+    """리다이렉트로 내부 주소로 빠지는 것도 같은 기준으로 막습니다."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not (newurl.startswith(ALLOWED_GRAB) and _public_url(newurl)):
+            raise urllib.error.URLError("blocked redirect")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_grab_opener = urllib.request.build_opener(_CheckedRedirect)
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -44,7 +86,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             sys.stderr.write("  %s %s\n" % (args[1], args[0]))
 
     # ---------- 라우팅 ----------
+    def _reject_foreign_host(self):
+        if _host_ok(self.headers.get("Host")):
+            return False
+        self.send_error(403, "forbidden host")
+        return True
+
     def do_GET(self):
+        if self._reject_foreign_host():
+            return
         # 지금 8383에서 도는 서버가 "어느 폴더"를 내보내는지 알려 줍니다.
         # run.command가 이걸로 다른 폴더의 서버가 살아 있는지 가려냅니다.
         if self.path == "/__whoami":
@@ -62,6 +112,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if self._reject_foreign_host():
+            return
         if self.path.startswith("/kie/"):
             return self.relay("POST")
         if self.path.startswith("/kie-callback"):
@@ -111,9 +163,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         url = urllib.parse.parse_qs(query).get("url", [""])[0]
         if not url.startswith(ALLOWED_GRAB):
             return self.send_error(400, "bad url")
+        if not _public_url(url):
+            return self.send_error(400, "private address")
 
         try:
-            with urllib.request.urlopen(url, timeout=300) as res:
+            with _grab_opener.open(url, timeout=300) as res:
                 data = res.read()
                 ctype = res.headers.get("Content-Type", "application/octet-stream")
         except Exception as e:

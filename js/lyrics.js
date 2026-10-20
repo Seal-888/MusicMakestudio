@@ -747,3 +747,27 @@ export function checkRepeats(text) {
   }
   return { issues };
 }
+
+/**
+ * 3막 7장 후보들이 같은 꼴로 몰렸는지 봅니다.
+ *
+ * 왜 필요한가:
+ * 빌런 화자로 뽑으면 반전이 전부 '처음부터 계획했다'로, 결말이 전부 '상대가 쓰러져 있다'로
+ * 몰리는 일이 잦습니다. 프롬프트로 막아도 새는 경우가 있어서 화면에서 바로 보이게 합니다.
+ * 돌려주는 값: 경고 문장 목록
+ */
+export function checkSeeds(seeds = []) {
+  const out = [];
+  if (seeds.length < 3) return out;
+  const planned = seeds.filter((x) =>
+    /처음부터|전부터|미리|이미 .{0,12}(계획|알고|준비|타고|넣어)/.test(x.twist || '')
+  );
+  if (planned.length >= 2) {
+    out.push(`반전 ${planned.length}개가 '처음부터 계획했다' 꼴입니다. 이런 화자에게는 반전이 되지 않습니다.`);
+  }
+  const down = seeds.filter((x) => /쓰러|무릎|엎드|주저앉|비명|빌고|피를|울부짖/.test(x.scene || ''));
+  if (down.length >= 3) {
+    out.push(`결말 ${down.length}개가 '상대가 쓰러져 있는' 장면입니다.`);
+  }
+  return out;
+}

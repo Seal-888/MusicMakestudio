@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { checkSeeds, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { styles, songs, refs, draft } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
 import * as R from '../render.js';
@@ -83,9 +83,24 @@ const VOCALS = [
     ['소년', 'boy soprano vocal'],
     ['재지한 남성', 'jazzy male crooner vocal'],
     ['오페라틱 남성', 'operatic tenor vocal'],
+    // 다크 R&B · 다크 팝 · K팝 쪽이 비어 있어서 채웠습니다.
+    // 빌런 곡에 자주 쓰는 '가깝고 낮은 위협'과 '가볍게 웃는 위협'을 둘 다 고를 수 있게 합니다.
+    ['팔세토 R&B 남성', 'smooth R&B male vocal, airy falsetto runs, intimate close phrasing'],
+    ['속삭이는 남성', 'whispered male vocal, close-miked, breathy and intimate'],
+    ['낮게 긁는 남성', 'low gravelly male vocal, menacing rasp, held close to the mic'],
+    ['읊조리는 남성', 'half-spoken male vocal, low murmured delivery, rhythmic speech'],
+    ['연극적인 빌런 남성', 'theatrical male vocal, sly villainous character voice, playful menace'],
+    ['소울풀한 남성', 'soulful male vocal, warm gospel-tinged runs'],
+    ['K팝 아이돌 남성', 'bright K-pop male tenor, clean polished high notes, idol delivery'],
+    ['발라드 고음 남성', 'emotional ballad male tenor, soaring high-note climax'],
+    ['오토튠 트랩 남성', 'auto-tuned male vocal, melodic trap cadence'],
+    ['거친 록 남성', 'gritty rock male vocal, raspy edge, shouted peaks'],
+    ['깊은 베이스 남성', 'deep bass male vocal, resonant chest register, slow and heavy'],
   ]],
   ['랩', [
     ['랩 (남성)', 'male rap vocal'],
+    ['낮게 깔리는 랩 (남성)', 'low laid-back male rap, unhurried menacing flow'],
+    ['몰아치는 랩 (남성)', 'aggressive rapid-fire male rap, tight percussive flow'],
     ['랩 (여성)', 'female rap vocal'],
     ['멜로딕 랩', 'melodic rap, sung-rap flow'],
   ]],
@@ -1086,9 +1101,14 @@ export default function renderMusic(root) {
       return;
     }
 
+    const warn = checkSeeds(seeds);
     seedOut.innerHTML = `<div class="card">
       <span class="card-tag is-gold">후보 ${seeds.length}개</span>
       <p class="muted small">완성할 후보를 고르세요. 고른 것만 가사와 스타일을 만듭니다.</p>
+      ${warn.length
+        ? `<div class="lint"><b>후보끼리 너무 닮았습니다</b><ul>${warn.map((w) => `<li>${R.esc(w)}</li>`).join('')}</ul>
+           <p class="muted small" style="margin:6px 0 0">"후보 다시 뽑기"를 눌러 보세요.</p></div>`
+        : ''}
       ${seeds
         .map(
           (x, i) => `<label class="seed-item">
@@ -1099,6 +1119,7 @@ export default function renderMusic(root) {
               ${x.origin ? `<p class="muted small"><b>처음</b> ${R.esc(x.origin)}</p>` : ''}
               ${x.twist ? `<p class="muted small"><b>반전</b> ${R.esc(x.twist)}</p>` : ''}
               <p class="seed-line">훅 · ${R.esc(x.hook)}</p>
+              ${x.hookReadings ? `<p class="muted small">훅의 뜻 · ${R.esc(x.hookReadings)}</p>` : ''}
               <p class="seed-line">첫 줄 · ${R.esc(x.opening)}</p>
               <p class="muted small">${R.esc(x.soundNote)}</p>
             </div>

@@ -239,12 +239,7 @@ export default function renderSubtitle(root) {
   function download(kind) {
     const text = build(kind);
     if (!text.trim()) return alert('내보낼 자막이 없습니다.');
-    const blob = new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `subtitle-${kind}-${new Date().toISOString().slice(0, 10)}.srt`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    R.saveFile(`subtitle-${kind}-${new Date().toISOString().slice(0, 10)}.srt`, '\uFEFF' + text);
   }
 
   function fmt(t) {

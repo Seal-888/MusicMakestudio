@@ -24,8 +24,7 @@ xattr -d com.apple.quarantine run.command
 
 ## 왜 파일을 그냥 열면 안 되나요
 
-`file://`로 열면 ES 모듈을 불러오지 못하고, kie.ai 우회 통로(`/kie`, `/grab`)도 없습니다.
-꼭 `run.command`로 여세요.
+`file://`로 열면 ES 모듈을 불러오지 못합니다. 꼭 `run.command`로 여세요.
 
 ## 브라우저
 
@@ -43,6 +42,7 @@ xattr -d com.apple.quarantine run.command
 - [x] 3단계 — 스타일 보관함 · 메타데이터 · SEO 최적화
 - [x] 4단계 — 가사 자막 (캡컷 자동 자막 시각 + 가사 교정 · 한/영 SRT)
 - [x] 5단계 — 채널 분석기 · 수익 분석
+- [-] kie.ai(Suno API) 연동은 제거했습니다. 가사와 스타일을 복사해 Suno 웹에 붙여넣어 쓰세요.
 - [-] 영상 만들기 · 타임스탬프 · 파형 영상 · 캡컷 자동 편집기는 쓰지 않아 제거했습니다 (커밋 14cf85a)
 
 ## 고치기 전에 검사부터
@@ -55,7 +55,7 @@ npm install
 npm test
 ```
 
-11종이 모두 통과하면 안전한 상태입니다. 화면이 열리는지, 버튼이 실제로 동작하는지,
+12종이 모두 통과하면 안전한 상태입니다. 화면이 열리는지, 버튼이 실제로 동작하는지,
 저장이 조용히 실패하지 않는지까지 브라우저 없이 확인합니다.
 코드를 고친 뒤에는 항상 한 번 돌려 보세요.
 
@@ -67,7 +67,8 @@ css/style.css       전체 스타일
 js/app.js           페이지 전환
 js/store.js         localStorage (키, 보관함)
 js/ui.js            알림 같은 공용 조각
-js/api/             Gemini · kie.ai(Suno) · YouTube 호출
+js/api/             Gemini · YouTube 호출
+js/videostats.js    유튜브 영상 통계 (하루 평균 조회수 · 쇼츠 구분) — 분석 화면들이 같이 씀
 js/audio.js         곡 길이 재기
 js/lyrics.js        가사 규칙 검사 · 자막 줄 맞추기
 js/prompts.js       Gemini 프롬프트 ← 결과가 마음에 안 들면 여기를 고치세요
@@ -75,7 +76,7 @@ js/render.js        결과 화면 공용 조각
 js/version.js       bump.mjs가 만드는 버전 표시 (직접 고치지 않음)
 js/pages/           화면별 코드
 docs/               캡컷 draft 포맷 해독 문서 (기능은 제거됨, 참고용)
-serve.py            로컬 서버 + kie.ai 우회 통로
+serve.py            로컬 정적 서버 (localhost 요청만 받음)
 bump.mjs            git 커밋 수로 버전 갱신
 check-*.mjs         브라우저 없이 도는 검사들 (npm test)
 ```

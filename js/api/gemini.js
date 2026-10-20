@@ -37,8 +37,9 @@ function buildConfig({ model, schema, temperature, maxOutputTokens, thinkingLeve
     config.thinkingConfig = { thinkingLevel: level };
   } else {
     // 2.x는 생각을 끌 수 있고, temperature가 결과에 영향을 줍니다.
+    // 단 2.5 Pro는 생각을 끌 수 없어 0을 주면 모든 요청이 400으로 거절됩니다. 최소치(128)를 줍니다.
     config.temperature = temperature;
-    config.thinkingConfig = { thinkingBudget: 0 };
+    config.thinkingConfig = { thinkingBudget: /2\.5-pro/.test(model) ? 128 : 0 };
   }
 
   return config;
@@ -81,7 +82,12 @@ async function requestOnce({ prompt, model, key, config, extraParts = [], retry 
     // 네트워크가 잠깐 끊긴 경우 한 번 더 시도합니다.
     if (!retry) throw new ApiError('연결하지 못했습니다. 인터넷 상태를 확인해 주세요.', 0, 'NET-FAIL');
     await new Promise((r) => setTimeout(r, 1500));
-    res = await doFetch();
+    try {
+      res = await doFetch();
+    } catch {
+      // 두 번째도 끊기면 브라우저의 날것 오류(TypeError: Failed to fetch) 대신 알아볼 수 있는 말로 알립니다.
+      throw new ApiError('연결하지 못했습니다. 인터넷 상태를 확인해 주세요.', 0, 'NET-FAIL');
+    }
   }
 
   // 구글이 잠시 붐빌 때는 잠깐 쉬었다 한 번 더 부릅니다.
@@ -289,10 +295,6 @@ export async function filePart(file) {
     },
   };
 }
-
-/* ────────────────────────────────
-   이미지 생성 · 합성 (나노바나나)
-──────────────────────────────── */
 
 
 

@@ -101,7 +101,7 @@ export default function renderStyles(root) {
               (v, i) => `<div class="style-card">
                 <div class="style-head">
                   <b>${R.esc(v.label)}</b>
-                  <span class="lenbadge is-${v.prompt.length < 400 ? 'short' : 'ok'}">${v.prompt.length}자 · ${R.esc(v.bpm)}</span>
+                  <span class="lenbadge is-${v.prompt.length < 400 ? 'short' : v.prompt.length > 1000 ? 'long' : 'ok'}">${v.prompt.length}자${v.prompt.length > 1000 ? ' · 1000자 초과, Suno에서 잘립니다' : ''} · ${R.esc(v.bpm)}</span>
                   ${R.copyBtn(v.prompt)}
                   <button class="btn sm is-gold" data-keep="${i}">보관함에 저장</button>
                 </div>
@@ -146,12 +146,7 @@ export default function renderStyles(root) {
   root.querySelector('[data-export]').addEventListener('click', () => {
     const all = styles.all();
     if (!all.length) return toast('내보낼 스타일이 없습니다');
-    const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `스타일보관함-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    R.saveFile(`스타일보관함-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(all, null, 2), 'application/json');
   });
 
   root.querySelector('[data-import]').addEventListener('click', () => importFile.click());
@@ -162,11 +157,21 @@ export default function renderStyles(root) {
     try {
       const items = JSON.parse(await f.text());
       if (!Array.isArray(items)) throw new Error();
-      items.forEach((i) => styles.add({ label: i.label, prompt: i.prompt, genres: i.genres }));
+      // 프롬프트가 없는 칸은 버리고, 이미 있는 프롬프트는 다시 넣지 않습니다.
+      // 예전에는 같은 파일을 두 번 가져오면 전부 두 벌이 됐습니다.
+      const have = new Set(styles.all().map((s) => s.prompt.trim()));
+      const fresh = items.filter((i) => typeof i?.prompt === 'string' && i.prompt.trim() && !have.has(i.prompt.trim()));
+      // add()는 맨 앞에 끼우므로 거꾸로 넣어야 파일의 순서가 유지됩니다.
+      [...fresh].reverse().forEach((i) =>
+        styles.add({ label: i.label || '이름 없음', prompt: i.prompt.trim(), genres: i.genres || '' })
+      );
       paint();
-      toast(`${items.length}개를 가져왔습니다`);
+      const skipped = items.length - fresh.length;
+      toast(`${fresh.length}개를 가져왔습니다${skipped ? ` · ${skipped}개는 이미 있거나 비어 있어 건너뜀` : ''}`);
     } catch {
-      toast('파일을 읽을 수 없습니다');
+      toast('스타일 보관함 파일이 아닙니다');
+    } finally {
+      importFile.value = '';
     }
   });
 

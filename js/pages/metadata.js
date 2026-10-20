@@ -159,10 +159,20 @@ function seoTab(body) {
           })
         ),
       onDone: (d) => {
-        const tagLine = (d.tags || []).join(', ');
+        // 유튜브 규칙에 맞게 다듬습니다. 모델이 지키라는 걸 자주 놓칩니다.
+        const hashtags = (d.hashtags || []).map((h) => '#' + String(h).trim().replace(/^#+/, '').replace(/\s+/g, ''));
+        const tags = [...new Set((d.tags || []).map((t) => String(t).trim().replace(/^#/, '')).filter(Boolean))];
+        const tagLine = tags.join(', ');
+        const longTitles = (d.titles || []).filter((t) => t.length > 100);
         out.innerHTML = `
-          ${R.block('제목 후보', R.chips(d.titles))}
-          ${R.block('해시태그', R.chips(d.hashtags))}
+          ${R.block(
+            '제목 후보',
+            R.chips(d.titles) +
+              (longTitles.length
+                ? `<p class="lenbadge is-long">${longTitles.length}개가 유튜브 한도(100자)를 넘습니다. 줄여서 쓰세요.</p>`
+                : '')
+          )}
+          ${R.block('해시태그', R.chips(hashtags))}
           ${R.block(
             '설명글',
             `<div class="style-head">${R.copyBtn(d.description, '설명 복사')}</div>
@@ -171,11 +181,14 @@ function seoTab(body) {
           ${R.block(
             '태그',
             `<div class="style-head">${R.copyBtn(tagLine, '태그 전체 복사')}</div>
-             <p class="muted small">유튜브 태그 칸에 그대로 붙여넣으세요.</p>
-             ${R.chips(d.tags)}`
+             <p class="muted small">유튜브 태그 칸에 그대로 붙여넣으세요. ${tagLine.length} / 500자${
+               tagLine.length > 500 ? ' — <b>500자를 넘어 유튜브가 받지 않습니다.</b> 뒤쪽 태그를 몇 개 빼세요.' : ''
+             }</p>
+             ${R.chips(tags)}`
           )}
           ${R.block('썸네일 문구', R.chips(d.thumbnailText))}
-          ${R.block('키워드를 이렇게 고른 이유', R.bullets(d.keywordStrategy))}`;
+          ${R.block('키워드를 이렇게 고른 이유', R.bullets(d.keywordStrategy))}
+          <p class="muted small">AI는 실제 검색량 데이터를 보지 않습니다. 고른 키워드는 유튜브 검색창 자동완성으로 한 번 확인해 보세요.</p>`;
       },
     });
   });

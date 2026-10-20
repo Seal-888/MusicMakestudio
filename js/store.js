@@ -35,6 +35,31 @@ function migrateFromOldName() {
 
 migrateFromOldName();
 
+/**
+ * kie.ai 연동을 뺀 뒤 남은 것들을 치웁니다.
+ * 특히 kie.ai 키는 쓰지 않는데도 남아 있으면 백업 파일에 그대로 실려 나갑니다.
+ */
+function dropKieLeftovers() {
+  try {
+    const s = JSON.parse(localStorage.getItem(NS + 'settings') || 'null');
+    if (s && ('kieKey' in s || 'kieModel' in s)) {
+      delete s.kieKey;
+      delete s.kieModel;
+      localStorage.setItem(NS + 'settings', JSON.stringify(s));
+    }
+    const h = JSON.parse(localStorage.getItem(NS + 'health') || 'null');
+    if (h && 'kie' in h) {
+      delete h.kie;
+      localStorage.setItem(NS + 'health', JSON.stringify(h));
+    }
+    localStorage.removeItem(NS + 'jobs');
+  } catch {
+    // 못 치워도 앱은 떠야 합니다.
+  }
+}
+
+dropKieLeftovers();
+
 function read(key, fallback) {
   try {
     const raw = localStorage.getItem(NS + key);
@@ -97,17 +122,15 @@ export function usage() {
 }
 
 /**
- * 목록 상한. 예전에는 jobs(50)와 refs(30)에만 있었습니다.
+ * 목록 상한. 예전에는 refs(30)에만 있었습니다.
  * songs와 styles는 무제한이라 계속 쌓이다가 어느 날 저장이 조용히 실패했습니다.
  * 넘치면 가장 오래된 것부터 밀려납니다. 지우기 전에 백업을 받아 두세요.
  */
-const LIMITS = { songs: 300, styles: 200, refs: 30, jobs: 50 };
+const LIMITS = { songs: 300, styles: 200, refs: 30 };
 
 const DEFAULT_SETTINGS = {
   geminiKey: '',
   geminiModel: 'gemini-3.5-flash',
-  kieKey: '',
-  kieModel: 'V5',
   youtubeKey: '',
 };
 
@@ -179,24 +202,6 @@ export const draft = {
   },
 };
 
-/** kie.ai로 만든 노래의 작업 기록. 나중에 자막을 다시 받을 때 씁니다. */
-export const jobs = {
-  all() {
-    return read('jobs', []);
-  },
-  add(item) {
-    const list = this.all().filter((j) => j.taskId !== item.taskId);
-    list.unshift({ savedAt: Date.now(), ...item });
-    if (!write('jobs', list.slice(0, LIMITS.jobs))) return false;
-    window.dispatchEvent(new CustomEvent('store:change'));
-    return true;
-  },
-  remove(taskId) {
-    write('jobs', this.all().filter((j) => j.taskId !== taskId));
-    window.dispatchEvent(new CustomEvent('store:change'));
-  },
-};
-
 /** 분석해 둔 레퍼런스. 음악 만들기에서 불러다 씁니다. */
 export const refs = {
   all() {
@@ -235,18 +240,40 @@ export const songs = {
 // 통째로 백업 / 복원 — 브라우저 데이터를 지워도 살아남게
 export function exportAll() {
   return JSON.stringify(
-    { settings: settings.all(), styles: styles.all(), songs: songs.all(), refs: refs.all(), jobs: jobs.all(), version: 3 },
+    { settings: settings.all(), styles: styles.all(), songs: songs.all(), refs: refs.all(), version: 4 },
     null,
     2
   );
 }
 
+/**
+ * 백업 파일을 되살립니다.
+ *
+ * 먼저 모양을 확인하고 나서 씁니다. 예전에는 아무 JSON이나 그대로 덮어써서,
+ * 스타일 보관함 파일처럼 다른 파일을 잘못 고르면 곡 목록이 깨져 화면이 열리지 않았습니다.
+ * 확인에 실패하면 아무것도 바꾸지 않고 예외를 던집니다.
+ */
 export function importAll(json) {
   const data = JSON.parse(json);
-  if (data.settings) write('settings', data.settings);
-  if (data.styles) write('styles', data.styles);
-  if (data.songs) write('songs', data.songs);
-  if (data.refs) write('refs', data.refs);
-  if (data.jobs) write('jobs', data.jobs);
+  const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  const lists = ['styles', 'songs', 'refs'];
+
+  if (!isObj(data) || (!data.settings && !lists.some((k) => data[k]))) {
+    throw new Error('이 앱의 백업 파일이 아닙니다.');
+  }
+  if (data.settings !== undefined && !isObj(data.settings)) throw new Error('설정 칸이 깨져 있습니다.');
+  for (const k of lists) {
+    if (data[k] !== undefined && !Array.isArray(data[k])) throw new Error(`${k} 칸이 깨져 있습니다.`);
+  }
+
+  if (data.settings) {
+    // 지금 쓰지 않는 칸(예전 kie.ai 키 등)은 들이지 않습니다.
+    const clean = {};
+    for (const k of Object.keys(DEFAULT_SETTINGS)) if (k in data.settings) clean[k] = data.settings[k];
+    write('settings', { ...settings.all(), ...clean });
+  }
+  if (data.styles) write('styles', data.styles.filter((x) => isObj(x) && typeof x.prompt === 'string'));
+  if (data.songs) write('songs', data.songs.filter((x) => isObj(x) && typeof x.lyrics === 'string'));
+  if (data.refs) write('refs', data.refs.filter(isObj));
   window.dispatchEvent(new CustomEvent('store:change'));
 }

@@ -1,5 +1,6 @@
 import { callGemini } from '../api/gemini.js';
-import { resolveChannel, fetchChannelVideos, parseDuration } from '../api/youtube.js';
+import { resolveChannel, fetchChannelVideos } from '../api/youtube.js';
+import { toVideo, summarize, rankByPerDay, YOUNG_DAYS, SHORT_MAX_SEC } from '../videostats.js';
 import { channelAnalyzer } from '../prompts.js';
 import * as R from '../render.js';
 
@@ -46,16 +47,7 @@ export default function renderAnalyzer(root) {
         const raw = await fetchChannelVideos(channel, +range.value);
         if (!raw.length) throw new Error('공개된 영상이 없습니다.');
 
-        const videos = raw.map((v) => ({
-          title: v.snippet.title,
-          views: +v.statistics.viewCount || 0,
-          likes: +v.statistics.likeCount || 0,
-          comments: +v.statistics.commentCount || 0,
-          seconds: parseDuration(v.contentDetails.duration),
-          durationText: fmt(parseDuration(v.contentDetails.duration)),
-          published: v.snippet.publishedAt.slice(0, 10),
-          publishedMs: new Date(v.snippet.publishedAt).getTime(),
-        }));
+        const videos = raw.map((v) => toVideo(v));
 
         const stats = summarize(channel, videos);
         const analysis = await callGemini(
@@ -68,7 +60,7 @@ export default function renderAnalyzer(root) {
         return { channel, videos, stats, analysis };
       },
       onDone: ({ channel, videos, stats, analysis: d }) => {
-        const top = [...videos].sort((a, b) => b.views - a.views);
+        const { top, bottom } = rankByPerDay(videos);
         out.innerHTML = `
           <section class="rb">
             <h3>${R.esc(channel.snippet.title)}</h3>
@@ -98,55 +90,30 @@ export default function renderAnalyzer(root) {
           ${R.block('한 달 실행 계획', R.bullets(d.actionPlan))}
 
           ${R.block(
-            '조회수 상위 10개',
-            `<ul class="rowlist">${top
-              .slice(0, 10)
+            '잘 되는 영상 10개',
+            `<p class="muted small">하루 평균 조회수 순입니다. 누적으로 세우면 오래된 영상만 위에 옵니다.</p>
+            <ul class="rowlist">${top
               .map(
                 (v, i) => `<li class="row"><span class="row-no">${i + 1}</span>
-                  <span class="row-name">${R.esc(v.title)}</span>
-                  <span class="row-dur">${v.views.toLocaleString()}회</span></li>`
+                  <span class="row-name">${R.esc(v.title)}${v.isShort ? ' <small class="muted">쇼츠</small>' : ''}</span>
+                  <span class="row-dur">하루 ${v.perDay.toLocaleString()}회 · 누적 ${v.views.toLocaleString()}</span></li>`
               )
               .join('')}</ul>`
           )}
           ${R.block(
-            '조회수 하위 10개',
-            `<ul class="rowlist">${top
-              .slice(-10)
-              .reverse()
+            '안 되는 영상 10개',
+            `<p class="muted small">올린 지 ${YOUNG_DAYS}일이 안 된 영상은 아직 조회수가 쌓이는 중이라 뺐습니다.</p>
+            <ul class="rowlist">${bottom
               .map(
-                (v) => `<li class="row"><span class="row-name">${R.esc(v.title)}</span>
-                  <span class="row-dur">${v.views.toLocaleString()}회</span></li>`
+                (v) => `<li class="row"><span class="row-name">${R.esc(v.title)}${v.isShort ? ' <small class="muted">쇼츠</small>' : ''}</span>
+                  <span class="row-dur">하루 ${v.perDay.toLocaleString()}회 · 누적 ${v.views.toLocaleString()}</span></li>`
               )
               .join('')}</ul>`
-          )}`;
+          )}
+          ${stats.shorts
+            ? `<p class="muted small">${SHORT_MAX_SEC}초 이하 영상 ${stats.shorts}개를 쇼츠로 표시했습니다. 쇼츠는 조회수와 수익 구조가 달라 일반 영상과 따로 보세요.</p>`
+            : ''}`;
       },
     });
   });
-}
-
-function summarize(channel, videos) {
-  const views = videos.map((v) => v.views);
-  const sorted = [...views].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  const dates = videos.map((v) => v.publishedMs).sort((a, b) => b - a);
-
-  const gaps = [];
-  for (let i = 0; i < dates.length - 1; i++) gaps.push((dates[i] - dates[i + 1]) / 86400000);
-
-  return {
-    subscribers: +channel.statistics.subscriberCount || 0,
-    totalVideos: +channel.statistics.videoCount || 0,
-    publishedAt: (channel.snippet.publishedAt || '').slice(0, 10),
-    avgViews: views.reduce((a, b) => a + b, 0) / views.length,
-    medianViews: sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2,
-    avgDurationText: fmt(videos.reduce((s, v) => s + v.seconds, 0) / videos.length),
-    avgGapDays: gaps.length ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : '—',
-  };
-}
-
-function fmt(sec) {
-  const s = Math.round(sec);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return h ? `${h}시간 ${m}분` : `${m}분 ${s % 60}초`;
 }

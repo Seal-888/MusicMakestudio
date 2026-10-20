@@ -117,7 +117,6 @@ for (const [label, sel] of [
   ['예상 길이 표시', '.lenbadge'],
   ['보관함 저장', '[data-save-style]'],
   ['메타데이터 저장', '[data-save-song]'],
-  ['노래 만들기', '[data-make-song]'],
   ['제목 다시 뽑기', '[data-retitle]'],
   ['발음 바꾸기', '[data-mumble]'],
   ['더 만들기', '[data-more]'],
@@ -156,9 +155,7 @@ check(
   '고친 가사가 저장에 반영됨'
 );
 
-out.querySelector('[data-make-song]').click();
-await new Promise((r) => setTimeout(r, 100));
-check((out.querySelector('.song-studio')?.innerHTML || '').length > 100, '노래 만들기 패널 열림');
+check(!out.querySelector('[data-make-song]'), 'kie.ai 노래 만들기 버튼은 없음 (복사해서 Suno 웹에 붙여넣기)');
 
 calls = 0;
 out.querySelector('[data-more]').click();

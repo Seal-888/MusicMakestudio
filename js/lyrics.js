@@ -536,16 +536,24 @@ export function parseSrt(text, offsetSec = 0) {
     const timeLine = lines.find((l) => l.includes('-->'));
     if (!timeLine) continue;
     const [from, to] = timeLine.split('-->').map((t) => parseSrtTime(t.trim()));
+    if (from === null || to === null) continue; // 시각을 못 읽은 칸은 0초로 몰지 않고 버립니다
     const body = lines.slice(lines.indexOf(timeLine) + 1).join('\n').trim();
     if (body) out.push({ text: body, start: from + offsetSec, duration: Math.max(0.1, to - from) });
   }
   return out;
 }
 
+/**
+ * 00:01:02,345 · 01:02.345(시 생략) · 00:01:02,34(밀리초 두 자리) 를 모두 읽습니다.
+ *
+ * 예전에는 소수부를 무조건 1000으로 나눠서 ',34' 를 0.034초로 읽었고(0.34초가 맞음),
+ * 시를 뺀 표기는 아예 0초로 읽어 자막이 전부 맨 앞에 몰렸습니다.
+ */
 function parseSrtTime(t) {
-  const m = /(\d+):(\d+):(\d+)[,.](\d+)/.exec(t);
-  if (!m) return 0;
-  return +m[1] * 3600 + +m[2] * 60 + +m[3] + +m[4] / 1000;
+  const m = /(?:(\d+):)?(\d+):(\d+)(?:[,.](\d+))?/.exec(t);
+  if (!m) return null;
+  const frac = m[4] ? +`0.${m[4]}` : 0;
+  return (+m[1] || 0) * 3600 + +m[2] * 60 + +m[3] + frac;
 }
 
 /** 줄 끝 신호로 쓸 수 없는 것 — 구간 전체의 '상태'라 한 줄에 못 붙습니다. */

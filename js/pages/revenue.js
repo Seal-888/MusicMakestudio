@@ -1,4 +1,5 @@
-import { resolveChannel, fetchChannelVideos, parseDuration, parseChannelInput } from '../api/youtube.js';
+import { resolveChannel, fetchChannelVideos, fetchVideosById, parseChannelInput } from '../api/youtube.js';
+import { toVideo, SHORT_MAX_SEC } from '../videostats.js';
 import * as R from '../render.js';
 
 /**
@@ -10,6 +11,12 @@ const RPM_PRESETS = {
   general: { label: '일반 콘텐츠', low: 800, mid: 2000, high: 4000 },
   finance: { label: '금융 · 교육 · IT', low: 2000, mid: 5000, high: 12000 },
 };
+
+/**
+ * 쇼츠 단가. 쇼츠는 광고 수익을 따로 모아 나누는 구조라 일반 영상보다 한참 낮습니다.
+ * 일반 영상 단가로 함께 계산하면 쇼츠가 많은 채널의 수익이 몇 배로 부풀어 보입니다.
+ */
+const SHORTS_RPM = { low: 20, high: 100 };
 
 export default function renderRevenue(root) {
   root.innerHTML =
@@ -75,35 +82,47 @@ export default function renderRevenue(root) {
       output: out,
       working: '조회수 모으는 중',
       task: async () => {
+        // 영상 주소를 넣었으면 그 영상 하나만 계산합니다.
+        // 예전에는 영상 주소도 채널로 바꿔 채널 전체를 더했습니다.
+        if (parsed.type === 'video') {
+          const raw = await fetchVideosById([parsed.value]);
+          if (!raw.length) throw new Error('그 영상을 찾을 수 없습니다.');
+          const v = raw[0];
+          return { channel: { snippet: { title: v.snippet.title }, statistics: {} }, videos: raw.map((x) => toVideo(x)), single: true };
+        }
         const channel = await resolveChannel(url);
         const raw = await fetchChannelVideos(channel, 100);
-        const videos = raw.map((v) => ({
-          title: v.snippet.title,
-          views: +v.statistics.viewCount || 0,
-          seconds: parseDuration(v.contentDetails.duration),
-          published: v.snippet.publishedAt.slice(0, 10),
-          publishedMs: new Date(v.snippet.publishedAt).getTime(),
-        }));
-        return { channel, videos };
+        return { channel, videos: raw.map((x) => toVideo(x)) };
       },
-      onDone: ({ channel, videos }) => show(channel, videos),
+      onDone: ({ channel, videos, single }) => show(channel, videos, single),
     });
   });
 
-  function show(channel, videos) {
+  function show(channel, videos, single = false) {
     const preset = RPM_PRESETS[R.readPills(root, 'topic')[0] || 'music'];
-    const low = num(root.querySelector('[data-f=low]').value) || preset.low;
-    const high = num(root.querySelector('[data-f=high]').value) || preset.high;
+    let low = num(root.querySelector('[data-f=low]').value) || preset.low;
+    let high = num(root.querySelector('[data-f=high]').value) || preset.high;
+    // 한쪽만 고쳐서 낮은 값이 높은 값보다 커지면 바꿔 씁니다.
+    if (low > high) [low, high] = [high, low];
     const mid = Math.round((low + high) / 2);
+    const sMid = Math.round((SHORTS_RPM.low + SHORTS_RPM.high) / 2);
 
     const now = Date.now();
-    const buckets = [
-      ['최근 30일에 올린 영상', videos.filter((v) => now - v.publishedMs < 30 * 86400000)],
-      ['최근 1년에 올린 영상', videos.filter((v) => now - v.publishedMs < 365 * 86400000)],
-      ['가져온 영상 전체', videos],
-    ];
+    const buckets = single
+      ? [['이 영상', videos]]
+      : [
+          ['최근 30일에 올린 영상', videos.filter((v) => now - v.publishedMs < 30 * 86400000)],
+          ['최근 1년에 올린 영상', videos.filter((v) => now - v.publishedMs < 365 * 86400000)],
+          ['가져온 영상 전체', videos],
+        ];
 
     const money = (views, rpm) => Math.round((views / 1000) * rpm);
+    /** 일반 영상과 쇼츠를 각자의 단가로 계산해 더합니다. */
+    const earn = (list, which) => {
+      const rpm = { low, mid, high }[which];
+      const srpm = { low: SHORTS_RPM.low, mid: sMid, high: SHORTS_RPM.high }[which];
+      return list.reduce((s, v) => s + money(v.views, v.isShort ? srpm : rpm), 0);
+    };
     const won = (n) => n.toLocaleString('ko-KR') + '원';
 
     out.innerHTML = `
@@ -118,16 +137,19 @@ export default function renderRevenue(root) {
       ${buckets
         .map(([label, list]) => {
           const views = list.reduce((s, v) => s + v.views, 0);
+          const shorts = list.filter((v) => v.isShort);
           if (!list.length) {
             return `<section class="rb"><h3>${label}</h3><p class="muted">해당하는 영상이 없습니다.</p></section>`;
           }
           return `<section class="rb">
             <h3>${label}</h3>
-            <p class="muted small">${list.length}개 · 누적 조회수 ${views.toLocaleString()}회</p>
+            <p class="muted small">${list.length}개 · 누적 조회수 ${views.toLocaleString()}회${
+              shorts.length ? ` · 그중 쇼츠 ${shorts.length}개 (${shorts.reduce((s, v) => s + v.views, 0).toLocaleString()}회)` : ''
+            }</p>
             <div class="moneyrow">
-              <div class="money"><span>낮게 잡으면</span><b>${won(money(views, low))}</b></div>
-              <div class="money is-mid"><span>중간</span><b>${won(money(views, mid))}</b></div>
-              <div class="money"><span>높게 잡으면</span><b>${won(money(views, high))}</b></div>
+              <div class="money"><span>낮게 잡으면</span><b>${won(earn(list, 'low'))}</b></div>
+              <div class="money is-mid"><span>중간</span><b>${won(earn(list, 'mid'))}</b></div>
+              <div class="money"><span>높게 잡으면</span><b>${won(earn(list, 'high'))}</b></div>
             </div>
           </section>`;
         })
@@ -136,7 +158,8 @@ export default function renderRevenue(root) {
       <section class="rb">
         <h3>계산 방법</h3>
         <pre class="rb-pre">누적 조회수 ÷ 1,000 × RPM
-RPM: ${low.toLocaleString()}원 ~ ${high.toLocaleString()}원 (${preset.label} 기준)</pre>
+RPM: ${low.toLocaleString()}원 ~ ${high.toLocaleString()}원 (${preset.label} 기준)
+쇼츠 RPM: ${SHORTS_RPM.low}원 ~ ${SHORTS_RPM.high}원 (${SHORT_MAX_SEC}초 이하 영상)</pre>
         <p class="muted small" style="margin-top:10px">
           "최근 30일" 은 <b>그 기간에 올린 영상의 누적 조회수</b>입니다.
           예전에 올린 영상이 지금 벌어들이는 조회수는 포함되지 않고,
@@ -154,7 +177,7 @@ RPM: ${low.toLocaleString()}원 ~ ${high.toLocaleString()}원 (${preset.label} �
             (v, i) => `<li class="row">
               <span class="row-no">${i + 1}</span>
               <span class="row-name">${R.esc(v.title)}</span>
-              <span class="row-dur">${won(money(v.views, mid))}</span>
+              <span class="row-dur">${won(money(v.views, v.isShort ? sMid : mid))}</span>
             </li>`
           )
           .join('')}</ul>

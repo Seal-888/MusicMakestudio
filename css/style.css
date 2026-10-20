@@ -585,32 +585,6 @@ code{
 .more-wrap{margin-top:22px;text-align:center}
 .more-wrap p{margin:7px 0 0}
 
-/* 노래 만들기 패널 */
-.song-studio:empty{display:none}
-.studio{
-  margin-top:14px;padding:16px 18px;
-  background:var(--card);border:2px solid var(--blue);border-radius:12px;
-}
-.studio .field{margin-bottom:12px}
-.track{
-  display:flex;align-items:center;gap:12px;
-  padding:11px 13px;margin-bottom:9px;
-  background:var(--paper);border:2px solid var(--border);border-radius:11px;
-}
-.track-art{
-  width:54px;height:54px;flex:0 0 auto;object-fit:cover;
-  border:1.5px solid var(--border);border-radius:8px;
-}
-.track-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.track-body b{font-size:14px}
-.track-body audio{width:100%;height:34px;margin-top:4px}
-
-.track-btns{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
-@media (max-width:640px){
-  .track{flex-wrap:wrap}
-  .track-btns{flex-direction:row;width:100%}
-}
-
 /* 레퍼런스 고르기 */
 .refbox{border-color:var(--gold)}
 .reflist{display:flex;flex-direction:column;gap:7px;margin-top:12px}

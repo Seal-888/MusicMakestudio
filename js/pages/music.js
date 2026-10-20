@@ -1,9 +1,7 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, ACTS, SCENES, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { toSrt, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
-import { generateSong, waitForSong, downloadTrack, getTimestampedLyrics, wordsToSubtitles } from '../api/kie.js';
-import { settings } from '../store.js';
-import { styles, songs, refs, jobs, draft } from '../store.js';
+import { tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { styles, songs, refs, draft } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
 import * as R from '../render.js';
 
@@ -1205,7 +1203,14 @@ export default function renderMusic(root) {
       onDone: ({ songs: made, failures }) => {
         // 길이 검사는 만들 때 쓴 구성으로 해야 합니다.
         // 화면의 구성을 보면, 만든 뒤 구성을 바꾸거나 이어서 하기로 돌아왔을 때 엉뚱한 목표로 셉니다.
-        for (const song of made) Object.assign(song, { duration, form: baseOptions.form });
+        // 스타일 검사도 마찬가지로, 만들 때 고른 장르·보컬·템포를 기준으로 합니다.
+        const checkWith = {
+          genres,
+          vocal: R.readPills(root, 'vocal')[0] || '',
+          tempo: R.readPills(root, 'tempo')[0] || '',
+          needOpening: baseOptions.introInStyle,
+        };
+        for (const song of made) Object.assign(song, { duration, form: baseOptions.form, checkWith });
         if (append && latest) {
           latest.data.songs.push(...made);
         } else {
@@ -1240,14 +1245,13 @@ export default function renderMusic(root) {
           (song, i) => `<section class="rb songcard">
             <h3>${R.esc(song.title)}</h3>
             <p class="muted small">다른 제목 후보: ${R.esc(song.titleAlt || '')}</p>
-            ${lengthBadge(song.lyrics)}
+            ${lengthBadge(song)}
             ${hookBadge(song.lyrics)}
 
             <div class="style-head">
               ${R.copyBtn(song.lyrics, '가사 복사')}
               ${R.copyBtn(song.title, '제목 복사')}
               <button class="btn sm is-gold" data-save-song="${i}">메타데이터에 저장</button>
-              <button class="btn sm is-blue" data-make-song="${i}">🎧 노래 만들기</button>
             </div>
             <div class="style-head" style="margin-top:2px">
               <button class="btn sm is-ghost" data-retitle="${i}">제목 다시 뽑기</button>
@@ -1260,7 +1264,7 @@ export default function renderMusic(root) {
               <textarea class="rb-pre lyrics" data-lyrics="${i}" spellcheck="false">${R.esc(song.lyrics)}</textarea>
               <button class="lyrics-toggle" data-expand="${i}">전체 보기</button>
             </div>
-            <p class="muted small">가사를 직접 고칠 수 있습니다. 고친 내용이 저장·복사·노래 만들기에 그대로 쓰입니다.</p>
+            <p class="muted small">가사를 직접 고칠 수 있습니다. 고친 내용이 저장·복사에 그대로 쓰입니다.</p>
 
             <div class="songstyle">
               <div class="style-head">
@@ -1274,7 +1278,7 @@ export default function renderMusic(root) {
                 ? `<p class="muted small">1000자를 넘어서 ${song.styleTrimmed}자를 덜어 냈습니다.
                    조성·템포·보컬·시작 방식은 그대로 두었습니다.</p>`
                 : ''}
-              ${styleLint(song.style)}
+              ${styleLint(song)}
               <pre class="rb-pre">${R.esc(song.style || '')}</pre>
 
               <div class="style-head" style="margin-top:8px">
@@ -1284,7 +1288,6 @@ export default function renderMusic(root) {
               <pre class="rb-pre">${R.esc(song.exclude || DEFAULT_EXCLUDE)}</pre>
             </div>
 
-            <div class="song-studio" data-studio="${i}"></div>
           </section>`
         )
         .join('') +
@@ -1334,16 +1337,13 @@ export default function renderMusic(root) {
     out.querySelectorAll('[data-mumble]').forEach((b) =>
       b.addEventListener('click', () => mumbleize(+b.dataset.mumble))
     );
-    out.querySelectorAll('[data-make-song]').forEach((b) =>
-      b.addEventListener('click', () => openStudio(+b.dataset.makeSong, d))
-    );
 
     out.querySelector('[data-more]').addEventListener('click', () => generate(true));
   }
 
   /** 스타일이 내가 정한 장르·보컬을 지켰는지 확인해 알려 줍니다. */
-  function styleLint(style) {
-    const issues = checkStyle(style, {
+  function styleLint(song) {
+    const issues = checkStyle(song.style, song.checkWith || {
       genres: R.readPills(root, 'genre'),
       vocal: R.readPills(root, 'vocal')[0] || '',
       tempo: R.readPills(root, 'tempo')[0] || '',
@@ -1370,11 +1370,11 @@ export default function renderMusic(root) {
   }
 
   /** 가사 분량으로 예상 길이를 보여 줍니다. 목표보다 짧으면 알려 줍니다. */
-  function lengthBadge(lyrics) {
-    const est = estimateDuration(lyrics);
+  function lengthBadge(song) {
+    const est = estimateDuration(song.lyrics);
     if (!est) return '';
 
-    const target = root.querySelector('.dur.on')?.dataset.dur || '3:30';
+    const target = song.duration || root.querySelector('.dur.on')?.dataset.dur || '3:30';
     const [tm, ts] = target.split(':').map(Number);
     const targetSec = tm * 60 + ts;
     const ratio = est.seconds / targetSec;
@@ -1510,168 +1510,4 @@ export default function renderMusic(root) {
     </div>`;
   }
 
-  /* ── kie.ai로 실제 노래 만들기 ── */
-  function openStudio(index, d) {
-    const box = out.querySelector(`[data-studio="${index}"]`);
-    if (box.dataset.open === '1') {
-      box.dataset.open = '0';
-      box.innerHTML = '';
-      return;
-    }
-    box.dataset.open = '1';
-
-    if (!settings.get('kieKey')) {
-      box.innerHTML = `<div class="note" style="margin:12px 0 0">
-        <strong>kie.ai 키가 없습니다</strong>
-        API 설정에서 kie.ai 키를 넣으면 여기서 바로 노래를 만들 수 있습니다.
-        지금은 가사와 스타일을 복사해 Suno 웹에 붙여넣어 주세요.
-        <p style="margin:9px 0 0"><a class="btn sm is-ghost" href="#/settings">API 설정 열기</a></p>
-      </div>`;
-      return;
-    }
-
-    const song = d.songs[index];
-    box.innerHTML = `<div class="studio">
-      <p class="muted small" style="margin:0 0 12px">
-        이 곡 전용으로 만들어진 스타일을 그대로 씁니다.
-      </p>
-      <div class="two-col">
-        <label class="field"><span>모델</span>
-          <select data-s="model">
-            <option value="V5">V5 (최신)</option>
-            <option value="V4_5PLUS">V4.5+</option>
-            <option value="V4_5">V4.5</option>
-            <option value="V4">V4</option>
-          </select></label>
-      </div>
-      <div class="two-col">
-        <label class="field"><span>보컬 성별 <small>비워 두면 스타일에 맡깁니다</small></span>
-          <select data-s="gender">
-            <option value="">지정 안 함</option>
-            <option value="f">여성</option>
-            <option value="m">남성</option>
-          </select></label>
-        <label class="field"><span>연주곡</span>
-          <select data-s="inst">
-            <option value="no">가사 있는 노래</option>
-            <option value="yes">가사 없이 연주만</option>
-          </select></label>
-      </div>
-      <label class="field"><span>피할 요소 <small>선택 · Suno의 Exclude에 해당</small></span>
-        <input type="text" data-s="neg" value="${R.esc(song.exclude || pickedRef()?.negative || DEFAULT_EXCLUDE)}"
-          placeholder="예) heavy distortion, rap vocals"></label>
-
-      <p class="muted small">한 번에 2버전이 만들어집니다. 3~4분 걸리고 크레딧 10~20이 듭니다.</p>
-      <button class="btn is-blue" data-s="go">이 가사로 노래 만들기</button>
-      <div data-s="out"></div>
-    </div>`;
-
-    const pick = (n) => box.querySelector(`[data-s=${n}]`);
-    const result = pick('out');
-
-    pick('go').addEventListener('click', async () => {
-      const btnGo = pick('go');
-      const style = song.style || '';
-      if (!style) return alert('이 곡의 스타일 프롬프트가 없습니다.');
-
-      btnGo.disabled = true;
-      btnGo.textContent = '요청 중…';
-      result.className = 'task-state';
-      result.innerHTML = `<div class="spinner"></div><p>kie.ai에 요청하는 중…</p>`;
-
-      try {
-        const taskId = await generateSong({
-          lyrics: song.lyrics,
-          style,
-          title: song.title.slice(0, 80),
-          model: pick('model').value,
-          instrumental: pick('inst').value === 'yes',
-          negativeTags: pick('neg').value.trim(),
-          vocalGender: pick('gender').value,
-        });
-
-        btnGo.textContent = '만드는 중…';
-        const tracks = await waitForSong(taskId, {
-          onTick: (sec, text, partial) => {
-            result.innerHTML = `<div class="spinner"></div>
-              <p>${R.esc(text)} · ${Math.floor(sec / 60)}분 ${sec % 60}초 지남</p>
-              <p class="muted small">보통 3~4분 걸립니다. 이 화면을 닫지 마세요.</p>
-              ${(partial || []).length ? `<p class="muted small">${partial.length}개 먼저 완성됨</p>` : ''}`;
-          },
-        });
-
-        // 나중에 자막을 다시 받을 수 있게 작업 번호를 남겨 둡니다.
-        jobs.add({
-          taskId,
-          title: song.title,
-          tracks: tracks.map((t) => ({ id: t.id, title: t.title, duration: t.duration })),
-        });
-
-        result.className = '';
-        result.innerHTML = tracks
-          .map(
-            (t, i) => `<div class="track">
-              ${t.imageUrl ? `<img class="track-art" src="${t.imageUrl}" alt="">` : ''}
-              <div class="track-body">
-                <b>${R.esc(t.title)}</b>
-                <span class="muted small">버전 ${i + 1} · ${Math.floor(t.duration / 60)}:${String(Math.round(t.duration % 60)).padStart(2, '0')}</span>
-                <audio controls preload="none" src="${t.audioUrl}"></audio>
-              </div>
-              <div class="track-btns">
-                <button class="btn sm is-gold" data-dl="${i}">MP3 받기</button>
-                <button class="btn sm is-ghost" data-srt="${i}">가사 자막 받기</button>
-              </div>
-            </div>`
-          )
-          .join('');
-
-        result.querySelectorAll('[data-srt]').forEach((b) =>
-          b.addEventListener('click', async () => {
-            const t = tracks[+b.dataset.srt];
-            b.disabled = true;
-            b.textContent = '받는 중…';
-            try {
-              const words = await getTimestampedLyrics(t.taskId || taskId, t.id);
-              const lines = wordsToSubtitles(words);
-              if (!lines.length) throw new Error('자막으로 만들 가사가 없습니다.');
-
-              const blob = new Blob(['\uFEFF' + toSrt(lines)], { type: 'text/plain;charset=utf-8' });
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = `${(t.title || song.title).replace(/[/\\:*?"<>|]/g, '')}.srt`;
-              a.click();
-              URL.revokeObjectURL(a.href);
-              b.textContent = `자막 ${lines.length}줄 받음`;
-              setTimeout(() => (b.textContent = '가사 자막 받기'), 2500);
-            } catch (err) {
-              alert(err.message);
-              b.textContent = '가사 자막 받기';
-            }
-            b.disabled = false;
-          })
-        );
-
-        result.querySelectorAll('[data-dl]').forEach((b) =>
-          b.addEventListener('click', async () => {
-            const t = tracks[+b.dataset.dl];
-            b.disabled = true;
-            b.textContent = '받는 중…';
-            try {
-              await downloadTrack(t.audioUrl, `${t.title || song.title}_${+b.dataset.dl + 1}.mp3`);
-            } catch {
-              window.open(t.audioUrl, '_blank');
-            }
-            b.disabled = false;
-            b.textContent = 'MP3 받기';
-          })
-        );
-      } catch (err) {
-        result.className = 'task-state fail';
-        result.innerHTML = `<p><strong>실패했습니다.</strong></p><p>${R.esc(err.message)}</p>`;
-      } finally {
-        btnGo.disabled = false;
-        btnGo.textContent = '이 가사로 노래 만들기';
-      }
-    });
-  }
 }

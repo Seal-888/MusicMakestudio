@@ -274,7 +274,7 @@ JSON만 출력합니다.`,
 /* ────────────────────────────────
    2. 레퍼런스 채널 분석
 ──────────────────────────────── */
-export function referenceAnalysis({ channel, stats, titles, topVideos }) {
+export function referenceAnalysis({ channel, stats, titles, topVideos, bottomVideos = [] }) {
   return {
     temperature: 0.8,
     maxOutputTokens: 6000,
@@ -297,19 +297,25 @@ export function referenceAnalysis({ channel, stats, titles, topVideos }) {
 [제목 목록]
 ${titles.map((t, i) => `${i + 1}. ${t}`).join('\n')}
 
-[조회수 상위 10개]
-${topVideos.map((v, i) => `${i + 1}. "${v.title}" — ${v.views.toLocaleString()}회, ${v.durationText}`).join('\n')}
-
+[잘 되는 영상 — 하루 평균 조회수 순]
+${topVideos.map((v, i) => `${i + 1}. "${v.title}" — 누적 ${v.views.toLocaleString()}회, 하루 ${v.perDay.toLocaleString()}회, ${v.durationText}${v.isShort ? ', 쇼츠' : ''}`).join('\n')}
+${bottomVideos.length ? `
+[안 되는 영상 — 하루 평균 조회수가 낮은 순, 올린 지 7일 안 된 영상은 뺌]
+${bottomVideos.map((v, i) => `${i + 1}. "${v.title}" — 누적 ${v.views.toLocaleString()}회, 하루 ${v.perDay.toLocaleString()}회, ${v.durationText}${v.isShort ? ', 쇼츠' : ''}`).join('\n')}
+` : ''}
 [분석 지침]
 - 모든 답변을 한국어로 씁니다. 장르는 영문명을 괄호로 함께 적습니다.
-- 평균만 보지 말고 상위 영상과 하위 영상의 차이에서 원인을 찾으세요.
-- 조회수가 0에 가까운 영상이 섞여 있으면 그 이유도 짚어 주세요.
+- 평균만 보지 말고 잘 되는 영상과 안 되는 영상의 차이에서 원인을 찾으세요.
+  비교는 누적이 아니라 하루 평균 조회수로 합니다. 누적은 오래된 영상이 늘 이깁니다.
+- **당신은 소리도 썸네일도 보지 못했습니다.** 받은 것은 제목·소개글·숫자뿐입니다.
+  장르·무드·BPM·썸네일은 제목과 소개에서 읽히는 만큼만 추정하고, 근거(어떤 제목의 어떤 말)를 함께 적으세요.
+  근거가 없으면 "제목만으로는 알 수 없음"이라고 쓰세요. 지어내지 마세요.
 
 [담을 내용]
 - genreEstimate: 장르 추정. 예) "여성 보컬 Lo-fi 발라드 (Lo-fi, Ballad)"
 - moodEstimate: 무드 추정.
 - bpmEstimate: BPM 범위와 설명. 예) "70-90 BPM (느린 템포)"
-- thumbnailStyle: 썸네일 스타일 패턴.
+- thumbnailStyle: 제목·소개에서 짐작되는 썸네일 방향. 이미지를 본 게 아니라는 점을 전제로.
 - titlePattern: 제목 패턴. 이모지, 길이, 반복되는 키워드까지.
 - viewPattern: 어떤 영상이 터지고 어떤 영상이 묻히는지.
 - successFormula: 이 니치의 성공 공식 5개. 바로 따라 할 수 있게.
@@ -1781,12 +1787,17 @@ export function channelAnalyzer({ channel, stats, videos }) {
 - 평균 길이: ${stats.avgDurationText}
 - 평균 업로드 간격: ${stats.avgGapDays}일
 
-${videos.map((v, i) => `${i + 1}. "${v.title}" · ${v.views.toLocaleString()}회 · 좋아요 ${v.likes} · 댓글 ${v.comments} · ${v.durationText} · ${v.published}`).join('\n')}
+${videos.map((v, i) => `${i + 1}. "${v.title}" · 누적 ${v.views.toLocaleString()}회 · 하루 ${v.perDay.toLocaleString()}회 · 좋아요 ${v.likes} · 댓글 ${v.comments} · ${v.durationText}${v.isShort ? ' · 쇼츠' : ''} · ${v.published} (${v.ageDays}일 전)`).join('\n')}
 
 [지침]
 - 모든 답변을 한국어로 씁니다.
 - 위로하지 말고 솔직하게 씁니다. 안 되는 건 안 된다고 하세요.
 - 평균이 아니라 **상위와 하위의 차이**에서 원인을 찾으세요.
+- 영상끼리 비교할 때는 **누적이 아니라 하루 평균 조회수**로 비교하세요.
+  누적으로 비교하면 오래된 영상이 늘 이기고, 갓 올린 영상이 늘 집니다.
+- 올린 지 7일이 안 된 영상은 아직 조회수가 쌓이는 중입니다. '안 되는 영상'의 근거로 쓰지 마세요.
+- '쇼츠'로 표시된 영상은 일반 영상과 따로 평가하세요. 노출 방식과 조회수 규모가 다릅니다.
+- 위 데이터에 없는 것(시청 지속 시간, 유입 경로, 썸네일 클릭률)은 추측하지 말고, 필요하면 스튜디오에서 확인하라고 하세요.
 - 조회수가 낮은 영상들의 공통점을 반드시 짚으세요.
 - "꾸준히 올리세요" 같은 일반론은 쓰지 마세요. 이 데이터에서만 나올 수 있는 말을 하세요.
 

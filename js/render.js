@@ -4,6 +4,23 @@ export function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
+/**
+ * 파일로 내려받게 합니다.
+ *
+ * 주소를 클릭 직후에 바로 지우면 Safari·Firefox에서 내려받기가 취소될 때가 있습니다.
+ * 잠시 뒤에 지웁니다.
+ */
+export function saveFile(filename, content, type = 'text/plain;charset=utf-8') {
+  const blob = content instanceof Blob ? content : new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 /** 눌러서 복사되는 버튼. data-copy에 원문을 담아 둡니다. */
 export function copyBtn(text, label = '복사') {
   return `<button class="btn sm is-ghost copy" data-copy="${esc(text)}">${label}</button>`;

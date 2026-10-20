@@ -1,6 +1,7 @@
 import { callGemini, youtubePart, filePart } from '../api/gemini.js';
-import { resolveChannel, fetchChannelVideos, parseDuration, parseChannelInput } from '../api/youtube.js';
-import { styles, refs } from '../store.js';
+import { resolveChannel, fetchChannelVideos, parseChannelInput, fetchVideoSeconds } from '../api/youtube.js';
+import { toVideo, summarize, rankByPerDay } from '../videostats.js';
+import { styles, refs, settings } from '../store.js';
 import { readDuration, toTimestamp } from '../audio.js';
 import { toast } from '../ui.js';
 import { channelPlan, referenceAnalysis, visualPalette, playlistStyleAnalysis } from '../prompts.js';
@@ -58,6 +59,9 @@ export default function renderPlanning(root) {
     return paletteTab(body);
   }
 }
+
+/** 음원 파일 한도. 아래 takeFile 설명 참고. */
+const MAX_UPLOAD_MB = 14;
 
 /* ── 채널 기획 ── */
 function planTab(body) {
@@ -148,25 +152,19 @@ function refTab(body) {
       working: '채널 데이터 수집 중',
       task: async () => {
         const channel = await resolveChannel(url);
-        const videos = await fetchChannelVideos(channel, +range.value);
+        const videos = (await fetchChannelVideos(channel, +range.value)).map((v) => toVideo(v));
         if (!videos.length) throw new Error('공개된 영상이 없는 채널입니다.');
 
         const stats = summarize(channel, videos);
-        const top = [...videos]
-          .sort((a, b) => (+b.statistics.viewCount || 0) - (+a.statistics.viewCount || 0))
-          .slice(0, 10)
-          .map((v) => ({
-            title: v.snippet.title,
-            views: +v.statistics.viewCount || 0,
-            durationText: fmt(parseDuration(v.contentDetails.duration)),
-          }));
+        const { top, bottom } = rankByPerDay(videos);
 
         const analysis = await callGemini(
           referenceAnalysis({
             channel: { name: channel.snippet.title, description: channel.snippet.description },
             stats,
-            titles: videos.slice(0, 25).map((v) => v.snippet.title),
+            titles: videos.slice(0, 25).map((v) => v.title),
             topVideos: top,
+            bottomVideos: bottom,
           })
         );
         return { channel, stats, analysis };
@@ -184,11 +182,13 @@ function refTab(body) {
               <div class="fact"><dt>분석 영상</dt><dd>${stats.sampleSize}개</dd></div>
             </dl>
           </section>
-          ${R.block('장르', R.para(d.genreEstimate))}
-          ${R.block('무드', R.para(d.moodEstimate))}
-          ${R.block('BPM', R.para(d.bpmEstimate))}
+          <p class="muted small">장르·무드·BPM·썸네일은 소리나 이미지를 보지 않고 제목과 소개글로 <b>추정</b>한 것입니다.
+          실제 소리를 맞추려면 "플리 스타일 분석" 탭에서 영상을 직접 들려주세요.</p>
+          ${R.block('장르 (추정)', R.para(d.genreEstimate))}
+          ${R.block('무드 (추정)', R.para(d.moodEstimate))}
+          ${R.block('BPM (추정)', R.para(d.bpmEstimate))}
           ${R.block('제목 패턴', R.para(d.titlePattern))}
-          ${R.block('썸네일 스타일', R.para(d.thumbnailStyle))}
+          ${R.block('썸네일 (추정)', R.para(d.thumbnailStyle))}
           ${R.block('조회수 패턴', R.para(d.viewPattern))}
           ${R.block('이 니치의 성공 공식', R.bullets(d.successFormula))}
           ${R.block('따라 해볼 것', R.bullets(d.copyableElements))}
@@ -221,35 +221,6 @@ function refTab(body) {
       },
     });
   });
-}
-
-function summarize(channel, videos) {
-  const views = videos.map((v) => +v.statistics.viewCount || 0);
-  const durations = videos.map((v) => parseDuration(v.contentDetails.duration));
-  const dates = videos.map((v) => new Date(v.snippet.publishedAt).getTime()).sort((a, b) => b - a);
-
-  const gaps = [];
-  for (let i = 0; i < dates.length - 1; i++) gaps.push((dates[i] - dates[i + 1]) / 86400000);
-
-  const sorted = [...views].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-
-  return {
-    subscribers: +channel.statistics.subscriberCount || 0,
-    totalVideos: +channel.statistics.videoCount || 0,
-    sampleSize: videos.length,
-    avgViews: views.reduce((a, b) => a + b, 0) / views.length,
-    medianViews: sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2,
-    avgDurationText: fmt(durations.reduce((a, b) => a + b, 0) / durations.length),
-    avgGapDays: gaps.length ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : '—',
-  };
-}
-
-function fmt(sec) {
-  const s = Math.round(sec);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return h ? `${h}시간 ${m}분` : `${m}분 ${s % 60}초`;
 }
 
 /* ── 비주얼 팔레트 ── */
@@ -310,7 +281,9 @@ function paletteTab(body) {
 }
 
 function swatches(colors) {
+  // 모델이 hex 를 엉뚱하게 적으면 색이 빈칸으로 보입니다. 형식이 맞는 것만 그립니다.
   return `<div class="swatches">${(colors || [])
+    .filter((c) => /^#([0-9a-f]{3}){1,2}$/i.test((c.hex || '').trim()))
     .map(
       (c) => `<button class="swatch copy" data-copy="${R.esc(c.hex)}" title="눌러서 복사">
         <span class="chipcolor" style="background:${R.esc(c.hex)}"></span>
@@ -340,7 +313,7 @@ function soundTab(body) {
           <span class="muted small">공개 영상의 주소를 넣습니다. 긴 플레이리스트도 구간을 잘라 들을 수 있습니다.</span></span></label>
         <label class="mode"><input type="radio" name="sndsrc" value="file">
           <span><strong>음원 파일 올리기</strong><br>
-          <span class="muted small">내가 가진 mp3를 직접 넣습니다. 20MB 이하.</span></span></label>
+          <span class="muted small">내가 가진 mp3를 직접 넣습니다. ${MAX_UPLOAD_MB}MB 이하.</span></span></label>
       </div>
 
       <div data-src="youtube">
@@ -378,7 +351,7 @@ function soundTab(body) {
         <div class="dropzone" data-drop>
           <div class="dz-icon">♪</div>
           <p><strong>음원 파일을 끌어다 놓거나 눌러서 고르세요</strong></p>
-          <p class="muted small" data-filelabel>mp3 · wav · m4a · 20MB 이하</p>
+          <p class="muted small" data-filelabel>mp3 · wav · m4a · ${MAX_UPLOAD_MB}MB 이하</p>
           <input type="file" accept="audio/*" hidden data-file>
         </div>
       </div>
@@ -417,7 +390,9 @@ function soundTab(body) {
   zone.addEventListener('drop', (e) => {
     e.preventDefault();
     zone.classList.remove('over');
-    takeFile([...e.dataTransfer.files].find((f) => f.type.startsWith('audio/')));
+    const f = [...e.dataTransfer.files].find((x) => x.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|flac|ogg)$/i.test(x.name));
+    if (!f) return toast('음원 파일(mp3 · wav · m4a)만 넣을 수 있습니다');
+    takeFile(f);
   });
   fileInput.addEventListener('change', () => {
     const f = fileInput.files?.[0];
@@ -427,8 +402,10 @@ function soundTab(body) {
 
   function takeFile(file) {
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) {
-      return alert('20MB가 넘는 파일은 넣을 수 없습니다. 더 짧은 음원을 써 주세요.');
+    // Gemini는 요청 하나를 20MB까지 받습니다. 파일은 base64로 바뀌며 4/3배 커지므로
+    // 원본은 15MB 아래여야 합니다. 예전 20MB 한도로는 15~20MB 파일이 늘 실패했습니다.
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      return alert(`${MAX_UPLOAD_MB}MB가 넘는 파일은 넣을 수 없습니다. 더 짧은 음원이나 낮은 비트레이트로 바꿔 주세요.`);
     }
     picked = file;
     zone.classList.add('on');
@@ -440,7 +417,7 @@ function soundTab(body) {
     return runYoutube();
   });
 
-  function runYoutube() {
+  async function runYoutube() {
     const raw = body.querySelector('[data-f=url]').value.trim();
     if (!raw) return alert('유튜브 영상 URL을 넣어 주세요.');
 
@@ -452,14 +429,40 @@ function soundTab(body) {
     const len = +body.querySelector('[data-f=len]').value;
     const where = R.readPills(body, 'where')[0] || 'middle';
 
+    /**
+     * 영상 길이를 알면 구간을 그 안에 맞춥니다.
+     *
+     * 예전에는 '중간부터'가 늘 5:00부터였습니다. 3~4분짜리 노래 한 곡을 넣으면
+     * 영상이 끝난 뒤를 들으라고 보내는 셈이라, 실패하거나 엉뚱한 분석이 나왔습니다.
+     * YouTube 키가 있으면 길이를 읽어(1단위) 진짜 중간을 잡습니다.
+     */
+    let total = null;
+    if (settings.get('youtubeKey')) {
+      try {
+        total = await fetchVideoSeconds(parsed.value);
+      } catch {
+        total = null; // 길이를 못 읽어도 분석은 해 봅니다.
+      }
+    }
+
     let start = 0;
-    if (where === 'middle') start = 300;
+    if (where === 'middle') start = total ? Math.max(0, Math.round(total / 2 - len / 2)) : 300;
     if (where === 'custom') start = toSeconds(body.querySelector('[data-f=start]').value);
 
+    let end = start + len;
+    if (total) {
+      if (start >= total) {
+        return alert(`시작 지점(${fmtClock(start)})이 영상 길이(${fmtClock(total)})보다 뒤입니다.`);
+      }
+      end = Math.min(end, total);
+    } else if (where === 'middle') {
+      toast('YouTube 키가 없어 영상 길이를 모릅니다. 5:00부터 듣습니다. 짧은 영상이면 "앞부분"을 고르세요.');
+    }
+
     run({
-      windowNote: `들려드리는 구간은 영상의 ${fmtClock(start)}부터 ${fmtClock(start + len)}까지입니다.`,
+      windowNote: `들려드리는 구간은 영상의 ${fmtClock(start)}부터 ${fmtClock(end)}까지입니다.`,
       source: 'youtube',
-      parts: [youtubePart(url, { startSec: start, endSec: start + len })],
+      parts: [youtubePart(url, { startSec: start, endSec: end })],
     });
   }
 
@@ -511,7 +514,7 @@ function soundTab(body) {
             .map(
               (p, i) => `<div class="style-card">
                 <div class="style-head"><b>${R.esc(p.label)}</b>
-                  <span class="lenbadge is-${p.prompt.length < 400 ? 'short' : 'ok'}">${p.prompt.length}자</span>
+                  <span class="lenbadge is-${p.prompt.length < 400 ? 'short' : p.prompt.length > 1000 ? 'long' : 'ok'}">${p.prompt.length}자${p.prompt.length > 1000 ? ' · 1000자 초과, Suno에서 잘립니다' : ''}</span>
                   ${R.copyBtn(p.prompt)}
                   <button class="btn sm is-gold" data-save="${i}">보관함에 저장</button>
                 </div>

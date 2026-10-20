@@ -85,6 +85,11 @@ export async function fetchChannelVideos(channel, count = 50) {
     if (!pageToken) break;
   }
 
+  return fetchVideosById(ids);
+}
+
+/** 영상 ID로 상세 정보를 읽습니다. 50개씩 나눠 부릅니다. */
+export async function fetchVideosById(ids) {
   const videos = [];
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = await yt('videos', {
@@ -94,6 +99,14 @@ export async function fetchChannelVideos(channel, count = 50) {
     videos.push(...(chunk.items || []));
   }
   return videos;
+}
+
+/** 영상 하나의 길이(초). 1단위만 씁니다. */
+export async function fetchVideoSeconds(videoId) {
+  const v = await yt('videos', { part: 'contentDetails', id: videoId });
+  const iso = v.items?.[0]?.contentDetails?.duration;
+  if (!iso) throw new Error('그 영상을 찾을 수 없습니다. 비공개이거나 삭제된 영상일 수 있습니다.');
+  return parseDuration(iso);
 }
 
 /** ISO 8601 (PT1H2M3S) → 초 */

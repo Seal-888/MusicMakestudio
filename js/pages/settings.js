@@ -1,8 +1,8 @@
 import { settings, health, exportAll, importAll, usage } from '../store.js';
 import { testGemini, listModels } from '../api/gemini.js';
-import { testKie } from '../api/kie.js';
 import { testYouTube } from '../api/youtube.js';
 import { toast } from '../ui.js';
+import { saveFile } from '../render.js';
 
 const SERVICES = [
   {
@@ -18,20 +18,6 @@ const SERVICES = [
       ['비용', '무료 한도 안에서는 0원'],
     ],
     test: testGemini,
-  },
-  {
-    id: 'kie',
-    field: 'kieKey',
-    name: 'kie.ai (Suno)',
-    required: false,
-    sub: '가사를 실제 노래로 만듭니다 · 안 넣어도 나머지는 다 됩니다',
-    facts: [
-      ['비용', '1곡당 약 $0.05~0.10'],
-      ['발급', '<a href="https://kie.ai" target="_blank" rel="noopener">kie.ai →</a>'],
-      ['크레딧', '가입 시 무료 지급 · $5 = 약 50~100곡'],
-      ['걸리는 시간', '1곡당 3~4분'],
-    ],
-    test: testKie,
   },
   {
     id: 'youtube',
@@ -120,6 +106,7 @@ export default function renderSettings(root) {
       <span class="card-tag">백업</span>
       <p style="margin-top:0">키와 보관함은 이 브라우저에만 있습니다. 브라우저 데이터를 지우면 같이 사라지니,
       가끔 파일로 내려받아 두세요.</p>
+      <p class="muted small">백업 파일에는 <b>API 키가 그대로</b> 들어갑니다. 다른 사람에게 보내거나 공유 폴더에 두지 마세요.</p>
       <div class="key-row">
         <button class="btn sm is-gold" data-act="export">파일로 내보내기</button>
         <button class="btn sm is-ghost" data-act="import">파일에서 가져오기</button>
@@ -245,12 +232,7 @@ function wireBackup(root) {
 
   root.addEventListener('click', (e) => {
     if (e.target.dataset.act === 'export') {
-      const blob = new Blob([exportAll()], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `plimusic-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      saveFile(`plimusic-backup-${new Date().toISOString().slice(0, 10)}.json`, exportAll(), 'application/json');
       toast('백업 파일을 내려받았습니다');
     }
     if (e.target.dataset.act === 'import') file.click();
@@ -263,8 +245,10 @@ function wireBackup(root) {
       importAll(await f.text());
       toast('가져왔습니다. 화면을 새로고침합니다');
       setTimeout(() => location.reload(), 700);
-    } catch {
-      toast('파일을 읽을 수 없습니다');
+    } catch (err) {
+      toast(`가져오지 못했습니다. ${err instanceof SyntaxError ? 'JSON 파일이 아닙니다.' : err.message}`);
+    } finally {
+      file.value = ''; // 같은 파일을 다시 골라도 change 가 일어나게
     }
   });
 }

@@ -1,5 +1,5 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, ACTS, SCENES, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
 import { tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { styles, songs, refs, draft } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
@@ -178,17 +178,18 @@ const DURATIONS = [
  * (2:00 에 2절이 빠져 있는 등) 도입부 코러스를 골라도 기본 구성을 보여 줬습니다.
  * 이제 프롬프트가 쓰는 구성표를 그대로 읽습니다.
  */
-const ROLE_SHORT = { 'pre-chorus': 'pre', 'instrumental solo': 'solo' };
-function structureText(duration, form) {
-  const sections = songStructure({ duration, form });
+const ROLE_SHORT = { 'pre-chorus': 'pre', 'post-chorus': 'post', 'instrumental solo': 'solo', 'dance break': 'break' };
+function structureText(duration, form, actOpen = 'hook') {
+  const sections = songStructure({ duration, form, actOpen });
   const name = (role) => {
+    if (/콜드 오픈/.test(role)) return 'hook!';
     const r = role.toLowerCase().replace(/\s*\d+$/, '').replace(/\s*\(.*\)$/, '');
     return ROLE_SHORT[r] || r;
   };
   if (form !== 'threeActs') return sections.map(([role]) => name(role)).join(' → ');
   return ACTS.map((act, a) =>
     `${act.name.split(' · ')[0]}: ` +
-    SCENES.map((sc, i) => ({ ...sc, no: i + 1 }))
+    actScenes(actOpen).map((sc, i) => ({ ...sc, no: i + 1 }))
       .filter((sc) => sc.act === a)
       .map((sc) => `${sc.no}장 ${sc.name}(${sections.filter((x) => x[2] === sc.no).map(([r]) => name(r)).join('+')})`)
       .join(' → ')
@@ -267,6 +268,7 @@ const DEFAULTS = {
   intro: 'short',
   introWhere: 'tag',
   form: 'standard',
+  actOpen: 'hook',
 };
 
 export default function renderMusic(root) {
@@ -366,6 +368,14 @@ export default function renderMusic(root) {
           selected: [DEFAULTS.form],
         })}
         <p class="muted small" data-form-note></p>
+        <div data-act-open hidden style="margin-top:10px">
+          <p class="field-label">3막 7장을 어떻게 열까요</p>
+          ${R.pillGroup('actOpen', Object.entries(ACT_OPENINGS).map(([k, v]) => ({ label: v.label, value: k })), {
+            multi: false,
+            selected: [DEFAULTS.actOpen],
+          })}
+          <p class="muted small" data-act-note></p>
+        </div>
       </div>
 
       <div class="field">
@@ -646,8 +656,15 @@ export default function renderMusic(root) {
   /** 전주를 없애는 선택인가. 이 경우 '인트로 위치'는 고를 것이 없습니다. */
   function introForced() {
     const introMode = R.readPills(root, 'intro')[0] || 'short';
-    const form = R.readPills(root, 'form')[0] || 'standard';
-    return introMode === 'none' || form === 'chorusFirst';
+    return introMode === 'none' || opensCold(currentForm());
+  }
+
+  /** 지금 고른 구성. 3막 7장이면 여는 방식까지 함께 봅니다. */
+  function currentForm() {
+    return {
+      form: R.readPills(root, 'form')[0] || 'standard',
+      actOpen: R.readPills(root, 'actOpen')[0] || 'hook',
+    };
   }
 
   function wantsIntroInStyle() {
@@ -655,19 +672,25 @@ export default function renderMusic(root) {
   }
 
   function refreshForm() {
-    const key = R.readPills(root, 'form')[0] || 'standard';
+    const { form: key, actOpen } = currentForm();
     const note = root.querySelector('[data-form-note]');
     if (note) note.textContent = SONG_FORMS[key]?.note || '';
+
+    // 3막 7장일 때만 여는 방식을 고릅니다.
+    const actBox = root.querySelector('[data-act-open]');
+    if (actBox) actBox.hidden = key !== 'threeActs';
+    const actNote = root.querySelector('[data-act-note]');
+    if (actNote) actNote.textContent = ACT_OPENINGS[actOpen]?.note || '';
 
     const introField = root.querySelector('[data-pills="intro"]')?.closest('.field');
     const introWrap = root.querySelector('[data-pills="intro"]')?.closest('.pills-wrap');
     if (introField && introWrap) {
-      const off = key === 'chorusFirst';
+      const off = opensCold({ form: key, actOpen });
       introWrap.classList.toggle('is-off', off);
       const label = introField.querySelector('.field-label small');
       if (label) {
         label.textContent = off
-          ? '도입부 코러스는 후렴부터 시작하므로 이 설정을 쓰지 않습니다'
+          ? `${key === 'chorusFirst' ? '도입부 코러스' : '3막 7장(훅 먼저)'}는 훅부터 시작하므로 이 설정을 쓰지 않습니다`
           : '플레이리스트로 이어 들으려면 짧은 쪽이 좋습니다';
       }
     }
@@ -723,6 +746,7 @@ export default function renderMusic(root) {
     }
 
     if (e.target.closest('[data-pills="form"]')) setTimeout(refreshForm, 0);
+    if (e.target.closest('[data-pills="actOpen"]')) setTimeout(refreshForm, 0);
     if (e.target.closest('[data-pills="intro"]')) setTimeout(refreshForm, 0);
     if (e.target.closest('[data-pills="introWhere"]')) setTimeout(refreshForm, 0);
   });
@@ -745,12 +769,12 @@ export default function renderMusic(root) {
   const durNote = root.querySelector('[data-dur-note]');
   const showStructure = () => {
     const on = durBox.querySelector('.dur.on');
-    const form = R.readPills(root, 'form')[0] || 'standard';
-    durNote.textContent = on ? structureText(on.dataset.dur, form) : '';
+    const { form, actOpen } = currentForm();
+    durNote.textContent = on ? structureText(on.dataset.dur, form, actOpen) : '';
   };
   // 구성을 바꾸면 길이 아래 구성도 따라 바뀌어야 합니다.
   root.addEventListener('click', (e) => {
-    if (e.target.closest('[data-pills="form"]')) setTimeout(showStructure, 0);
+    if (e.target.closest('[data-pills="form"], [data-pills="actOpen"]')) setTimeout(showStructure, 0);
   });
   durBox.addEventListener('click', (e) => {
     const btn = e.target.closest('.dur');
@@ -1147,6 +1171,7 @@ export default function renderMusic(root) {
       introMode: R.readPills(root, 'intro')[0] || 'short',
       introInStyle: wantsIntroInStyle(),
       form: R.readPills(root, 'form')[0] || 'standard',
+      actOpen: R.readPills(root, 'actOpen')[0] || 'hook',
     };
 
     R.runTask({
@@ -1210,7 +1235,9 @@ export default function renderMusic(root) {
           tempo: R.readPills(root, 'tempo')[0] || '',
           needOpening: baseOptions.introInStyle,
         };
-        for (const song of made) Object.assign(song, { duration, form: baseOptions.form, checkWith });
+        for (const song of made) {
+          Object.assign(song, { duration, form: baseOptions.form, actOpen: baseOptions.actOpen, checkWith });
+        }
         if (append && latest) {
           latest.data.songs.push(...made);
         } else {
@@ -1488,6 +1515,7 @@ export default function renderMusic(root) {
       ...checkLength(song.lyrics, targetLines({
         duration: song.duration || root.querySelector('.dur.on')?.dataset.dur || '3:30',
         form: song.form || R.readPills(root, 'form')[0] || 'standard',
+        actOpen: song.actOpen || R.readPills(root, 'actOpen')[0] || 'hook',
       })).issues,
     ];
     const titleIssue = checkTitle(song.title);

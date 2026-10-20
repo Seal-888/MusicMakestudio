@@ -23,7 +23,7 @@ const ok = (cond, label) => {
 };
 
 const { checkHook, splitSections, checkInlineTags, checkOutro, checkLength, checkRepeats } = await import(appUrl('js/lyrics.js'));
-const { songWriting, songSeeds, targetLines, songStructure, SCENES, ACTS } = await import(appUrl('js/prompts.js'));
+const { songWriting, songSeeds, targetLines, songStructure, SCENES, SCENES_HOOK, ACTS } = await import(appUrl('js/prompts.js'));
 
 /* ── 프롬프트가 훅을 제대로 요구하는지 ────────── */
 console.log('\n프롬프트 지시:');
@@ -255,14 +255,14 @@ console.log('\n곡 길이 — 선언한 줄 수와 구성표가 맞는가:');
   // 예전에는 totalLines 를 손으로 적어 두어 구성표와 어긋났습니다.
   // 3:30 은 구간 합이 47줄인데 36줄이라고 적혀 있어 곡이 짧게 나왔습니다.
   for (const d of ['2:00', '2:30', '3:00', '3:30', '4:00']) {
-    for (const form of ['standard', 'chorusFirst', 'threeActs']) {
-      const want = targetLines({ duration: d, form });
+    for (const [form, actOpen] of [['standard'], ['chorusFirst'], ['threeActs', 'hook'], ['threeActs', 'build']]) {
+      const want = targetLines({ duration: d, form, actOpen });
       const p = songWriting({
         genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
-        era: 'e', instruments: 'i', concept: 'c', songCount: 1, duration: d, form,
+        era: 'e', instruments: 'i', concept: 'c', songCount: 1, duration: d, form, actOpen,
       }).prompt;
       const said = Number(p.match(/모두 합쳐 (\d+)줄/)?.[1]);
-      const label = { standard: '기본', chorusFirst: '도입부코러스', threeActs: '3막7장' }[form];
+      const label = { standard: '기본', chorusFirst: '도입부코러스', threeActs: `3막7장(${actOpen})` }[form];
       ok(said === want, `${d} ${label} — 선언 ${said} = 계산 ${want}`);
     }
   }
@@ -389,44 +389,119 @@ We build a fire but find nothing there`;
 
 console.log('\n3막 7장:');
 {
-  ok(ACTS.length === 3 && SCENES.length === 7, '세 막, 일곱 장');
-  ok(SCENES.every((sc, i) => i === 0 || sc.act >= SCENES[i - 1].act), '장이 막 순서대로 놓임');
+  ok(ACTS.length === 3 && SCENES.length === 7 && SCENES_HOOK.length === 7, '세 막, 일곱 장 (두 방식 모두)');
+  for (const sc of [SCENES, SCENES_HOOK]) {
+    ok(sc.every((x, i) => i === 0 || x.act >= sc[i - 1].act), '장이 막 순서대로 놓임');
+  }
 
   const base = {
     genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
     era: 'e', instruments: 'i', concept: 'c', songCount: 1, form: 'threeActs',
   };
-  for (const d of ['2:00', '2:30', '3:00', '3:30', '4:00']) {
-    const sec = songStructure({ duration: d, form: 'threeActs' });
-    const nos = sec.map((x) => x[2]);
-    ok(
-      [1, 2, 3, 4, 5, 6, 7].every((n) => nos.includes(n)) && nos.every((n, i) => i === 0 || n >= nos[i - 1]),
-      `${d} — 1~7장이 모두 있고 순서대로 흐름`
-    );
-    ok(sec[sec.length - 1][0] === 'Outro', `${d} — 아웃트로로 닫힘`);
-    ok(sec.some(([r]) => r === 'Bridge'), `${d} — 6장 위기를 맡을 브리지가 있음`);
-    ok(sec.filter(([r]) => r === 'Chorus').length >= 2, `${d} — 후렴이 두 번 이상 (훅의 뜻이 바뀌려면)`);
+  for (const actOpen of ['hook', 'build']) {
+    for (const d of ['2:00', '2:30', '3:00', '3:30', '4:00']) {
+      const tag = `${actOpen} ${d}`;
+      const sec = songStructure({ duration: d, form: 'threeActs', actOpen });
+      const nos = sec.map((x) => x[2]);
+      ok(
+        [1, 2, 3, 4, 5, 6, 7].every((n) => nos.includes(n)) && nos.every((n, i) => i === 0 || n >= nos[i - 1]),
+        `${tag} — 1~7장이 모두 있고 순서대로 흐름`
+      );
+      ok(sec[sec.length - 1][0] === 'Outro', `${tag} — 아웃트로로 닫힘`);
+      ok(sec.some(([r]) => r === 'Bridge'), `${tag} — 6장 위기를 맡을 브리지가 있음`);
+      ok(sec.filter(([r]) => r === 'Chorus').length >= 2, `${tag} — 전문 후렴이 두 번 이상 (훅의 뜻이 바뀌려면)`);
+      if (actOpen === 'hook') {
+        ok(/Chorus/.test(sec[0][0]) && /앞 \d줄만/.test(sec[0][1]), `${tag} — 첫 구간이 짧게 자른 후렴(훅)`);
+        ok(!sec.some(([r]) => r === 'Intro'), `${tag} — 따로 [Intro] 를 두지 않음`);
+      }
+      // 마지막 후렴은 [Final Chorus] 로 적으면 검사가 후렴으로 세지 못합니다.
+      ok(!sec.some(([r]) => /Final/.test(r)), `${tag} — 'Final Chorus' 같은 검사가 모르는 이름이 없음`);
 
-    // 같은 길이의 기본 구성과 분량이 크게 다르면 곡 길이가 어긋납니다.
-    const a = targetLines({ duration: d, form: 'threeActs' });
-    const b = targetLines({ duration: d, form: 'standard' });
-    ok(Math.abs(a - b) <= 2, `${d} — 줄 수가 기본 구성과 비슷함 (${a} / ${b})`);
+      const a = targetLines({ duration: d, form: 'threeActs', actOpen });
+      const b = targetLines({ duration: d, form: 'standard' });
+      ok(Math.abs(a - b) <= 2, `${tag} — 줄 수가 기본 구성과 비슷함 (${a} / ${b})`);
 
-    const p = songWriting({ ...base, duration: d }).prompt;
-    ok(p.includes('7장 절정과 결말') && p.includes('■ 2막 · 대립'), `${d} — 프롬프트에 막·장 설계도가 들어감`);
+      const p = songWriting({ ...base, duration: d, actOpen }).prompt;
+      const last = actOpen === 'hook' ? '7장 귀환' : '7장 절정과 결말';
+      ok(p.includes(last) && p.includes('■ 2막 · 대립'), `${tag} — 프롬프트에 막·장 설계도가 들어감`);
+    }
   }
 
-  const p = songWriting({ ...base, duration: '3:30' }).prompt;
-  ok(p.includes('막과 장은 설계도입니다'), '막·장 이름을 태그에 쓰지 말라고 함');
-  ok(!p.includes('구간마다 하는 일이 다릅니다'), '기본 구성의 구간 설명과 겹치지 않음');
+  const hook = songWriting({ ...base, duration: '3:30', actOpen: 'hook' }).prompt;
+  const build = songWriting({ ...base, duration: '3:30', actOpen: 'build' }).prompt;
+  ok(hook.includes('후렴으로 시작하는 곡입니다') && !hook.includes('인트로는 짧게, 길이를 맞춥니다'),
+    '훅 먼저 — 콜드 오픈 규칙을 쓰고, 인트로 길이 규칙은 빠짐');
+  ok(!build.includes('후렴으로 시작하는 곡입니다') && build.includes('인트로는 짧게'),
+    '쌓아 올리기 — 인트로 규칙을 쓰고 콜드 오픈 규칙은 없음');
+  ok(hook.includes('막과 장은 설계도입니다'), '막·장 이름을 태그에 쓰지 말라고 함');
+  ok(!hook.includes('구간마다 하는 일이 다릅니다'), '기본 구성의 구간 설명과 겹치지 않음');
   ok(!songWriting({ ...base, form: 'standard' }).prompt.includes('3막 7장'), '기본 구성에는 3막 7장 안내가 없음');
 
   const seed = { title: 'T', scene: 'S', to: 'you', hook: 'H', opening: 'O', soundNote: 'N' };
-  const ps = songWriting({ ...base, seed }).prompt;
+  const ps = songWriting({ ...base, seed, actOpen: 'build' }).prompt;
   ok(ps.includes('1장 발단') && !ps.includes('이 장면 밖으로 나가지 않습니다'),
     '씨앗의 장면은 1장이 되고, 이야기가 그 밖으로 나아갈 수 있음');
+  ok(songWriting({ ...base, seed, actOpen: 'hook' }).prompt.includes('[Verse 1]의 첫 줄'),
+    '훅으로 여는 곡 — 씨앗의 첫 줄은 1절 첫 줄로 (곡의 첫 소리는 훅)');
   ok(songWriting({ ...base, form: 'standard', seed }).prompt.includes('이 장면 밖으로 나가지 않습니다'),
     '기본 구성의 씨앗 규칙은 그대로');
+}
+
+console.log('\n가사 규칙끼리 부딪히지 않는가:');
+{
+  const base = {
+    genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+    era: 'e', instruments: 'i', concept: 'c', songCount: 1,
+  };
+  const p = songWriting({ ...base, negativeTags: true, variety: true }).prompt;
+  ok(!p.includes('제목이 그대로 들어가는'), '훅에 제목을 넣으라는 규칙이 없음 (제목은 가사 문장을 쓰지 말라는 규칙과 충돌)');
+  ok(!p.includes('최소치'), '줄 수를 "최소치"라고 하지 않음 (구성표의 "정확히"와 충돌)');
+  ok(!p.includes('[no repeated chorus]'), '[no repeated chorus] 를 넣지 않음 (후렴 전문 반복 규칙과 충돌)');
+  ok(!/페이드아웃\)/.test(p), '변화 주기에 페이드아웃이 없음 (Final 한 방으로 닫는 규칙과 충돌)');
+  ok(p.includes('스타일에 인트로 이야기를 넣지 않았는가'), '인트로를 스타일에 안 넣는 설정이면 점검표도 그렇게');
+  ok(songWriting({ ...base, introInStyle: true }).prompt.includes('곡이 어떻게 시작하는지가 적혀 있고'), '넣는 설정이면 점검표가 확인');
+  const acts = songWriting({ ...base, form: 'threeActs', actOpen: 'hook' }).prompt;
+  ok(!/5장에서는 깨달음/.test(acts) && acts.includes('결말은 교훈이 아니라 장면'),
+    '3막 7장이 깨달음·교훈으로 닫으라고 하지 않음 (화자 설정의 "정리하지 말 것"과 충돌)');
+  const both = songWriting({ ...base, minimal: true, density: 'rich' }).prompt;
+  ok(both.includes('말을 아껴 여백이') && !both.includes('이미지가 촘촘하게'), '여백 + 촘촘하게를 같이 고르면 여백 쪽으로 맞춤');
+  const slow = songWriting({ ...base, form: 'threeActs', actOpen: 'hook', tempo: 'slow 70-90 BPM', moods: 'calm' }).prompt;
+  ok(slow.includes('같은 자리에 [Instrumental Break] 를 씁니다'), '느린 곡은 댄스 브레이크 대신 간주');
+  for (const density of ['light', 'normal', 'rich']) {
+    ok(songWriting({ ...base, density }).prompt.includes('════════ 가사의 밀도'), `가사 밀도(${density})가 프롬프트에 실림`);
+  }
+}
+
+console.log('\n훅 검사 — 훅으로 여는 곡:');
+{
+  const H = 'Lights out on me';
+  const full = [H, 'you said the city never sleeps', 'I counted every car that passed', 'the meter running on the street', H].join('\n');
+  const cold = [H, 'you said the city never sleeps', 'I counted every car that passed'].join('\n');
+  const v = 'walked to the gate with my shoes untied\nthe guard just nodded and looked away';
+  const song = `[Chorus - Cold Open]\n${cold}\n[Verse 1 - x]\n${v}\n[Chorus - x]\n${full}\n[Outro - Final Hit]\nend`;
+  const r = checkHook(song);
+  ok(r.kind === 'line' && r.hook === H, '짧게 자른 첫 후렴 뒤의 전문 후렴에서 훅을 찾음', ` ("${r.hook}")`);
+  ok(!r.issues.length, '훅으로 잘 열었으면 지적하지 않음');
+  const miss = song.replace(`[Chorus - Cold Open]\n${H}`, '[Chorus - Cold Open]\nsomething else first');
+  ok(checkHook(miss).issues.some((x) => x.kind === 'cold-open-miss'), '첫 소리가 훅이 아니면 알려 줌');
+}
+
+console.log('\n예상 길이:');
+{
+  const { estimateDuration } = await import(appUrl('js/lyrics.js'));
+  const lines = Array(10).fill('I walk the line tonight under rain').join('\n');
+  const plain = estimateDuration(`[Verse 1 - x]\n${lines}`).seconds;
+  const withBreak = estimateDuration(`[Verse 1 - x]\n${lines}\n[Dance Break - Heavy Bass]\n[Instrumental Solo - Guitar]`).seconds;
+  ok(withBreak - plain === 40, '댄스 브레이크(15초)·간주(25초)를 길이에 더함', ` (+${withBreak - plain}초)`);
+  const ko = estimateDuration('[Verse 1]\n너를 기다렸어 baby baby baby').syllables;
+  ok(ko === 6 + 4, '한국어 가사에 섞인 영어도 음절로 셈', ` (${ko})`);
+}
+
+console.log('\n줄 수 계산 — 포스트코러스:');
+{
+  const t = targetLines({ duration: '3:30', form: 'threeActs', actOpen: 'hook' });
+  // 콜드4 + V5 + P3 + C5 + Post4 + V4 + P3 + C5(반복) + B4 + C5+1(반복) + O4 = 47
+  ok(t === 47, '포스트코러스 줄 수가 후렴 반복 계산을 덮어쓰지 않음', ` (${t})`);
 }
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');

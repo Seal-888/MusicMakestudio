@@ -170,13 +170,21 @@ export function estimateDuration(text) {
   const lines = stripDirections(text);
   if (!lines.length) return null;
 
-  const words = lines.join(' ').split(/\s+/).filter(Boolean).length;
-  const hangul = (text.match(/[가-힣]/g) || []).length;
+  const joined = lines.join(' ');
+  const hangul = (joined.match(/[가-힣]/g) || []).length;
+  const english = (joined.match(/[A-Za-z][A-Za-z']*/g) || []).length;
 
   // 한국어는 글자 하나가 한 음절, 영어는 단어당 약 1.3음절입니다.
-  const syllables = hangul > words ? hangul : Math.round(words * 1.3);
+  // 예전에는 둘 중 큰 쪽만 셌기 때문에, 한국어 가사에 섞인 영어 훅·추임새가 통째로 빠졌습니다.
+  const syllables = hangul + Math.round(english * 1.3);
 
-  const seconds = Math.round((syllables / 115) * 60) + 12; // 전주·간주 몫
+  // 가사 없이 연주만 하는 구간은 시간을 채웁니다. 예전에는 12초로 한꺼번에 잡아서
+  // 간주·댄스 브레이크가 있는 구성이 늘 '짧다'고 나왔습니다.
+  const breaks = splitSections(text)
+    .filter((x) => !x.lines.length)
+    .reduce((sum, x) => sum + (/solo|instrumental|interlude/.test(x.role) ? 25 : /break|drop/.test(x.role) ? 15 : 0), 0);
+
+  const seconds = Math.round((syllables / 115) * 60) + 12 + breaks; // 12초는 전주·아웃트로 끝 몫
   return { lines: lines.length, syllables, seconds };
 }
 
@@ -364,6 +372,23 @@ export function splitSections(text) {
   return out;
 }
 
+/**
+ * 곡이 후렴으로 시작하는데, 그 첫 줄이 훅이 아니면 알려 줍니다.
+ * 훅으로 여는 구성의 핵심은 첫 소리가 훅이라는 것인데, 모델이 다른 줄로 시작하는 일이 잦습니다.
+ */
+function coldOpenMiss(text, head) {
+  const firstSung = splitSections(text).find((x) => x.lines.length);
+  if (!firstSung || !CHORUS_ROLES.includes(firstSung.role)) return [];
+  if (normLine(firstSung.lines[0]) === head) return [];
+  return [
+    {
+      kind: 'cold-open-miss',
+      label: '첫 소리가 훅이 아님',
+      detail: `후렴으로 시작하는데 첫 줄이 훅("${head}")과 다릅니다. 첫 줄을 훅으로 바꾸세요.`,
+    },
+  ];
+}
+
 /** 비교용으로 문장을 씻습니다. 문장부호와 대소문자 차이는 무시합니다. */
 function normLine(s) {
   return (s || '')
@@ -411,18 +436,25 @@ export function checkHook(text) {
   const allLines = (text || '').split('\n').map(normLine).filter(Boolean);
   const chorusLines = chorus.flatMap((c) => c.lines);
 
-  /* ── 1. 줄 훅: 후렴의 첫 줄과 끝 줄이 같은가 ── */
-  const first = chorus[0].lines;
+  /* ── 1. 줄 훅: 후렴의 첫 줄과 끝 줄이 같은가 ──
+   *
+   * 첫 번째 후렴만 보면 안 됩니다. 훅으로 여는 곡은 첫 후렴을 앞 서너 줄만 잘라 쓰기 때문에
+   * 첫 줄과 끝 줄이 다릅니다. 예전에는 그래서 진짜 훅을 놓치고 '훅 없음'이라고 했습니다.
+   * 첫 줄과 끝 줄이 같은 후렴(전문)을 찾아 그것을 기준으로 삼습니다. */
+  const isFramed = (c) =>
+    c.lines.length > 1 && normLine(c.lines[0]) && normLine(c.lines[0]) === normLine(c.lines[c.lines.length - 1]);
+  // 포스트코러스 구호(oh oh oh / oh oh oh)는 말 훅이지 후렴 전문이 아니므로 여기서 빼고 찾습니다.
+  const full = chorus.find((c) => !/post|drop/.test(c.role) && isFramed(c));
+  const first = (full || chorus[0]).lines;
   const head = normLine(first[0]);
-  const framed = first.length > 1 && head && head === normLine(first[first.length - 1]);
 
-  if (framed) {
+  if (full) {
     const repeats = allLines.filter((l) => l === head).length;
     return {
       hook: first[0].trim(),
       kind: 'line',
       repeats,
-      issues: tooLong(first[0]),
+      issues: [...tooLong(first[0]), ...coldOpenMiss(text, head)],
     };
   }
 

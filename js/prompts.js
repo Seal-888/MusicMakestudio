@@ -419,11 +419,24 @@ export const SONG_FORMS = {
   },
 };
 
+/**
+ * 3막 7장을 어떻게 여는가.
+ *
+ * hook  — 결말의 한 장면(훅)을 먼저 들려주고 처음으로 되돌아갑니다. 첫 5~10초에 훅이 나옵니다.
+ *         요즘 곡들이 쓰는 방식이고, 이야기로는 플래시포워드입니다.
+ * build — 장면을 쌓아 올려 3장에서 훅을 터뜨립니다. 훅은 50초 안팎에 처음 나옵니다.
+ *         느린 발라드나 서사가 긴 곡에 맞습니다.
+ */
+export const ACT_OPENINGS = {
+  hook: { label: '훅 먼저 (추천)', note: '첫 5~10초에 훅. 결말 장면을 먼저 보여 주고 처음으로 돌아갑니다.' },
+  build: { label: '쌓아 올리기', note: '장면을 쌓아 3장에서 훅을 터뜨립니다. 느린 곡·서사가 긴 곡에 맞습니다.' },
+};
+
 /** 고른 구성과 길이에 맞는 구성표. 화면과 프롬프트가 같은 표를 봅니다. */
-export function songStructure({ duration = '3:30', form = 'standard' } = {}) {
+export function songStructure({ duration = '3:30', form = 'standard', actOpen = 'hook' } = {}) {
   const table =
     form === 'chorusFirst' ? CHORUS_FIRST_STRUCTURES
-    : form === 'threeActs' ? THREE_ACT_STRUCTURES
+    : form === 'threeActs' ? (actOpen === 'build' ? THREE_ACT_STRUCTURES : THREE_ACT_HOOK_STRUCTURES)
     : SONG_STRUCTURES;
   return (table[duration] || table['3:30']).sections;
 }
@@ -437,8 +450,13 @@ export function songStructure({ duration = '3:30', form = 'standard' } = {}) {
  * "모두 합쳐 36줄"이라고 못 박는 바람에 모델이 줄을 줄여 곡이 짧게 나왔습니다.
  * 이제 구성표에서 직접 세므로 어긋날 수가 없습니다.
  */
-export function targetLines({ duration = '3:30', form = 'standard' } = {}) {
-  return countLines(songStructure({ duration, form }));
+export function targetLines({ duration = '3:30', form = 'standard', actOpen = 'hook' } = {}) {
+  return countLines(songStructure({ duration, form, actOpen }));
+}
+
+/** 이 구성이 훅으로 곡을 여는가. 전주를 없애는 설정들이 이걸 봅니다. */
+export function opensCold({ form = 'standard', actOpen = 'hook' } = {}) {
+  return form === 'chorusFirst' || (form === 'threeActs' && actOpen !== 'build');
 }
 
 function countLines(sections) {
@@ -459,7 +477,9 @@ function countLines(sections) {
     const n = Number(exact[1]);
     total += n + extra;
     // 뒤에서 "후렴 전문을 그대로 다시"가 나오면 이 줄 수를 다시 씁니다.
-    if (/Chorus/.test(role) && !/Pre/.test(role)) chorus = n;
+    // Pre-Chorus · Post-Chorus 는 후렴이 아닙니다. 예전에는 Post-Chorus 줄 수가
+    // 후렴 줄 수를 덮어써서, 그 뒤 "후렴 전문을 그대로 다시"를 엉뚱한 수로 셌습니다.
+    if (/Chorus/.test(role) && !/Pre|Post/.test(role)) chorus = n;
   }
   return total;
 }
@@ -613,15 +633,33 @@ export const ACTS = [
   { name: '3막 · 해결', goal: '부딪힘이 끝나고, 화자는 처음과 다른 자리에 섭니다.' },
 ];
 
-export const SCENES = [
+export const SCENES_BUILD = [
   { act: 0, name: '발단', beat: '평소의 장면 하나. 아무 일 없어 보이지만 균열이 살짝 비칩니다. 설명하지 말고 보여 줍니다.' },
   { act: 0, name: '계기', beat: '일이 벌어집니다. 화자를 움직이게 만드는 한 순간. 음절을 조금 촘촘하게 올립니다.' },
   { act: 0, name: '결심', beat: '화자가 훅으로 자기 입장을 선언합니다. 여기서 1막이 닫힙니다.' },
   { act: 1, name: '심화', beat: '상대가 맞서거나 상황이 나빠집니다. 1절과 다른 장소·시간의 새 장면으로, 판돈이 커집니다.' },
-  { act: 1, name: '중간점', beat: '같은 훅이 돌아오지만 이제 다른 뜻으로 들립니다. 화자가 처음엔 몰랐던 것을 알게 됩니다.' },
-  { act: 1, name: '위기', beat: '가장 낮은 순간. 숨겨 온 진실이 드러나고 판이 뒤집힙니다. 곡 전체에서 가장 솔직한 줄을 여기 둡니다.' },
+  { act: 1, name: '중간점', beat: '같은 훅이 돌아오지만 이제 다른 뜻으로 들립니다. 처음엔 보이지 않던 사실 하나가 드러납니다.' },
+  { act: 1, name: '위기', beat: '가장 낮은 순간. 숨겨 온 진실이 드러나고 판이 뒤집힙니다. 곡 전체에서 가장 솔직한 줄(반성이 아니라 사실)을 여기 둡니다.' },
   { act: 2, name: '절정과 결말', beat: '훅이 세 번째 뜻을 얻고, 화자가 끝내 선택한 자리를 보여 줍니다. 답을 설명하지 않고 장면으로 닫습니다.' },
 ];
+
+/** 훅 먼저 — 결말 장면을 앞에 꺼내 두고, 7장에서 그 장면으로 돌아옵니다. */
+export const SCENES_HOOK = [
+  { act: 0, name: '프롤로그', beat: '결말의 한 장면을 먼저 보여 줍니다. 첫 줄이 곧 훅입니다. 아직 무슨 뜻인지 다 모르게 들려도 됩니다.' },
+  { act: 0, name: '발단·계기', beat: '시간을 처음으로 되돌립니다. 평소의 장면에서 일이 벌어지는 순간까지, 짧게 장면 하나로.' },
+  { act: 0, name: '결심', beat: '훅이 첫 번째 뜻을 얻습니다. 포스트코러스가 있으면 훅의 한 단어를 구호처럼 박아 넣습니다.' },
+  { act: 1, name: '심화', beat: '상대가 맞서거나 상황이 나빠집니다. 1절과 다른 장소·시간의 새 장면. 1절보다 짧고 빠르게.' },
+  { act: 1, name: '중간점', beat: '같은 훅이 이제 다른 뜻으로 들립니다. 댄스 브레이크가 있으면 말 대신 연주가 판을 흔듭니다.' },
+  { act: 1, name: '위기', beat: '되감기. 프롤로그 장면에 무엇이 숨어 있었는지 드러납니다. 곡 전체에서 가장 솔직한 줄(반성이 아니라 사실)을 여기 둡니다.' },
+  { act: 2, name: '귀환', beat: '프롤로그 장면으로 돌아옵니다. 처음과 글자까지 같은 훅이 이제 완성된 뜻으로 들립니다.' },
+];
+
+/** 예전 이름. 쌓아 올리기 장면을 가리킵니다. */
+export const SCENES = SCENES_BUILD;
+
+export function actScenes(actOpen = 'hook') {
+  return actOpen === 'build' ? SCENES_BUILD : SCENES_HOOK;
+}
 
 const THREE_ACT_STRUCTURES = {
   '2:00': {
@@ -692,11 +730,91 @@ const THREE_ACT_STRUCTURES = {
   },
 };
 
+/**
+ * 3막 7장 · 훅 먼저.
+ *
+ * 줄 수는 같은 길이의 기본 구성과 ±2줄 안으로 맞춥니다. 곡 길이는 가사 분량이 정하기 때문입니다.
+ * 대신 절을 짧게 줄이고, 그 자리를 포스트코러스 구호와 댄스 브레이크(연주)로 채웁니다.
+ *
+ * 태그 이름은 검사가 알아보는 것만 씁니다.
+ * 마지막 후렴도 [Final Chorus] 가 아니라 [Chorus - Final ...] 로 적어야 후렴으로 셉니다.
+ */
+const THREE_ACT_HOOK_STRUCTURES = {
+  '2:00': {
+    sections: [
+      ['Chorus (콜드 오픈)', '후렴의 앞 3줄만. 첫 소리가 곧 훅입니다', 1],
+      ['Verse 1', '정확히 4줄', 2],
+      ['Chorus', '정확히 4줄 · 1행과 4행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 3줄', 4],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 2줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Outro', '정확히 3줄. 프롤로그의 훅으로 돌아와 닫습니다', 7],
+    ],
+  },
+  '2:30': {
+    sections: [
+      ['Chorus (콜드 오픈)', '후렴의 앞 3줄만. 첫 소리가 곧 훅입니다', 1],
+      ['Verse 1', '정확히 5줄', 2],
+      ['Pre-Chorus', '정확히 2줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Verse 2', '정확히 4줄', 4],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 3줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Outro', '정확히 3줄. 프롤로그의 훅으로 돌아와 닫습니다', 7],
+    ],
+  },
+  '3:00': {
+    sections: [
+      ['Chorus (콜드 오픈)', '후렴의 앞 4줄만. 첫 소리가 곧 훅입니다', 1],
+      ['Verse 1', '정확히 5줄', 2],
+      ['Pre-Chorus', '정확히 3줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Post-Chorus', '정확히 3줄. 훅의 한 단어를 구호처럼', 3],
+      ['Verse 2', '정확히 4줄', 4],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Bridge', '정확히 3줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Outro', '정확히 3줄. 프롤로그의 훅으로 돌아와 닫습니다', 7],
+    ],
+  },
+  '3:30': {
+    sections: [
+      ['Chorus (콜드 오픈)', '후렴의 앞 4줄만. 첫 소리가 곧 훅입니다', 1],
+      ['Verse 1', '정확히 5줄', 2],
+      ['Pre-Chorus', '정확히 3줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Post-Chorus', '정확히 4줄. 훅의 한 단어를 구호처럼', 3],
+      ['Verse 2', '정확히 4줄', 4],
+      ['Pre-Chorus', '앞과 다른 가사로 정확히 3줄', 5],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Dance Break', '가사 없이 태그만. 8마디 정도의 연주 구간', 5],
+      ['Bridge', '정확히 4줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Chorus', '후렴 전문을 그대로 다시. 마지막 줄 뒤에 추임새 한 줄 더', 7],
+      ['Outro', '정확히 4줄. 포스트코러스 구호로 시작해 프롤로그의 훅으로 닫습니다', 7],
+    ],
+  },
+  '4:00': {
+    sections: [
+      ['Chorus (콜드 오픈)', '후렴의 앞 4줄만. 첫 소리가 곧 훅입니다', 1],
+      ['Verse 1', '정확히 6줄', 2],
+      ['Pre-Chorus', '정확히 3줄', 2],
+      ['Chorus', '정확히 5줄 · 1행과 5행은 훅 원문 그대로', 3],
+      ['Post-Chorus', '정확히 4줄. 훅의 한 단어를 구호처럼', 3],
+      ['Verse 2', '정확히 5줄', 4],
+      ['Pre-Chorus', '앞과 다른 가사로 정확히 3줄', 5],
+      ['Chorus', '후렴 전문을 그대로 다시', 5],
+      ['Dance Break', '가사 없이 태그만. 16마디 정도의 연주 구간', 5],
+      ['Bridge', '정확히 5줄. 여기서 판을 한 번 뒤집습니다', 6],
+      ['Chorus', '후렴 전문을 그대로 다시. 마지막 줄 뒤에 추임새 한 줄 더', 7],
+      ['Outro', '정확히 4줄. 포스트코러스 구호로 시작해 프롤로그의 훅으로 닫습니다', 7],
+    ],
+  },
+};
+
 /** 3막 7장 구성표를 막 → 장 → 구간 순으로 펼쳐 프롬프트에 넣을 글로 만듭니다. */
-function actOutline(structure) {
+function actOutline(structure, actOpen = 'hook') {
   let n = 0;
   return ACTS.map((act, a) => {
-    const scenes = SCENES.map((sc, i) => ({ ...sc, no: i + 1 })).filter((sc) => sc.act === a);
+    const scenes = actScenes(actOpen).map((sc, i) => ({ ...sc, no: i + 1 })).filter((sc) => sc.act === a);
     const body = scenes.map((sc) => {
       const parts = structure
         .filter((x) => x[2] === sc.no)
@@ -708,7 +826,8 @@ function actOutline(structure) {
 }
 
 const DENSITY = {
-  light: '한 줄을 짧게. 여백이 느껴지게 씁니다.',
+  // 줄을 짧게 쓰면 곡이 짧아지므로(가사 분량이 곡 길이를 정함), 말을 덜되 음절을 늘여 부르게 합니다.
+  light: '말을 아껴 여백이 느껴지게 씁니다. 다만 한 줄이 7음절 아래로 내려가지 않게, 모음을 길게 늘여 부를 자리를 둡니다.',
   normal: '보통 길이의 문장으로 씁니다.',
   rich: '이미지가 촘촘하게 씁니다. 구체적인 장면과 감각 묘사를 넣습니다.',
 };
@@ -1029,11 +1148,14 @@ export function songWriting({
   avoidTitles = [], referenceStyle = null,
   mumbling = false, rhyme = true, minimal = false,
   persona = 'villain', anchor = true,
-  variety = true, batchSeed = 0, introMode = 'short', form = 'standard',
+  variety = true, batchSeed = 0, introMode = 'short', form = 'standard', actOpen = 'hook',
   referenceFirst = false, introInStyle = false, seed = null, crack = false,
 }) {
   const chorusFirst = form === 'chorusFirst';
   const threeActs = form === 'threeActs';
+  const hookFirstActs = threeActs && actOpen !== 'build';
+  // 훅으로 곡을 여는가. 도입부 코러스와 3막 7장(훅 먼저)이 같은 규칙을 씁니다.
+  const coldOpen = opensCold({ form, actOpen });
   /**
    * 느리거나 차분한 곡인가.
    * 도입부 코러스는 원래 첫 소절부터 최대 에너지로 터뜨리는데,
@@ -1044,7 +1166,7 @@ export function songWriting({
   const calm = /calm|serene|sorrow|melanchol|lonely|somber|bleak|sultry|dreamy|meditat/i.test(moods || '');
   const loud = /explosive|energy|intense|festive|high octane|driving/i.test(moods || '');
   const quietOpen = (slow || calm) && !loud;
-  const structure = songStructure({ duration, form });
+  const structure = songStructure({ duration, form, actOpen });
   const isInstrumental = language === 'instrumental';
   const lyricLang = isInstrumental ? '연주 지시문' : language;
 
@@ -1079,7 +1201,10 @@ ${seed
 - 첫 줄: ${seed.opening}
 - 소리: ${seed.soundNote}
 
-**후렴 훅과 첫 줄은 위 문장을 그대로 씁니다.** 다듬는 정도는 괜찮지만 갈아엎지 마세요.
+**후렴 훅과 첫 줄은 위 문장을 그대로 씁니다.** 다듬는 정도는 괜찮지만 갈아엎지 마세요.${coldOpen
+      ? `
+이 곡은 훅으로 시작하므로, 곡의 맨 첫 소리는 훅입니다. 위의 '첫 줄'은 **[Verse 1]의 첫 줄**로 씁니다.`
+      : ''}
 제목도 위 것을 씁니다.${threeActs ? '' : ' 이 장면 밖으로 나가지 않습니다.'}
 
 ${threeActs
@@ -1111,7 +1236,7 @@ Suno는 대괄호 태그를 읽고 그 구간의 편곡을 실제로 바꿉니�
 형식: [역할 - 영어 연주 지시]
 
 이렇게 씁니다:
-  [Intro - Upbeat Electro-Swing, Big Brass, Exciting Drum Roll]
+  ${coldOpen ? '[Chorus - Cold Open, Hook Upfront, Punchy Synth Bass]' : '[Intro - Upbeat Electro-Swing, Big Brass, Exciting Drum Roll]'}
   [Verse 1 - Bouncy Rhythm, Playful Female Vocals, Groovy Bass]
   [Pre-Chorus - Rising Energy, Sparkling Synths, Building Up]
   [Chorus - Explosive Hook, High-Energy Brass, Dance Beat]
@@ -1124,7 +1249,7 @@ Suno는 대괄호 태그를 읽고 그 구간의 편곡을 실제로 바꿉니�
 연주 지시에는 위에 적힌 장르·악기·분위기를 녹여 넣고, 구간마다 다르게 씁니다.
 1절과 2절도 에너지가 달라지도록 지시를 바꿉니다.
 
-${chorusFirst
+${coldOpen
       ? `════════ 후렴으로 시작하는 곡입니다 ════════
 이 곡은 전주 없이 **후렴부터** 시작합니다. 첫 몇 초 안에 훅이 나와야 합니다.
 ${quietOpen
@@ -1152,7 +1277,7 @@ ${introInStyle
 "반복"이라고 적거나 생략하면 Suno가 곡을 짧게 끝내 버립니다.
 
 `
-      : ''}${chorusFirst ? '' : (() => {
+      : ''}${coldOpen ? '' : (() => {
       const mode = INTRO_MODES[introMode] || INTRO_MODES.short;
 
       // 곡마다 다르게 — 낱곡으로 들을 때 쓰는 방식입니다.
@@ -1199,12 +1324,13 @@ ${Array.from({ length: songCount }, (_, i) => {
 
 `;
     })()}${variety
-      ? `════════ 인트로 말고 다른 데서 변화 주기 ════════
-인트로를 맞췄으니 지루해지지 않도록 아래를 곡마다 바꿉니다.
+      ? `════════ 곡마다 변화 주기 ════════
+${coldOpen ? '모든 곡이 훅으로 시작하므로' : '인트로를 맞췄으니'} 지루해지지 않도록 아래를 곡마다 바꿉니다.
 
 - **BPM을 서로 다르게** 잡습니다. 위 템포 범위 안에서 곡마다 5~10 정도 벌립니다.
 - 후렴이 터지는 방식을 다르게 합니다. (갑자기 커지기 / 서서히 열리기 / 오히려 조용해지기)
-- 아웃트로를 다르게 끝냅니다. (여운 남기기 / 뚝 끊기 / 페이드아웃)
+- 아웃트로의 마지막 한 방을 다르게 합니다. (길게 울리는 한 음 / 뚝 끊는 타격 / 훅 한 마디만 남기기)
+  어느 쪽이든 아래 아웃트로 규칙대로 Final 한 방으로 닫습니다. 그냥 작아지며 사라지게 하지 않습니다.
 - 편성의 중심 악기를 곡마다 바꿉니다.
 
 `
@@ -1216,11 +1342,32 @@ ${Array.from({ length: songCount }, (_, i) => {
   태그는 [Verse 1 - ...] 처럼 구간 이름 그대로 씁니다. 장의 분위기는 연주 지시로 드러냅니다.
 - **시간은 앞으로만 흐릅니다.** 2절이 1절을 되풀이하면 2막이 없는 것입니다. 장마다 새 일이 하나씩 벌어져야 합니다.
 - **훅은 같고 뜻이 바뀝니다.** 후렴 가사는 매번 글자 그대로 같지만,
-  앞 장에서 일어난 일 때문에 3장에서는 선언, 5장에서는 깨달음, 7장(마지막 후렴이나 아웃트로)에서는 결말로 들려야 합니다.
+  앞 장에서 일어난 일 때문에 3장에서는 선언, 5장에서는 새로 드러난 사실, 7장(마지막 후렴이나 아웃트로)에서는 결말로 들려야 합니다.
   뜻을 바꾸는 일은 후렴이 아니라 **그 앞 구간의 가사**가 합니다.
 - 6장 위기에서 판을 뒤집을 사실은 1~2장에 미리 한 번 흘려 둡니다. 뜬금없는 반전은 반전이 아닙니다.
 - 7장은 처음 장면으로 돌아오되, 화자는 처음과 다른 자리에 서 있어야 합니다.
-
+- **결말은 교훈이 아니라 장면입니다.** "깨달았다", "이제 알겠다", "배웠다"로 정리하지 않습니다.
+  달라진 자리는 화자가 **하는 행동**으로 보여 줍니다. 화자 설정의 '정리하지 말 것'과 같은 말입니다.
+- 6장의 '솔직한 줄'은 숨겨 온 **사실**을 꺼내는 것이지 반성이나 사과가 아닙니다.
+${hookFirstActs
+      ? `
+**이 곡은 훅 먼저 여는 3막 7장입니다.**
+- **1장 프롤로그는 곡의 결말에서 한 장면을 미리 꺼내 온 것입니다.** 첫 구간 [Chorus - Cold Open ...] 의 첫 줄이 훅입니다.
+  듣는 사람은 아직 사정을 모르므로, 같은 훅이 여기서는 수수께끼처럼 들려야 합니다.
+- 2장에서 시간을 처음으로 되돌립니다. 되돌아간다는 것을 연주 지시로 보여 주세요. (예: [Verse 1 - Rewind, Stripped Back, ...])
+- 절은 짧습니다. 장면 하나만 던지고 빨리 후렴으로 갑니다. 늘어지는 설명은 이 구성의 적입니다.
+- [Post-Chorus] 는 훅의 한 단어(또는 뜻 없는 소리)를 구호처럼 되풀이하는 자리입니다. 새 문장을 쓰지 마세요.
+  두 번째 포스트코러스나 아웃트로 첫머리에서는 앞의 구호를 글자 그대로 다시 씁니다.
+- [Dance Break] 는 가사 없이 태그만 씁니다. 말 대신 연주가 판을 흔드는 자리입니다.
+${quietOpen
+        ? `  **이 곡은 느리고 차분하므로** 같은 자리에 [Instrumental Break] 를 씁니다. 춤추는 구간이 아니라 숨을 고르는 간주입니다.
+  예) [Instrumental Break - Lone Piano Motif, Strings Swell, Drums Drop Away]`
+        : `  예) [Dance Break - Heavy Bass Drop, Vocal Chops, Hard-Hitting Drums]
+  장르가 춤추는 곡이 아니면 같은 자리에 [Instrumental Break - ...] 로 바꿔 써도 됩니다.`}
+- 6장 [Bridge] 는 되감기입니다. 프롤로그 장면에 숨어 있던 것이 드러납니다.
+- 7장에서 프롤로그와 **같은 장면, 같은 훅**으로 돌아옵니다. 이제 그 훅이 완성된 뜻으로 들려야 합니다.
+`
+      : ''}
 `
       : `════════ 구간마다 하는 일이 다릅니다 ════════
 - Verse 1 — 상황을 던져 놓습니다. 설명하지 말고 장면 하나로.
@@ -1317,7 +1464,7 @@ ${anchor
 
 ════════ 이번 곡의 구성${threeActs ? ' — 3막 7장' : ''} ════════
 ${threeActs
-      ? actOutline(structure)
+      ? actOutline(structure, actOpen)
       : structure.map(([role, note], i) => `${i + 1}. [${role}] — ${note}`).join('\n')}
 
 ════════ 곡 길이 — ${duration} 를 채워야 합니다 ════════
@@ -1354,17 +1501,18 @@ Suno는 **소괄호 ( ) 안의 글자를 노래로 부릅니다.**
 이때도 한국어 설명문을 넣지 말고, 부를 수 있는 짧은 말만 넣습니다.
 
 ════════ 살아 있는 가사로 만드는 규칙 ════════
-1. **훅을 만드세요.** 후렴 첫 줄이나 마지막 줄에 제목이 그대로 들어가는 짧고 외치기 좋은
-   한 문장을 넣고, 후렴이 나올 때마다 똑같이 반복합니다.
+1. **훅을 만드세요.** 후렴의 첫 줄과 마지막 줄에 짧고 외치기 좋은 훅을 넣고,
+   후렴이 나올 때마다 똑같이 반복합니다. (제목은 훅과 다르게 짓습니다. 아래 제목 규칙 참고)
 2. **후렴은 매번 전문을 다시 씁니다.** "반복" 이라고 적으면 Suno가 무시하고 넘어갑니다.
 3. ${adlibs
       ? `**추임새를 넣으세요.** (Hey!) (yeah) (uh) 같은 짧은 소리를 **문장이 끝난 뒤 빈 자리**에 놓습니다.
    말이 이어지는 중간에 끼워 넣지 마세요. 비트가 비는 곳에 얹는 것입니다.
    구간마다 한두 개면 충분합니다.`
       : '추임새나 구호는 넣지 않습니다. 가사만 담백하게 씁니다.'}
-4. **장면의 소리는 대괄호 지시로 표현합니다.** 인트로와 아웃트로의 분위기는
+4. **장면의 소리는 대괄호 지시로 표현합니다.** ${coldOpen ? '곡 첫머리' : '인트로'}와 아웃트로의 분위기는
    [Rain Ambience, Distant Traffic] 처럼 영어 대괄호로 적습니다. 한국어 설명문을 넣지 마세요.
-5. **줄 수를 채우세요.** 위에 적힌 줄 수는 최소치입니다. 장면이 이어지면 한두 줄 더 씁니다.
+5. **줄 수를 정확히 지키세요.** 모자라면 곡이 짧게 끝나고, 넘치면 구간의 균형과 훅의 자리가 무너집니다.
+   장면이 더 필요하면 줄을 늘리지 말고 한 줄에 담는 것을 바꿉니다.
 6. ${
       isInstrumental
         ? '연주곡이므로 가사 대신 각 구간의 연주 흐름을 대괄호 지시로 적습니다.'
@@ -1381,13 +1529,17 @@ Suno는 그냥 두면 전주와 후주를 길게 늘리는 버릇이 있습니�
 [no extended intro]
 [no extended outro]${negativeTags ? `
 [no humming]
-[no vocalization]
-[no repeated chorus]` : ''}
+[no vocalization]` : ''}
 
 이 줄들은 부르는 가사가 아니라 Suno에게 주는 지시입니다.
 
 `
-      : ''}════════ 보여 주고, 말하지 않기 ════════
+      : ''}════════ 가사의 밀도 ════════
+${minimal
+      ? DENSITY.light // '여백 있게'를 켰으면 밀도는 여백 쪽으로 맞춥니다. '촘촘하게'와 같이 주면 정반대 지시가 됩니다.
+      : DENSITY[density] || DENSITY.normal}
+
+════════ 보여 주고, 말하지 않기 ════════
 감정을 이름으로 부르지 마세요. 그 감정이 드러나는 **장면과 행동**을 쓰세요.
 
 ${language === 'English'
@@ -1516,7 +1668,7 @@ Suno는 묘사가 자세할수록 그대로 따라갑니다. 대충 쓰면 대�
 2) 템포, 감정, major/minor. 화성이 특징적이면 함께.
 
 ${introInStyle
-      ? `2-1) **곡이 어떻게 시작하는지 한 문장.** 위에서 이 곡에 배정된 인트로 방식의
+      ? `2-1) **곡이 어떻게 시작하는지 한 문장.** 위에서 이 곡에 배정된 시작 방식의
    영어 문장을 여기에 그대로 넣습니다. Suno는 편곡을 스타일에서 가져오므로
    이 문장이 있어야 인트로 지시가 확실히 먹힙니다.`
       : `2-1) **곡이 어떻게 시작하는지는 스타일에 적지 않습니다.**
@@ -1582,20 +1734,24 @@ ${songCount >= 3
 - 소괄호 안에 부를 수 없는 설명문이 들어가 있지 않은가
 - 후렴이 나올 때마다 가사 전문이 다시 적혀 있는가
 - 제목이 20자 안쪽이고, 가사에 그대로 나오는 문장이 아닌가
-- 한 줄이 한 호흡에 부를 수 있는 길이인가
+- 한 줄이 한 호흡에 부를 수 있는 길이인가 (훅 줄은 4~7음절로 더 짧아도 됩니다)
 - **모든 곡의 스타일에 지정된 장르와 보컬이 들어가 있는가**
 - 곡마다 BPM이 서로 다른가
-- **모든 스타일에 곡이 어떻게 시작하는지가 적혀 있고, 곡마다 다른가**
+${introInStyle
+      ? '- **모든 스타일에 곡이 어떻게 시작하는지가 적혀 있고, 곡마다 다른가**'
+      : '- 스타일에 인트로 이야기를 넣지 않았는가 (태그로만 지정)'}
 - **정해진 줄 수를 다 채웠는가** (모자라면 곡이 짧게 끝납니다)
 - 변명·설명·뉘우침으로 빠져나간 곳은 없는가
 - **곡 끝을 깨달음이나 교훈으로 정리해 버리지 않았는가**
 - 줄 끝 악기 신호가 두 줄에 하나를 넘지 않는가
 - 줄 끝 신호가 전부 '그 순간 시작되는 것'인가 (빼거나 사라지는 것은 아닌가)
 - 아웃트로가 세 단으로 끝나고 마지막에 Final 한 방이 있는가
-- **후렴의 첫 줄과 마지막 줄이 글자까지 똑같은 훅인가**
+- **후렴의 첫 줄과 마지막 줄이 글자까지 똑같은 훅인가**${coldOpen ? ' (짧게 자른 첫 후렴은 첫 줄만 훅이면 됩니다)' : ''}
   (단어 반복형이나 소리형 훅도 마찬가지로 그대로 되풀이해야 합니다)
 - 훅이 4~7음절로 짧은가
 ${anchor ? '- 열쇠말이 절과 브리지에 서너 번 흩어져 있는가' : ''}
+${coldOpen ? '- **곡의 첫 구간이 훅으로 시작하는가** ([Intro] 를 따로 두지 않았는가)' : ''}
+${hookFirstActs ? '- 7장이 프롤로그와 같은 장면·같은 훅으로 돌아왔는가' : ''}
 
 JSON만 출력합니다.`,
     schema: obj({

@@ -228,24 +228,42 @@ console.log('\n전주 없는 설정이면 스타일에도 넣기:');
     '곡 구성은 계속 고를 수 있음 — 되돌릴 길이 있어야 함'
   );
 
-  // 3막 7장 — 인트로는 기본처럼 고를 수 있고, 길이 아래 구성이 막·장으로 바뀝니다.
+  // 3막 7장 — 기본은 '훅 먼저'. 훅으로 여니 인트로 길이는 쓰지 않고 스타일에도 시작 방식이 들어갑니다.
   pick('form', '3막 7장 (이야기형)');
   await settle(30);
+  ok(!$('[data-act-open]').hidden, '3막 7장을 고르면 여는 방식을 고르는 칸이 나옴');
   ok(
-    !root.querySelector('[data-pills="intro"]').closest('.pills-wrap').classList.contains('is-off'),
-    '3막 7장은 인트로 길이를 그대로 고를 수 있음'
+    root.querySelector('[data-pills="intro"]').closest('.pills-wrap').classList.contains('is-off'),
+    '훅 먼저 → 인트로 길이는 쓰지 않으므로 잠김'
   );
-  ok($('[data-dur-note]').textContent.includes('7장 절정과 결말'), '3막 7장 → 길이 아래 구성도 막·장으로 바뀜');
+  ok($('[data-dur-note]').textContent.includes('1장 프롤로그(hook!)'), '훅 먼저 → 길이 아래 구성이 프롤로그 훅으로 시작');
   calls.length = 0;
   click($('[data-go]'));
   await settle(250);
   ok(calls[0].prompt.includes('이번 곡의 구성 — 3막 7장'), '3막 7장 → 프롬프트에 그대로 넘어감');
+  ok(calls[0].prompt.includes('훅 먼저 여는 3막 7장'), '훅 먼저 → 프롤로그·귀환 안내가 들어감');
+  ok(calls[0].prompt.includes('opens cold on the chorus hook'), '훅 먼저 → 스타일에도 훅으로 시작한다고 넣음');
+
+  // 쌓아 올리기 — 예전 방식. 인트로를 다시 고를 수 있어야 합니다.
+  pick('actOpen', '쌓아 올리기');
+  await settle(30);
+  ok(
+    !root.querySelector('[data-pills="intro"]').closest('.pills-wrap').classList.contains('is-off'),
+    '쌓아 올리기 → 인트로 길이를 다시 고를 수 있음'
+  );
+  ok($('[data-dur-note]').textContent.includes('7장 절정과 결말'), '쌓아 올리기 → 길이 아래 구성도 바뀜');
+  calls.length = 0;
+  click($('[data-go]'));
+  await settle(250);
+  ok(!calls[0].prompt.includes('훅 먼저 여는 3막 7장'), '쌓아 올리기 → 프롤로그 안내가 없음');
+  pick('actOpen', '훅 먼저 (추천)');
 
   // 되돌립니다.
   pick('form', '기본');
   pick('intro', '짧게');
   await settle(30);
   ok(!$('[data-dur-note]').textContent.includes('장'), '기본으로 되돌리면 길이 아래 구성도 되돌아옴');
+  ok($('[data-act-open]').hidden, '기본 구성에서는 여는 방식 칸이 숨음');
   await settle(30);
   calls.length = 0;
 }

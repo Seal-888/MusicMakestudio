@@ -52,7 +52,7 @@ console.log('\n프롬프트 지시:');
 
   const seeds = songSeeds({ genres: 'dark pop', language: 'English', moods: 'm', concept: 'c' });
   ok(seeds.prompt.includes('글자 그대로 되풀이될'), '후보 단계에서도 훅을 되풀이될 말로 정의');
-  ok(seeds.prompt.includes('4~7음절'), '훅 길이를 제한');
+  ok(seeds.prompt.includes('3~7음절'), '훅 길이를 제한 (3음절 훅도 흔해서 3부터)');
   ok(full.prompt.includes('문장일 필요는 없습니다'), '훅이 문장이 아니어도 된다고 알림');
   ok(full.prompt.includes('Na na na'), '뜻 없는 소리도 훅으로 예시');
   ok(seeds.prompt.includes('Runaway'), '후보 단계에도 단어 반복형 예시');
@@ -445,6 +445,39 @@ console.log('\n3막 7장:');
     '훅으로 여는 곡 — 씨앗의 첫 줄은 1절 첫 줄로 (곡의 첫 소리는 훅)');
   ok(songWriting({ ...base, form: 'standard', seed }).prompt.includes('이 장면 밖으로 나가지 않습니다'),
     '기본 구성의 씨앗 규칙은 그대로');
+}
+
+console.log('\n3막 7장 — 후보(씨앗)와 작사가 같은 이야기를 보는가:');
+{
+  const sb = { genres: 'dark pop', language: 'English', moods: 'm', concept: 'c' };
+  const props = (x) => x.schema.properties.seeds.items.properties;
+  ok(!('origin' in props(songSeeds(sb))) && !('twist' in props(songSeeds(sb))), '기본 구성 후보에는 처음·반전 칸이 없음');
+  ok('origin' in props(songSeeds({ ...sb, form: 'threeActs', actOpen: 'hook' })), '훅 먼저 후보에는 처음 장면 칸이 있음');
+  ok('twist' in props(songSeeds({ ...sb, form: 'threeActs', actOpen: 'build' })), '쌓아 올리기 후보에도 반전 칸이 있음');
+  ok(!('origin' in props(songSeeds({ ...sb, form: 'threeActs', actOpen: 'build' }))), '쌓아 올리기는 처음 장면을 따로 받지 않음');
+  ok(songSeeds({ ...sb, form: 'threeActs' }).prompt.includes('세 번 다른 뜻으로'), '3막 후보의 훅은 장마다 다르게 읽히는 말로');
+
+  const base = {
+    genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm',
+    era: 'e', instruments: 'i', concept: 'c', songCount: 1, form: 'threeActs',
+  };
+  const seed = {
+    title: 'T', scene: '불을 붙이고 물러선다', origin: '같이 장작을 쌓는다', twist: '기름은 상대가 먼저 부어 두었다',
+    to: '상대', hook: 'Burn it slow', opening: 'We stacked the wood in rows', soundNote: 'N',
+  };
+  const hp = songWriting({ ...base, actOpen: 'hook', seed }).prompt;
+  ok(hp.includes('결말 장면 (1장 프롤로그 · 7장 귀환): 불을 붙이고'), '훅 먼저 — 후보의 장면은 프롤로그·귀환 자리로');
+  ok(hp.includes('처음 장면 (2장): 같이 장작을'), '처음 장면이 2장으로 전달됨');
+  ok(hp.includes('6장에서 드러날 사실: 기름은'), '반전이 6장으로 전달됨');
+  ok(!hp.includes('이 장면이 **1장 발단**'), '절정 장면을 발단에 놓지 않음');
+
+  // 예전 방식으로 뽑아 둔 후보(처음 장면 없음)도 시간이 꼬이지 않게
+  const old = { ...seed, origin: undefined, twist: undefined, opening: 'I dropped the lighter right beside your feet' };
+  ok(songWriting({ ...base, actOpen: 'hook', seed: old }).prompt.includes('결말 장면의 말이라면 [Verse 1] 에 쓰지 말고'),
+    '처음 장면이 없는 예전 후보 — 절정의 첫 줄을 되돌아간 1절에 넣지 않게 함');
+
+  const bp = songWriting({ ...base, actOpen: 'build', seed: { ...seed, origin: undefined } }).prompt;
+  ok(bp.includes('출발 장면 (1장 발단)') && bp.includes('이 장면이 **1장 발단**'), '쌓아 올리기 — 후보의 장면은 1장 발단으로');
 }
 
 console.log('\n가사 규칙끼리 부딪히지 않는가:');

@@ -1070,6 +1070,8 @@ export default function renderMusic(root) {
             concept: root.querySelector('[data-f=concept]').value.trim(),
             persona: R.readPills(root, 'persona')[0] || 'villain',
             seedCount: want,
+            // 구성에 맞는 후보를 뽑습니다. 3막 7장이면 한 순간이 아니라 이야기 한 편을 고릅니다.
+            ...currentForm(),
             avoidTitles: (latest?.data.songs || []).map((x) => x.title),
             referenceStyle: pickedRef()?.detail || null,
           })
@@ -1093,7 +1095,9 @@ export default function renderMusic(root) {
             <input type="checkbox" data-seed-pick="${i}">
             <div>
               <strong>${R.esc(x.title)}</strong>
-              <p class="muted small">${R.esc(x.scene)}${x.to ? ` <b>→ ${R.esc(x.to)}</b>` : ''}</p>
+              <p class="muted small">${x.origin ? '<b>결말</b> ' : x.twist ? '<b>출발</b> ' : ''}${R.esc(x.scene)}${x.to ? ` <b>→ ${R.esc(x.to)}</b>` : ''}</p>
+              ${x.origin ? `<p class="muted small"><b>처음</b> ${R.esc(x.origin)}</p>` : ''}
+              ${x.twist ? `<p class="muted small"><b>반전</b> ${R.esc(x.twist)}</p>` : ''}
               <p class="seed-line">훅 · ${R.esc(x.hook)}</p>
               <p class="seed-line">첫 줄 · ${R.esc(x.opening)}</p>
               <p class="muted small">${R.esc(x.soundNote)}</p>

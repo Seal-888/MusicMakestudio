@@ -476,5 +476,36 @@ console.log(`  예전  5곡 전부 완성 (2곡씩 3회)     ≈ ${oldWay.toLoca
 ok(twoStage < oldWay, `입력이 ${Math.round((1 - twoStage / oldWay) * 100)}% 줄어듦`);
 console.log(`  ※ 출력 쪽은 차이가 더 큽니다. 버릴 3곡의 가사와 스타일을 아예 안 씁니다.`);
 
+console.log('\n3막 7장 — 후보도 구성에 맞게:');
+{
+  const pill = (name, value) => click(root.querySelector(`[data-pills="${name}"] .pill[data-value="${value}"]`));
+  pill('form', 'threeActs');
+  pill('actOpen', 'hook');
+  await settle(30);
+  calls.length = 0;
+  click($('[data-seed]'));
+  await settle();
+  const c = calls[0];
+  ok(c?.prompt.includes('이 곡들은 3막 7장으로 씁니다'), '3막 7장이면 한 순간이 아니라 이야기 한 편을 뽑게 함');
+  ok(c?.prompt.includes('결말 장면') && c?.prompt.includes('처음 장면'), '훅 먼저 — 결말 장면과 처음 장면을 따로 받음');
+  ok(c?.responseSchema?.properties?.items?.properties?.origin || c?.prompt.includes('- origin:'), '훅 먼저 — 처음 장면(origin) 칸을 받음');
+  ok(c?.prompt.includes('- twist:'), '6장 반전(twist) 칸을 받음');
+
+  pill('actOpen', 'build');
+  await settle(30);
+  calls.length = 0;
+  click($('[data-seed]'));
+  await settle();
+  ok(calls[0]?.prompt.includes('절정을 여기 두지 마세요') && !calls[0]?.prompt.includes('- origin:'),
+    '쌓아 올리기 — 출발 장면은 절정이 아니어야 하고, 처음 장면 칸은 없음');
+
+  pill('form', 'standard');
+  await settle(30);
+  calls.length = 0;
+  click($('[data-seed]'));
+  await settle();
+  ok(!calls[0]?.prompt.includes('3막 7장') && !calls[0]?.prompt.includes('- twist:'), '기본 구성은 예전처럼 한 순간만 뽑음');
+}
+
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
 process.exit(failed ? 1 : 0);

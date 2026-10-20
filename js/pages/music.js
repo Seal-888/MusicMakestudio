@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
 import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { checkSeeds, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { checkSeeds, checkNarration, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { styles, songs, refs, draft } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
 import * as R from '../render.js';
@@ -727,11 +727,18 @@ export default function renderMusic(root) {
         note = document.createElement('p');
         note.className = 'muted small';
         note.dataset.whereForced = '1';
-        note.textContent =
-          '전주를 없애는 설정이라 스타일에도 자동으로 넣습니다. 태그만으로는 Suno가 전주를 붙입니다. 인트로를 "짧게"나 "보통"으로 바꾸면 다시 고를 수 있습니다.';
         whereWrap.insertAdjacentElement('afterend', note);
       } else if (!forced && note) {
         note.remove();
+      }
+      // 왜 잠겼는지에 따라 되돌리는 방법이 다릅니다.
+      // 예전에는 늘 '인트로를 짧게로 바꾸라'고 했는데, 구성 때문에 잠긴 경우에는
+      // 인트로가 이미 '짧게'인 채로 잠겨 있어 따라 할 수가 없었습니다.
+      if (forced && note) {
+        const byForm = opensCold(currentForm());
+        note.textContent = byForm
+          ? `곡이 훅으로 시작하는 구성이라 스타일에도 자동으로 넣습니다. 태그만으로는 Suno가 전주를 붙입니다. 곡 구성을 "기본"이나 3막 7장의 "쌓아 올리기"로 바꾸면 다시 고를 수 있습니다.`
+          : '전주를 없애는 설정이라 스타일에도 자동으로 넣습니다. 태그만으로는 Suno가 전주를 붙입니다. 인트로를 "짧게"나 "보통"으로 바꾸면 다시 고를 수 있습니다.';
       }
     }
   }
@@ -1536,6 +1543,7 @@ export default function renderMusic(root) {
       ...checkInlineTags(song.lyrics).issues,
       ...checkOutro(song.lyrics).issues,
       ...checkRepeats(song.lyrics).issues,
+      ...checkNarration(song.lyrics).issues,
       // 곡 길이는 알약이 아니라 .dur 버튼으로 고릅니다.
       ...checkLength(song.lyrics, targetLines({
         duration: song.duration || root.querySelector('.dur.on')?.dataset.dur || '3:30',

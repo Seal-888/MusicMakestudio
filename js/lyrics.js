@@ -765,9 +765,57 @@ export function checkSeeds(seeds = []) {
   if (planned.length >= 2) {
     out.push(`반전 ${planned.length}개가 '처음부터 계획했다' 꼴입니다. 이런 화자에게는 반전이 되지 않습니다.`);
   }
+  const told = seeds.filter((x) => isNarration(x.opening));
+  if (told.length >= 2) {
+    out.push(`첫 줄 ${told.length}개가 지난 일을 들려주는 문장입니다 (과거형·but/so 설명). 장면 안에서 지금 하는 말이어야 합니다.`);
+  }
   const down = seeds.filter((x) => /쓰러|무릎|엎드|주저앉|비명|빌고|피를|울부짖/.test(x.scene || ''));
   if (down.length >= 3) {
     out.push(`결말 ${down.length}개가 '상대가 쓰러져 있는' 장면입니다.`);
   }
   return out;
+}
+
+/** 영어 과거형 동사. 규칙 변화(-ed)와 가사에 자주 나오는 불규칙 변화. */
+const PAST_EN =
+  /\b(\w{2,}ed|was|were|had|did|saw|took|gave|made|left|told|knew|felt|went|came|said|put|kept|held|threw|drank|poured|brought|bought|caught|thought|heard|found|lost|stood|sat|ran|fell|broke|wrote|spoke|drove|hid|shut|let|set)\b/i;
+/** 사정을 덧붙이는 접속 */
+const CLAUSE_EN = /\b(but|so|because|before|after|while|though|although|making sure|so that)\b/i;
+/** 한국어 과거형 어미 */
+const PAST_KO = /[었았였했](다|어|지|고|는데|던)?(?=[\s,.!?]|$)/;
+
+/**
+ * 한 줄이 '지난 일을 들려주는' 문장인지.
+ * 과거형이면서 사정을 덧붙이거나, 과거형 문장이 길게 이어지는 경우를 잡습니다.
+ * (I buckled you in, making sure the click was loud enough. / You handed me the coffee, but ...)
+ */
+export function isNarration(line = '') {
+  const t = line.replace(/\[[^\]]*\]|\([^)]*\)/g, '').trim();
+  if (!t) return false;
+  const words = t.split(/\s+/).length;
+  if (PAST_EN.test(t)) return CLAUSE_EN.test(t) || words >= 10;
+  if (PAST_KO.test(t)) return /(지만|는데|해서|려고|도록|면서)/.test(t) || t.length >= 16;
+  return false;
+}
+
+/**
+ * 절(verse)이 과거형 보고로 흘러가는지 봅니다.
+ * 한두 줄은 괜찮습니다. 절 줄의 절반 넘게 그러면 노래가 아니라 이야기 낭독이 됩니다.
+ */
+export function checkNarration(text) {
+  const verse = splitSections(text)
+    .filter((x) => /verse|pre-chorus|bridge/.test(x.role))
+    .flatMap((x) => x.lines);
+  if (verse.length < 4) return { issues: [] };
+  const told = verse.filter(isNarration);
+  if (told.length / verse.length <= 0.5) return { issues: [] };
+  return {
+    issues: [
+      {
+        kind: 'narration',
+        label: '이야기를 들려주듯 씀',
+        detail: `절 ${verse.length}줄 중 ${told.length}줄이 과거형 보고·설명입니다. 장면 안에서 상대에게 지금 하는 말로 바꾸세요.`,
+      },
+    ],
+  };
 }

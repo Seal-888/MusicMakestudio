@@ -508,6 +508,34 @@ console.log('\n3막 7장 — 후보가 한 꼴로 몰리지 않는가:');
   ok(!sp.includes('언제부터였나'), "'언제부터였나' 예시를 빼서 계획형 반전으로 유도하지 않음");
 }
 
+console.log('\n첫 줄·가사가 이야기 낭독이 되지 않는가:');
+{
+  const { isNarration, checkNarration, checkSeeds } = await import(appUrl('js/lyrics.js'));
+  // 실제로 받았던 첫 줄 다섯 개 (2026-10 사용자 보고)
+  const real = [
+    'You handed me the coffee, but your fingers were already cold.',
+    'I saw you lick the envelope before the tea went cold.',
+    'You poured for two, but you always gave me the heavier glass.',
+    'I buckled you in, making sure the click was loud enough.',
+    'I pushed the pen closer so you wouldn\'t have to reach.',
+  ];
+  ok(real.every(isNarration), '실제 첫 줄 5개 — 모두 과거형 보고·설명으로 잡음');
+  const good = ['Buckle up. Hear that click?', 'Cold hands, warm cup — keep it.', 'Stay right there', 'Burn it slow', '문 잠그는 소리 들려?'];
+  ok(!good.some(isNarration), '장면 안에서 지금 하는 말은 잡지 않음');
+  ok(checkSeeds(real.map((opening) => ({ opening }))).some((w) => w.includes('지난 일을 들려주는')), '후보 카드에 경고가 뜸');
+
+  const told = `[Verse 1 - x]\n${real.slice(0, 4).join('\n')}\n[Chorus - x]\nBurn it slow\nx\nBurn it slow`;
+  ok(checkNarration(told).issues.some((x) => x.kind === 'narration'), '절이 과거형 보고로 흘러가면 가사 검사에서 알려 줌');
+  const fine = `[Verse 1 - x]\nBuckle up, hear that click\nEyes on the road, not on me\nI took the long way once\nKeep your hands where I can see`;
+  ok(!checkNarration(fine).issues.length, '과거형 한 줄 정도는 괜찮음');
+
+  const sp = songSeeds({ genres: 'x', language: 'English', moods: 'm', concept: 'c', form: 'threeActs' }).prompt;
+  ok(sp.includes('현재형으로, 그 장면 안에서') && sp.includes('making sure the click'), '후보 프롬프트가 현재형·설명 금지를 실제 예로 보여 줌');
+  const villain = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1 }).prompt;
+  ok(!villain.includes('잔을 기울였다, 열쇠를 숨겼다'), '빌런 화자 예시가 과거형 보고가 아님');
+  ok(villain.includes('들려주지 말고, 그 자리에서 말하기'), '작사 규칙에 내레이션 금지가 들어감');
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

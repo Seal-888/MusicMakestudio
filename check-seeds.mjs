@@ -499,6 +499,11 @@ console.log('\n3막 7장 — 후보도 구성에 맞게:');
   ok(calls[0]?.prompt.includes('절정을 여기 두지 마세요') && !calls[0]?.prompt.includes('- origin:'),
     '쌓아 올리기 — 출발 장면은 절정이 아니어야 하고, 처음 장면 칸은 없음');
 
+  pill('actOpen', 'hook');
+  await settle(30);
+  const where = root.querySelector('[data-where-forced]')?.textContent || '';
+  ok(where.includes('곡 구성을') && !where.includes('인트로를 "짧게"나'), '구성 때문에 잠기면 구성을 바꾸라고 안내 (인트로가 이미 짧게라 따라 할 수 없던 안내 수정)');
+
   pill('form', 'standard');
   await settle(30);
   calls.length = 0;

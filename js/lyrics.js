@@ -769,11 +769,29 @@ export function checkSeeds(seeds = []) {
   if (told.length >= 2) {
     out.push(`첫 줄 ${told.length}개가 지난 일을 들려주는 문장입니다 (과거형·but/so 설명). 장면 안에서 지금 하는 말이어야 합니다.`);
   }
+  // 지난번 내레이션을 막자 반대로 전부 '짧은 말. 명령.' 두 토막으로 쏠렸습니다.
+  const clipped = seeds.filter((x) => isClipped(x.opening));
+  if (clipped.length >= 3) {
+    out.push(`첫 줄 ${clipped.length}개가 '짧은 말. 명령.' 같은 꼴입니다. 노래 첫 줄보다 지시문처럼 들립니다.`);
+  }
+  const hurtFirst = seeds.filter((x) => /맞고|때리|손찌검|폭행|쓰러|피를|비명/.test(x.origin || ''));
+  if (hurtFirst.length) {
+    out.push(`처음 장면 ${hurtFirst.length}개에서 이미 폭력이 오갑니다. 처음은 아직 아무 일도 터지지 않은 평소여야 오를 데가 있습니다.`);
+  }
   const down = seeds.filter((x) => /쓰러|무릎|엎드|주저앉|비명|빌고|피를|울부짖/.test(x.scene || ''));
   if (down.length >= 3) {
     out.push(`결말 ${down.length}개가 '상대가 쓰러져 있는' 장면입니다.`);
   }
   return out;
+}
+
+/**
+ * 아주 짧은 토막 두세 개로 끊긴 첫 줄인지. (Sit down. Drop your bag. / Take the glass. Drink it.)
+ * 하나만 있으면 괜찮지만, 후보 대부분이 이 꼴이면 같은 곡처럼 들립니다.
+ */
+export function isClipped(line = '') {
+  const parts = line.split(/[.!?]+/).map((x) => x.trim()).filter(Boolean);
+  return parts.length >= 2 && parts.every((x) => x.split(/\s+/).length <= 4);
 }
 
 /** 영어 과거형 동사. 규칙 변화(-ed)와 가사에 자주 나오는 불규칙 변화. */

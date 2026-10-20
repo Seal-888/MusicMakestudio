@@ -536,6 +536,38 @@ console.log('\n첫 줄·가사가 이야기 낭독이 되지 않는가:');
   ok(villain.includes('들려주지 말고, 그 자리에서 말하기'), '작사 규칙에 내레이션 금지가 들어감');
 }
 
+console.log('\n후보 검토 3차 — 실제 받은 후보로:');
+{
+  const { checkSeeds, isClipped } = await import(appUrl('js/lyrics.js'));
+  // 2026-10 사용자 보고 — 내레이션은 고쳐졌지만 전부 '짧은 말. 명령.' 꼴로 쏠림
+  const real = [
+    { opening: 'Your coffee is spilled. Don\'t move.', origin: '차가운 가을 카페에서 상대의 차가운 손찌검을 가만히 맞고 서 있다.' },
+    { opening: 'Take the glass. Drink it.', origin: '외투에 묻은 낙엽을 털어내며 상대에게 무심하게 물 한 잔을 건넨다.' },
+    { opening: 'Sit down. Drop your bag.', origin: '외출 준비를 하는 상대의 가방 뒤에서 열쇠고리를 만지작거린다.' },
+    { opening: 'You are shaking. Hold this.', origin: '벤치에 앉아 담배 연기를 뱉으며 시선을 피한다.' },
+    { opening: 'Keep your gloves off. Listen.', origin: '히터를 끈 채 아무 말 없이 가을 도로를 내달린다.' },
+  ];
+  ok(real.every((x) => isClipped(x.opening)), '실제 첫 줄 5개가 모두 짧은 토막 꼴로 잡힘');
+  const w = checkSeeds(real);
+  ok(w.some((x) => x.includes("'짧은 말. 명령.'")), '후보 카드에 쏠림 경고');
+  ok(w.some((x) => x.includes('처음 장면 1개에서 이미 폭력')), '처음 장면에서 이미 맞고 있으면 알려 줌');
+  ok(!isClipped('Do you hear the lock turning twice?') && !isClipped('Stay right there'), '보통 길이의 한 문장은 잡지 않음');
+
+  const sb = { genres: 'dark r&b', language: 'English', moods: 'm', concept: 'c', form: 'threeActs' };
+  const sp = songSeeds({ ...sb, vocal: 'whispered male vocal', tempo: 'slow 70-90 BPM',
+    avoidTitles: ['Cold Ashes in the Coat'], avoidSeeds: [{ hook: 'Turn it twice', twist: '화자 자신의 집 열쇠였다' }] }).prompt;
+  ok(sp.includes('- 보컬: whispered male vocal') && sp.includes('보컬·템포 안에서'), '후보도 고른 보컬·템포를 알고, 소리 메모가 그 안에 머묾');
+  ok(sp.includes('Cold Ashes in the Coat'), '이미 쓴 제목을 후보 단계에 넘김 (받기만 하고 안 쓰던 값)');
+  ok(sp.includes('Turn it twice') && sp.includes('화자 자신의 집 열쇠'), '다시 뽑을 때 직전 후보의 훅·반전을 피하게 함');
+  ok(sp.includes('아무도 다치거나 맞지 않습니다'), '처음 장면은 폭력 전의 평소');
+  ok(sp.includes('다른 방법으로 해쳤다') && sp.includes('깨달았다'), '수법만 바뀐 반전·머릿속 반전을 막음');
+  ok(sp.includes('서로 다른 꼴로') && sp.includes('7~11음절'), '첫 줄 꼴을 섞고 길이를 보통으로');
+
+  const wp = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i',
+    concept: 'c', songCount: 1, seed: { title: 'T', scene: 's', to: 'x', hook: 'h', opening: 'o', soundNote: '폭발하는 벨팅 보컬' } }).prompt;
+  ok(wp.includes('그쪽을 따릅니다'), "작사 단계에서 소리 메모가 정한 보컬을 덮지 못함");
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

@@ -491,6 +491,11 @@ console.log('\n3막 7장 — 후보도 구성에 맞게:');
   ok(c?.responseSchema?.properties?.items?.properties?.origin || c?.prompt.includes('- origin:'), '훅 먼저 — 처음 장면(origin) 칸을 받음');
   ok(c?.prompt.includes('- twist:'), '6장 반전(twist) 칸을 받음');
 
+  calls.length = 0;
+  click($('[data-seed-again]'));
+  await settle();
+  ok(calls[0]?.prompt.includes('방금 보여 준 후보'), '후보 다시 뽑기 — 직전 후보를 넘겨 겹치지 않게 함');
+
   pill('actOpen', 'build');
   await settle(30);
   calls.length = 0;

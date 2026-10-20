@@ -1076,6 +1076,12 @@ export default function renderMusic(root) {
    * 1단계 — 후보만 짧게 뽑습니다.
    * 가사를 다 쓴 뒤 버리는 대신, 고른 것만 2단계에서 완성합니다.
    */
+  /**
+   * 이번 화면에서 보여 준 후보들. '후보 다시 뽑기'가 같은 훅·반전을 되풀이하지 않게 넘깁니다.
+   * 예전에는 다시 뽑아도 직전 후보를 몰라서, '알고 보니 내 집 열쇠' 같은 반전이 또 나왔습니다.
+   */
+  let shownSeeds = [];
+
   function showSeeds() {
     const want = parseInt(val('songCount'), 10) || 5;
 
@@ -1094,11 +1100,18 @@ export default function renderMusic(root) {
             seedCount: want,
             // 구성에 맞는 후보를 뽑습니다. 3막 7장이면 한 순간이 아니라 이야기 한 편을 고릅니다.
             ...currentForm(),
-            avoidTitles: (latest?.data.songs || []).map((x) => x.title),
+            // 소리 메모가 정한 보컬·템포를 벗어나지 않게 알려 줍니다.
+            vocal: R.readPills(root, 'vocal')[0] || '',
+            tempo: R.readPills(root, 'tempo')[0] || '',
+            avoidSeeds: shownSeeds.slice(-15),
+            avoidTitles: [...(latest?.data.songs || []).map((x) => x.title), ...shownSeeds.map((x) => x.title)],
             referenceStyle: pickedRef()?.detail || null,
           })
         ),
-      onDone: (d) => paintSeeds(d.seeds || []),
+      onDone: (d) => {
+        shownSeeds.push(...(d.seeds || []));
+        paintSeeds(d.seeds || []);
+      },
     });
   }
 

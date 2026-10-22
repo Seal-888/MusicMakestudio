@@ -852,3 +852,30 @@ export function checkNarration(text) {
     ],
   };
 }
+
+/**
+ * 꼴 설명에 원문 가사가 네 단어 넘게 그대로 들어갔으면 지웁니다.
+ * 원문을 저장하지 않기로 했으므로, 모델이 인용을 섞어 와도 남지 않게 합니다.
+ * 돌려주는 값: { text, removed } — removed 는 지운 군데 수
+ */
+export function stripQuotes(spec = '', source = '') {
+  const words = (x) => x.toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, ' ').split(/\s+/).filter(Boolean);
+  const src = words(source);
+  const grams = new Set();
+  for (let i = 0; i + 4 <= src.length; i++) grams.add(src.slice(i, i + 4).join(' '));
+  let removed = 0;
+  const text = spec
+    .split('\n')
+    .map((line) => {
+      const w = words(line);
+      for (let i = 0; i + 4 <= w.length; i++) {
+        if (grams.has(w.slice(i, i + 4).join(' '))) {
+          removed++;
+          return line.replace(/[:：].*$/, ': (원문 인용이 섞여 지웠습니다)');
+        }
+      }
+      return line;
+    })
+    .join('\n');
+  return { text, removed };
+}

@@ -69,6 +69,20 @@ global.fetch = async (url, opts = {}) => {
   const cfg = sent.generationConfig || {};
   calls.push({ prompt, maxOutputTokens: cfg.maxOutputTokens, schema: cfg.responseSchema });
 
+  // 가사 꼴 뽑기 — 일부러 원문 인용 한 줄을 섞어 돌려줍니다(지워지는지 보려고).
+  if (cfg.responseSchema?.properties?.devices) {
+    return jsonRes({
+      name: '짧게 끊는 주고받기 팝',
+      sections: ['Verse · 8줄 · 6/11음절 번갈아 · AABB', 'Chorus · 4줄 · 훅 세 번 · AAAA'],
+      hook: '두 단어 명령문을 후렴 첫·셋째·끝 줄에',
+      lineShape: '문장 조각과 쉼이 많음',
+      rhyme: '두 줄씩 맞춤',
+      devices: ['되풀이', '주고받기', '호명'],
+      voice: 'I count the cars outside your window tonight',
+      summary: '짧은 줄로 끊어 치고 훅을 세 번 박는다.',
+    });
+  }
+
   // 주제로 설정 맞추기 — 칸마다 따로 받는 형식
   if (cfg.responseSchema?.properties?.genre && cfg.responseSchema?.properties?.summary) {
     return jsonRes({
@@ -483,15 +497,15 @@ ok(
 ok(full[0].prompt.includes('문은 내가 닫았어'), '1번 후보의 훅이 전달됨');
 ok(full[1].prompt.includes('지켜본 사람'), '3번 후보가 전달됨 (2번은 제외)');
 ok(
-  full.every((c) => c.prompt.includes('한 번에 노래 1곡')),
+  full.every((c) => c.prompt.includes('노래 1곡을 만들어 주세요')),
   '한 곡씩 집중해서 생성함'
 );
 ok(!root.querySelector('.seed-item'), '완성 후 후보 목록이 치워짐');
 ok(root.textContent.includes('문은 내가 닫았어'), '완성 결과가 화면에 나옴');
 
 ok(
-  seedPromptLen < fullLenForCheck / 3,
-  `씨앗 프롬프트가 완성의 3분의 1 미만 (${seedPromptLen} vs ${fullLenForCheck}자)`
+  fullLenForCheck < 9000 && seedPromptLen < fullLenForCheck,
+  `작사 지시문이 짧음 — 완성 ${fullLenForCheck}자 (예전 약 2만 9천 자), 후보 ${seedPromptLen}자`
 );
 ok(
   seedBudget < full[0].maxOutputTokens / 2,
@@ -547,6 +561,41 @@ console.log('\n3막 7장 — 후보도 구성에 맞게:');
   click($('[data-seed]'));
   await settle();
   ok(!calls[0]?.prompt.includes('3막 7장') && !calls[0]?.prompt.includes('- twist:'), '기본 구성은 예전처럼 한 순간만 뽑음');
+}
+
+console.log('\n가사 꼴 레퍼런스:');
+{
+  const src = $('[data-pat-src]');
+  ok(!!src && !!$('[data-pat-list]'), '가사를 붙여 넣는 칸과 목록이 있음');
+  ok(root.querySelector('input[name=pat]:checked')?.value === '', "처음엔 '쓰지 않기'");
+
+  src.value = 'short';
+  calls.length = 0;
+  click($('[data-pat-go]'));
+  await settle();
+  ok(calls.length === 0, '너무 짧은 가사는 보내지 않음');
+
+  src.value = '[Verse 1]\nI count the cars outside your window tonight\nnobody comes\n[Chorus]\nCome on back\nCome on back\n' + 'la la la\n'.repeat(10);
+  click($('[data-pat-go]'));
+  await settle();
+  ok(calls[0]?.prompt.includes('원문의 문장이나 표현을 옮겨 적지 마세요'), '꼴만 뽑고 문장은 옮기지 말라고 함');
+  ok(src.value === '', '분석이 끝나면 붙여 넣은 가사를 지움');
+  const saved = JSON.parse(store.get('plimusic:patterns') || '[]')[0];
+  ok(saved?.name === '짧게 끊는 주고받기 팝', '꼴을 저장함');
+  ok(saved && !saved.spec.includes('count the cars outside'), '꼴 설명에 섞인 원문 인용은 지우고 저장', ` — ${saved?.spec.split('\n').find((l) => l.startsWith('말투'))}`);
+  ok(!JSON.stringify(saved).includes('nobody comes'), '가사 원문은 어디에도 저장하지 않음');
+  ok(root.querySelector('input[name=pat]:checked')?.value === saved?.id, '새로 뽑은 꼴이 바로 골라짐');
+
+  calls.length = 0;
+  click($('[data-go]'));
+  await settle(250);
+  ok(calls[0]?.prompt.includes('가사 꼴 레퍼런스') && calls[0]?.prompt.includes('두 단어 명령문'), '작사 지시문에 꼴이 실림');
+  ok(calls[0]?.prompt.includes('원곡의 문장이나 단어를 가져오지 마세요'), '작사 단계에서도 원곡 문장을 가져오지 말라고 함');
+  ok(calls[0]?.prompt.includes("줄 수는 아래 '이번 곡의 구성'을 따릅니다"), '구간 줄 수는 구성표가 정함 (꼴과 곡 길이가 부딪히지 않게)');
+
+  click(root.querySelector('[data-del-pat]'));
+  await settle();
+  ok(JSON.parse(store.get('plimusic:patterns') || '[]').length === 0 && root.querySelector('input[name=pat]:checked')?.value === '', '빼면 목록에서 사라지고 쓰지 않기로');
 }
 
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');

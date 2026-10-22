@@ -40,8 +40,8 @@ console.log('\n프롬프트 지시:');
   ok(full.prompt.includes('1행과 5행은 훅 원문 그대로'), '구조표에도 훅 위치를 박음');
   ok(full.prompt.includes('아웃트로 태그는 세 단으로'), '아웃트로를 세 단으로 끝내게 함');
   ok(full.prompt.includes('Final 로 시작하는 한 방'), '마지막 한 방을 반드시 넣게 함');
-  ok(full.prompt.includes('가사 줄 끝에 악기 신호'), '줄 끝 악기 신호를 설명함');
-  ok(full.prompt.includes('두 줄에 하나 이하'), '신호 밀도를 제한함');
+  ok(full.prompt.includes('줄 끝 악기 신호'), '줄 끝 악기 신호를 설명함');
+  ok(full.prompt.includes('곡 전체에 세 개 이하'), '신호 밀도를 제한함 (예전 두 줄에 하나 → 곡 전체 셋: 가사를 어지럽히던 것)');
   ok(full.prompt.includes('악기 목록에 이미 있어야'), '없는 악기를 부르지 않게 함');
 
   // 열쇠말과 훅이 섞이지 않아야 합니다.
@@ -334,7 +334,7 @@ console.log('\n프롬프트에서도 충돌을 막는가:');
   ok(both.includes('════════ 여백'), '여백 지시만 실림');
 
   const r = songWriting({ ...b, rhyme: true }).prompt;
-  ok(r.includes('라임과 리듬') && !r.includes('════════ 여백'), '라임만 켜면 라임만');
+  ok(r.includes('AABB') && !r.includes('════════ 여백'), '라임만 켜면 라임만 (절에서도 줄 끝 운율)');
   const mi = songWriting({ ...b, minimal: true }).prompt;
   ok(!mi.includes('라임과 리듬') && mi.includes('════════ 여백'), '여백만 켜면 여백만');
 }
@@ -430,7 +430,7 @@ console.log('\n3막 7장:');
 
   const hook = songWriting({ ...base, duration: '3:30', actOpen: 'hook' }).prompt;
   const build = songWriting({ ...base, duration: '3:30', actOpen: 'build' }).prompt;
-  ok(hook.includes('후렴으로 시작하는 곡입니다') && !hook.includes('인트로는 짧게, 길이를 맞춥니다'),
+  ok(hook.includes('훅으로 시작합니다') && !hook.includes('인트로는 짧게, 길이를 맞춥니다'),
     '훅 먼저 — 콜드 오픈 규칙을 쓰고, 인트로 길이 규칙은 빠짐');
   ok(!build.includes('후렴으로 시작하는 곡입니다') && build.includes('인트로는 짧게'),
     '쌓아 올리기 — 인트로 규칙을 쓰고 콜드 오픈 규칙은 없음');
@@ -505,7 +505,7 @@ console.log('\n3막 7장 — 후보가 한 꼴로 몰리지 않는가:');
   const sp = songSeeds({ genres: 'x', language: 'English', moods: 'm', concept: 'c', form: 'threeActs', actOpen: 'hook' }).prompt;
   ok(sp.includes('하나도 쓰지 마세요') && sp.includes('과녁이 뒤집힘'), "후보 프롬프트가 '처음부터 계획' 반전을 막고 다른 갈래를 줌");
   ok(sp.includes('하나까지만'), '결말 모양도 한 꼴로 몰리지 않게 함');
-  ok(sp.includes('hookReadings'), '훅이 장마다 어떻게 들리는지 적게 해서 확인할 수 있게 함');
+  ok(!sp.includes('hookReadings') && sp.includes('노래 한두 줄로 부를 수 있을 만큼'), '소설식 반전 대신 한 줄로 부를 수 있는 반전 (억지로 쓰게 하던 훅의 뜻 칸은 뺌)');
   ok(!sp.includes('언제부터였나'), "'언제부터였나' 예시를 빼서 계획형 반전으로 유도하지 않음");
 }
 

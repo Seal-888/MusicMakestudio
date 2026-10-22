@@ -1,7 +1,7 @@
 import { callGemini } from '../api/gemini.js';
-import { songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { checkSeeds, checkNarration, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
-import { styles, songs, refs, draft } from '../store.js';
+import { lyricPattern, patternText, songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { stripQuotes, checkSeeds, checkNarration, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { styles, songs, refs, draft, patterns } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
 import * as R from '../render.js';
 
@@ -337,6 +337,22 @@ export default function renderMusic(root) {
              <b>"이 스타일로 음악 만들기"</b>를 누르면 여기에 쌓입니다.</p>
              <a class="btn sm is-ghost" href="#/planning">플리 스타일 분석하러 가기</a>`
       }
+    </div>
+
+    <div class="card patbox">
+      <span class="card-tag is-blue">가사 꼴 레퍼런스 <small>선택</small></span>
+      <p style="margin-top:0">좋아하는 곡의 가사를 붙여 넣으면 <b>줄 길이 · 운율 · 훅을 되풀이하는 방식 · 기법</b> 같은
+      꼴만 뽑아 둡니다. 가사를 쓸 때 그 꼴을 따릅니다. <b>가사 원문은 저장하지 않습니다.</b></p>
+      <div class="reflist" data-pat-list></div>
+      <details class="more" style="margin-top:10px">
+        <summary>새 레퍼런스 추가</summary>
+        <label class="field" style="margin-top:10px">
+          <span>가사 <small>구간 태그가 있으면 더 정확합니다. 분석이 끝나면 지웁니다</small></span>
+          <textarea rows="8" data-pat-src placeholder="[Verse 1]&#10;...&#10;[Chorus]&#10;..."></textarea>
+        </label>
+        <button class="btn sm is-blue" data-pat-go>꼴 뽑기</button>
+        <div data-pat-out></div>
+      </details>
     </div>
 
     <div class="card">
@@ -1196,7 +1212,6 @@ export default function renderMusic(root) {
               ${x.origin ? `<p class="muted small"><b>처음</b> ${R.esc(x.origin)}</p>` : ''}
               ${x.twist ? `<p class="muted small"><b>반전</b> ${R.esc(x.twist)}</p>` : ''}
               <p class="seed-line">훅 · ${R.esc(x.hook)}</p>
-              ${x.hookReadings ? `<p class="muted small">훅의 뜻 · ${R.esc(x.hookReadings)}</p>` : ''}
               <p class="seed-line">첫 줄 · ${R.esc(x.opening)}</p>
               <p class="muted small">${R.esc(x.soundNote)}</p>
             </div>
@@ -1217,6 +1232,65 @@ export default function renderMusic(root) {
       if (!picked.length) return alert('완성할 후보를 하나 이상 고르세요.');
       generate(false, picked);
     });
+  }
+
+  /* ── 가사 꼴 레퍼런스 ── */
+  const patList = root.querySelector('[data-pat-list]');
+  function paintPatterns(selectId = null) {
+    const all = patterns.all();
+    const keep = selectId ?? root.querySelector('input[name=pat]:checked')?.value ?? '';
+    patList.innerHTML =
+      all
+        .map(
+          (x) => `<label class="refitem">
+            <input type="radio" name="pat" value="${x.id}"${x.id === keep ? ' checked' : ''}>
+            <span><b>${R.esc(x.name)}</b><span class="muted small">${R.esc((x.spec.split('\n').find((l) => l.startsWith('요약')) || '').replace(/^요약: /, ''))}</span></span>
+            <button type="button" class="row-x" data-del-pat="${x.id}" title="빼기">✕</button>
+          </label>`
+        )
+        .join('') +
+      `<label class="refitem">
+        <input type="radio" name="pat" value=""${keep && all.some((x) => x.id === keep) ? '' : ' checked'}>
+        <span><b>쓰지 않기</b><span class="muted small">기본 작사 규칙만으로 씁니다</span></span>
+      </label>`;
+  }
+  paintPatterns();
+
+  patList.addEventListener('click', (e) => {
+    const id = e.target.dataset?.delPat;
+    if (!id) return;
+    e.preventDefault();
+    patterns.remove(id);
+    paintPatterns();
+    toast('가사 레퍼런스를 뺐습니다');
+  });
+
+  root.querySelector('[data-pat-go]').addEventListener('click', () => {
+    const src = root.querySelector('[data-pat-src]');
+    const lyrics = src.value.trim();
+    if (lyrics.length < 80) return alert('가사를 조금 더 넣어 주세요. 절과 후렴이 함께 있어야 꼴이 보입니다.');
+    R.runTask({
+      button: root.querySelector('[data-pat-go]'),
+      output: root.querySelector('[data-pat-out]'),
+      working: '가사의 꼴 읽는 중',
+      task: () => callGemini(lyricPattern({ lyrics })),
+      onDone: (d) => {
+        const { text, removed } = stripQuotes(patternText(d), lyrics);
+        patterns.add({ name: (d.name || '이름 없는 꼴').slice(0, 40), spec: text });
+        // 원문은 남기지 않습니다.
+        src.value = '';
+        const id = patterns.all()[0]?.id;
+        paintPatterns(id);
+        root.querySelector('[data-pat-out]').innerHTML = `<p class="mood-why">「${R.esc(d.name || '')}」 꼴을 저장하고 골라 두었습니다.${
+          removed ? ` 원문 인용이 섞인 ${removed}군데는 지웠습니다.` : ''
+        }</p><pre class="rb-pre">${R.esc(text)}</pre>`;
+      },
+    });
+  });
+
+  function pickedPattern() {
+    const id = root.querySelector('input[name=pat]:checked')?.value;
+    return id ? patterns.all().find((x) => x.id === id) : null;
   }
 
   function pickedRef() {
@@ -1261,6 +1335,7 @@ export default function renderMusic(root) {
       negativeTags: val('negativeTags') === 'yes',
       reference: root.querySelector('[data-f=reference]').value.trim(),
       referenceStyle: pickedRef()?.detail || null,
+      lyricPattern: pickedPattern()?.spec || null,
       // 레퍼런스를 골랐고 우선 적용이 켜져 있을 때만 레퍼런스가 기준이 됩니다.
       referenceFirst: !!pickedRef() && root.querySelector('[data-f=refFirst]')?.checked !== false,
       rhyme: craft.includes('rhyme'),

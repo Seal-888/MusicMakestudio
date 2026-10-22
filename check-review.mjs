@@ -318,5 +318,16 @@ console.log('\nGemini 설정:');
   ok(err?.code === 'NET-FAIL', '두 번 다 끊기면 알아볼 수 있는 오류로 알림', ` (${err?.code || err?.name})`);
 }
 
+console.log('\n가사 꼴 — 백업과 원문 인용:');
+{
+  const { importAll, exportAll, patterns } = await import(appUrl('js/store.js'));
+  const { stripQuotes } = await import(appUrl('js/lyrics.js'));
+  importAll(JSON.stringify({ patterns: [{ id: 'p1', name: 'a', spec: '요약: x' }, { bad: 1 }] }));
+  ok(patterns.all().length === 1, '백업에서 꼴을 되살리고 깨진 칸은 버림');
+  ok(JSON.parse(exportAll()).patterns?.length === 1, '백업 파일에 꼴이 들어감');
+  const { text, removed } = stripQuotes('말투: I count the cars outside tonight\n요약: 짧게', 'I count the cars outside your window');
+  ok(removed === 1 && !text.includes('count the cars') && text.includes('요약: 짧게'), '네 단어 넘는 원문 인용만 지움');
+}
+
 console.log(failed ? `\n${failed}개 항목이 실패했습니다.` : '\n모두 통과.');
 process.exit(failed ? 1 : 0);

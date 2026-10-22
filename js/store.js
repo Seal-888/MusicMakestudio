@@ -126,7 +126,7 @@ export function usage() {
  * songs와 styles는 무제한이라 계속 쌓이다가 어느 날 저장이 조용히 실패했습니다.
  * 넘치면 가장 오래된 것부터 밀려납니다. 지우기 전에 백업을 받아 두세요.
  */
-const LIMITS = { songs: 300, styles: 200, refs: 30 };
+const LIMITS = { songs: 300, styles: 200, refs: 30, patterns: 30 };
 
 const DEFAULT_SETTINGS = {
   geminiKey: '',
@@ -202,6 +202,27 @@ export const draft = {
   },
 };
 
+/**
+ * 가사 꼴 레퍼런스. 좋아하는 곡의 가사에서 뽑은 '꼴'(줄 길이·운율·훅 반복·기법)만 담습니다.
+ * 가사 원문은 저장하지 않습니다. 저작권이 있는 글이고, 백업 파일로 밖에 나갈 수 있기 때문입니다.
+ */
+export const patterns = {
+  all() {
+    return read('patterns', []);
+  },
+  add(item) {
+    const list = this.all();
+    list.unshift({ id: crypto.randomUUID(), savedAt: Date.now(), ...item });
+    if (!write('patterns', list.slice(0, LIMITS.patterns))) return false;
+    window.dispatchEvent(new CustomEvent('store:change'));
+    return true;
+  },
+  remove(id) {
+    write('patterns', this.all().filter((x) => x.id !== id));
+    window.dispatchEvent(new CustomEvent('store:change'));
+  },
+};
+
 /** 분석해 둔 레퍼런스. 음악 만들기에서 불러다 씁니다. */
 export const refs = {
   all() {
@@ -240,7 +261,7 @@ export const songs = {
 // 통째로 백업 / 복원 — 브라우저 데이터를 지워도 살아남게
 export function exportAll() {
   return JSON.stringify(
-    { settings: settings.all(), styles: styles.all(), songs: songs.all(), refs: refs.all(), version: 4 },
+    { settings: settings.all(), styles: styles.all(), songs: songs.all(), refs: refs.all(), patterns: patterns.all(), version: 5 },
     null,
     2
   );
@@ -256,7 +277,7 @@ export function exportAll() {
 export function importAll(json) {
   const data = JSON.parse(json);
   const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
-  const lists = ['styles', 'songs', 'refs'];
+  const lists = ['styles', 'songs', 'refs', 'patterns'];
 
   if (!isObj(data) || (!data.settings && !lists.some((k) => data[k]))) {
     throw new Error('이 앱의 백업 파일이 아닙니다.');
@@ -275,5 +296,6 @@ export function importAll(json) {
   if (data.styles) write('styles', data.styles.filter((x) => isObj(x) && typeof x.prompt === 'string'));
   if (data.songs) write('songs', data.songs.filter((x) => isObj(x) && typeof x.lyrics === 'string'));
   if (data.refs) write('refs', data.refs.filter(isObj));
+  if (data.patterns) write('patterns', data.patterns.filter((x) => isObj(x) && typeof x.spec === 'string'));
   window.dispatchEvent(new CustomEvent('store:change'));
 }

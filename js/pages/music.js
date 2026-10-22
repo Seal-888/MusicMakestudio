@@ -1195,12 +1195,17 @@ export default function renderMusic(root) {
         ),
       onDone: (d) => {
         shownSeeds.push(...(d.seeds || []));
-        paintSeeds(d.seeds || []);
+        // 무엇으로 뽑았는지 같이 보여 줍니다. 레퍼런스가 정말 실렸는지 화면에서 바로 알 수 있어야 합니다.
+        const { form, actOpen } = currentForm();
+        paintSeeds(d.seeds || [], {
+          pattern: pickedPattern()?.name || '',
+          form: form === 'threeActs' ? `3막 7장 · ${ACT_OPENINGS[actOpen]?.label || ''}` : SONG_FORMS[form]?.label || form,
+        });
       },
     });
   }
 
-  function paintSeeds(seeds) {
+  function paintSeeds(seeds, used = {}) {
     if (!seeds.length) {
       seedOut.innerHTML = '<p class="muted">후보를 만들지 못했습니다.</p>';
       return;
@@ -1209,6 +1214,7 @@ export default function renderMusic(root) {
     const warn = checkSeeds(seeds);
     seedOut.innerHTML = `<div class="card">
       <span class="card-tag is-gold">후보 ${seeds.length}개</span>
+      <p class="muted small" data-seed-used>곡 구성 · ${R.esc(used.form || '')} / 인기곡 꼴 · ${used.pattern ? `<b>${R.esc(used.pattern)}</b>` : '쓰지 않음'}</p>
       <p class="muted small">완성할 후보를 고르세요. 고른 것만 가사와 스타일을 만듭니다.</p>
       ${warn.length
         ? `<div class="lint"><b>후보끼리 너무 닮았습니다</b><ul>${warn.map((w) => `<li>${R.esc(w)}</li>`).join('')}</ul>

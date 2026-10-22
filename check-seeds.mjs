@@ -603,6 +603,14 @@ console.log('\n가사 꼴 레퍼런스:');
   ok(calls[0]?.prompt.includes('exclude 를 이 범주와 개수에 맞춰'), '피할 요소도 꼴을 따름');
   ok(calls[0]?.prompt.includes("장르·보컬·템포는 아래 '모든 곡이 지킬 것'을 따릅니다"), '내가 고른 장르·보컬·템포가 레퍼런스 소리보다 먼저');
 
+  // 후보 뽑기에도 꼴이 실리고, 화면에 무엇으로 뽑았는지 보임
+  calls.length = 0;
+  click($('[data-seed]'));
+  await settle();
+  ok(calls[0]?.prompt.includes('레퍼런스 꼴 — 후보도 이 꼴로'), '후보 뽑기에도 고른 꼴이 실림');
+  ok(($('[data-seed-used]')?.textContent || '').includes('짧게 끊는 주고받기 팝'), '후보 목록 위에 어떤 꼴로 뽑았는지 보여 줌');
+  ok(root.textContent.includes('후렴 스케치가 없습니다'), '후렴 스케치가 비어 오면 알려 줌');
+
   click(root.querySelector('[data-del-pat]'));
   await settle();
   ok(JSON.parse(store.get('plimusic:patterns') || '[]').length === 0 && root.querySelector('input[name=pat]:checked')?.value === '', '빼면 목록에서 사라지고 쓰지 않기로');

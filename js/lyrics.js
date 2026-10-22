@@ -775,6 +775,10 @@ export function checkSeeds(seeds = []) {
   if (selfTalk.length) {
     out.push(`후보 ${selfTalk.length}개는 '${selfTalk[0].to}'에게 하는 말인데 첫 줄이 you 를 부릅니다. 누구에게 하는 말인지 어긋납니다.`);
   }
+  const noChorus = seeds.filter((x) => !(x.chorus || []).filter((l) => String(l).trim()).length);
+  if (noChorus.length) {
+    out.push(`후보 ${noChorus.length}개에 후렴 스케치가 없습니다. 노래인지 판단하기 어려우니 다시 뽑아 보세요.`);
+  }
   // 아래의 '몰림' 검사는 후보가 여럿일 때만 뜻이 있습니다.
   if (seeds.length < 3) return out;
   const planned = seeds.filter((x) =>

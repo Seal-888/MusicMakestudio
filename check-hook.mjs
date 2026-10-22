@@ -496,9 +496,9 @@ console.log('\n3막 7장 — 후보가 한 꼴로 몰리지 않는가:');
   ok(w.some((x) => x.includes('처음부터 계획했다')), "실제 후보 — 반전이 '처음부터 계획' 꼴로 몰린 걸 잡음", ` (${w[0] || ''})`);
   ok(w.some((x) => x.includes('쓰러져 있는')), '실제 후보 — 결말이 전부 상대가 쓰러진 장면인 걸 잡음');
   const varied = [
-    { scene: '정원에서 둘이 나란히 서서 불꽃을 본다', twist: '불을 지른 건 상대였다' },
-    { scene: '화자가 혼자 기차에 오른다', twist: '열쇠는 화자 집의 것이었다' },
-    { scene: '상대가 웃으며 잔을 든다', twist: '둘은 형제였다' },
+    { chorus: ['a', 'b', 'c', 'd'], scene: '정원에서 둘이 나란히 서서 불꽃을 본다', twist: '불을 지른 건 상대였다' },
+    { chorus: ['a', 'b', 'c', 'd'], scene: '화자가 혼자 기차에 오른다', twist: '열쇠는 화자 집의 것이었다' },
+    { chorus: ['a', 'b', 'c', 'd'], scene: '상대가 웃으며 잔을 든다', twist: '둘은 형제였다' },
   ];
   ok(checkSeeds(varied).length === 0, '서로 다른 후보에는 경고하지 않음');
 
@@ -573,11 +573,11 @@ console.log('\n후보 검토 4차 — 비 오는 가을날 실제 후보로:');
 {
   const { checkSeeds } = await import(appUrl('js/lyrics.js'));
   const real = [
-    { title: 'Cold Brew and Rain', to: '나 자신', hook: 'Sip it slow, let it go', opening: 'I am tracing the water drops on the glass.' },
-    { title: 'Under the Same Fabric', to: '상대', hook: 'Lean on my shoulder', opening: 'Are you feeling the chill in this damp wind?' },
-    { title: 'Fogged Living Room', to: '듣는 사람', hook: 'Stay right here', opening: 'Pull the blanket a little closer to your chin.' },
-    { title: 'Amber Streetlights', to: '세상', hook: 'Walking in the autumn rain', opening: 'You are walking too fast for this lazy night.' },
-    { title: 'Damp Footsteps', to: '상대', hook: 'Drip, drop, fall', opening: 'Leave your wet coat right beside the wooden door.' },
+    { chorus: ['a', 'b', 'c', 'd'], title: 'Cold Brew and Rain', to: '나 자신', hook: 'Sip it slow, let it go', opening: 'I am tracing the water drops on the glass.' },
+    { chorus: ['a', 'b', 'c', 'd'], title: 'Under the Same Fabric', to: '상대', hook: 'Lean on my shoulder', opening: 'Are you feeling the chill in this damp wind?' },
+    { chorus: ['a', 'b', 'c', 'd'], title: 'Fogged Living Room', to: '듣는 사람', hook: 'Stay right here', opening: 'Pull the blanket a little closer to your chin.' },
+    { chorus: ['a', 'b', 'c', 'd'], title: 'Amber Streetlights', to: '세상', hook: 'Walking in the autumn rain', opening: 'You are walking too fast for this lazy night.' },
+    { chorus: ['a', 'b', 'c', 'd'], title: 'Damp Footsteps', to: '상대', hook: 'Drip, drop, fall', opening: 'Leave your wet coat right beside the wooden door.' },
   ];
   const w = checkSeeds(real);
   ok(w.some((x) => x.includes('금지어') && x.includes('amber') && x.includes('lazy')), '후보의 금지어(amber, lazy)를 잡음', ` (${w[0] || ''})`);

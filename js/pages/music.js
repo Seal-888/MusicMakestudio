@@ -219,7 +219,21 @@ const opts = (arr) => arr.map(([label, value]) => ({ label, value }));
  * 값이 그대로 Suno 스타일에 실려 가므로, 주고받을 때 둘을 오가야 합니다.
  */
 const pairsOf = (arr) => (Array.isArray(arr[0]?.[1]) ? arr.flatMap(([, list]) => list) : arr);
-const toValue = (arr, label) => pairsOf(arr).find(([l]) => l === label)?.[1] || '';
+/**
+ * 모델이 돌려준 말을 실제 값으로 바꿉니다.
+ *
+ * 예전에는 글자가 하나라도 다르면('다크팝', 'Dark Pop') 못 찾고 그 칸을 조용히 버렸습니다.
+ * 그러면 그 칸만 예전 값(다크 팝·현악·피아노)으로 남아, 새 장르와 예전 악기가 섞인
+ * 어울리지 않는 조합이 됐습니다. 띄어쓰기·대소문자·괄호를 무시하고, 영어 값으로 와도 찾습니다.
+ */
+const norm = (x) => String(x || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/[\s·\/_-]+/g, '');
+const toValue = (arr, label) => {
+  const pairs = pairsOf(arr);
+  const exact = pairs.find(([l]) => l === label);
+  if (exact) return exact[1];
+  const n = norm(label);
+  return (n && pairs.find(([l, v]) => norm(l) === n || norm(v) === n)?.[1]) || '';
+};
 const toLabel = (arr, value) => pairsOf(arr).find(([, v]) => v === value)?.[0] || '';
 const labelsOf = (arr) => pairsOf(arr).map(([l]) => l);
 
@@ -239,6 +253,8 @@ const FIT_FIELDS = [
   { key: 'mood', label: '분위기', multi: true, list: () => MOODS },
   { key: 'era', label: '시대감 / 스타일', multi: false, list: () => ERAS },
   { key: 'instrument', label: '주요 악기', multi: true, list: () => INSTRUMENTS },
+  // 화자가 정해지면 나머지 소리가 따라옵니다. 빌런만 고정해 두면 모든 곡이 어두워집니다.
+  { key: 'persona', label: '화자', multi: false, list: () => Object.entries(PERSONAS).map(([k, v]) => [v.label, k]) },
 ];
 
 /**
@@ -923,6 +939,29 @@ export default function renderMusic(root) {
   const fitBtn = root.querySelector('[data-fit]');
   const fitOut = root.querySelector('[data-fit-out]');
 
+  /**
+   * 주제를 적었는데 설정은 그대로인지 알려 줍니다.
+   * 맞추지 않고 만들면 기본값(다크 팝 · 빌런 · 어두운 분위기)으로 나옵니다.
+   * 모든 곡이 다크 팝으로 나오던 가장 흔한 경로였습니다.
+   */
+  let fittedFor = '';
+  const fitHint = document.createElement('p');
+  fitHint.className = 'lenbadge is-short';
+  fitHint.dataset.fitHint = '1';
+  fitBtn.closest('.style-head').insertAdjacentElement('afterend', fitHint);
+  function refreshFitHint() {
+    const c = root.querySelector('[data-f=concept]').value.trim();
+    const stale = c && c !== fittedFor;
+    // hidden 속성은 .lenbadge 의 display 에 덮여서 안 먹습니다. 직접 끕니다.
+    fitHint.style.display = stale ? '' : 'none';
+    if (stale) {
+      const g = R.readPills(root, 'genre').map((v) => toLabel(GENRES, v)).filter(Boolean).join(', ') || '없음';
+      fitHint.textContent = `이 주제로 아직 설정을 맞추지 않았습니다. 지금 장르(${g})와 화자 그대로 만들어집니다.`;
+    }
+  }
+  root.querySelector('[data-f=concept]').addEventListener('input', refreshFitHint);
+  refreshFitHint();
+
   fitBtn.addEventListener('click', () => {
     const concept = root.querySelector('[data-f=concept]').value.trim();
     if (!concept) return alert('주제를 먼저 입력해 주세요.');
@@ -935,33 +974,50 @@ export default function renderMusic(root) {
         callGemini(
           settingsFit({
             concept,
+            persona: R.readPills(root, 'persona')[0] || 'villain',
+            language: R.readPills(root, 'language')[0] || '',
             fields: FIT_FIELDS.map((f) => ({
               key: f.key,
               label: f.label,
               multi: f.multi,
               options: labelsOf(f.list()),
             })),
-            current: Object.fromEntries(
-              FIT_FIELDS.map((f) => [
-                f.key,
-                R.readPills(root, f.key).map((v) => toLabel(f.list(), v)).filter(Boolean),
-              ])
-            ),
+            // 앞 곡의 설정 전체를 보여 주면 모델이 거기에 끌려갑니다(늘 다크 팝이 남던 원인).
+            // 보컬의 성별만 넘깁니다. 채널 목소리가 갑자기 바뀌지 않게 하려는 것입니다.
+            vocalGender: genderOf(R.readPills(root, 'vocal')[0] || ''),
           })
         ),
       onDone: (d) => paintFit(d),
     });
   });
 
+  /** 보컬 값에서 성별만 읽습니다. */
+  function genderOf(v) {
+    if (/duet|mixed|choir|chorus/i.test(v)) return '';
+    if (/female|girl|woman|soprano/i.test(v)) return '여성';
+    if (/\bmale\b|\bboy\b|tenor|baritone|\bman\b/i.test(v)) return '남성';
+    return '';
+  }
+
   /** 무엇이 어떻게 바뀌는지 먼저 보여 주고, 고른 것만 켭니다. */
-  function paintFit({ picks = [], summary = '' }) {
+  function paintFit(d) {
+    const { summary = '' } = d;
+    // 새 형식: { genre: {pick, why}, vocal: {...} } / 예전 형식: { picks: [{key, pick, why}] }
+    const picks = d.picks || FIT_FIELDS.filter((f) => d[f.key]).map((f) => ({ key: f.key, ...d[f.key] }));
+    const missed = [];
     const rows = picks
       .map((p) => {
         const field = FIT_FIELDS.find((f) => f.key === p.key);
         if (!field) return null;
         const list = field.list();
-        const labels = (p.pick || []).filter((x) => toValue(list, x));
-        if (!labels.length) return null;
+        // 표기가 조금 달라도 실제 라벨로 바꿔 둡니다.
+        const labels = (p.pick || [])
+          .map((x) => toLabel(list, toValue(list, x)))
+          .filter(Boolean);
+        if (!labels.length) {
+          missed.push(field.label);
+          return null;
+        }
         const before = R.readPills(root, field.key)
           .map((v) => toLabel(list, v))
           .filter(Boolean);
@@ -978,7 +1034,11 @@ export default function renderMusic(root) {
     fitOut.innerHTML = `<div class="card">
       <span class="card-tag is-gold">주제에 맞춘 설정</span>
       ${summary ? `<p class="mood-why">${R.esc(summary)}</p>` : ''}
-      <p class="muted small">켤 것만 남기고 <b>적용</b>을 누르세요. 지금 설정과 같은 칸은 꺼 두었습니다.</p>
+      <p class="muted small">켤 것만 남기고 <b>적용</b>을 누르세요. 지금 설정과 같은 칸은 꺼 두었습니다.
+      일부만 적용하면 새 장르에 예전 악기처럼 서로 안 맞는 조합이 남을 수 있습니다.</p>
+      ${missed.length
+        ? `<p class="lenbadge is-short">${R.esc(missed.join(', '))} — 목록에서 맞는 값을 찾지 못해 지금 값을 그대로 둡니다. 직접 확인해 주세요.</p>`
+        : ''}
       ${rows
         .map(
           (r, i) => `<label class="seed-item">
@@ -1019,6 +1079,8 @@ export default function renderMusic(root) {
           done.push(r.field.label);
         }
       }
+      fittedFor = root.querySelector('[data-f=concept]').value.trim();
+      refreshFitHint();
       fitOut.innerHTML = `<p class="mood-why">${R.esc(done.join(', '))} 설정을 맞췄습니다.</p>`;
     });
   }

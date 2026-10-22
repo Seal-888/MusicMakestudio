@@ -69,15 +69,14 @@ global.fetch = async (url, opts = {}) => {
   const cfg = sent.generationConfig || {};
   calls.push({ prompt, maxOutputTokens: cfg.maxOutputTokens, schema: cfg.responseSchema });
 
-  if (cfg.responseSchema?.properties?.picks) {
+  // 주제로 설정 맞추기 — 칸마다 따로 받는 형식
+  if (cfg.responseSchema?.properties?.genre && cfg.responseSchema?.properties?.summary) {
     return jsonRes({
-      picks: [
-        { key: 'genre', pick: ['다크 팝', '트랩'], why: '터지는 감정에 맞는 무거운 저음' },
-        { key: 'mood', pick: ['에너지 폭발', '다크하고 강렬'], why: '분노를 지켜보지 않고 터뜨림' },
-        { key: 'tempo', pick: ['빠른 (130-150)'], why: '몰아치는 속도' },
-        { key: 'era', pick: ['없는시대감'], why: '목록에 없는 값' },
-        { key: 'nosuchfield', pick: ['아무거나'], why: '모르는 칸' },
-      ],
+      // '다크팝'은 띄어쓰기가 다른 표기입니다. 예전에는 이 칸이 조용히 버려졌습니다.
+      genre: { pick: ['다크팝', '트랩'], why: '터지는 감정에 맞는 무거운 저음' },
+      mood: { pick: ['에너지 폭발', '다크하고 강렬'], why: '분노를 지켜보지 않고 터뜨림' },
+      tempo: { pick: ['빠른 (130-150)'], why: '몰아치는 속도' },
+      era: { pick: ['없는시대감'], why: '목록에 없는 값' },
       summary: '무겁고 빠르게 몰아치는 다크 팝.',
     });
   }
@@ -324,13 +323,19 @@ console.log('\n주제로 설정 맞추기:');
   await settle();
 
   ok(calls.length === 1, '칸이 여러 개여도 호출은 한 번');
-  ok(calls[0].prompt.includes('설정끼리도 서로 맞아야'), '조합이 맞도록 지시함');
-  ok(calls[0].prompt.includes('앞 곡에서 쓰던 설정'), '현재 설정을 기본값으로 여기지 않게 함');
-  ok(calls[0].prompt.includes('이유를 댈 수 있어야'), '그대로 두려면 근거를 요구함');
-  ok(calls[0].prompt.includes('분노는 록이, 권태는 재즈가'), '장르를 넓게 보게 함');
-  ok(calls[0].prompt.includes('편안하고 다정한 쪽으로는 가지 않습니다'), '채널과 안 맞는 방향은 배제함');
-  ok(calls[0].prompt.includes('시끄럽고 과한 것은 어두울 수 있습니다'), 'C. 축제·에너지 폭발을 밝은 쪽으로 오해하지 않음');
+  ok(calls[0].prompt.includes('모든 칸을 그 소리에 맞춰'), '조합이 맞도록 지시함');
+  ok(!calls[0].prompt.includes('지금 켜져 있는 것'), '앞 곡 설정(다크 팝 기본값)을 보여 주지 않아 끌려가지 않음');
+  ok(calls[0].prompt.includes('남성 보컬 안에서') && calls[0].prompt.includes('지금 창법을 유지할 이유는 없습니다'),
+    '보컬은 성별만 이어 가고 창법은 주제에 맞게 (예전에는 사실상 바뀌지 않음)');
+  ok(calls[0].prompt.includes('분노는 록') && calls[0].prompt.includes('습관처럼 고르지 마세요'), '장르를 넓게 보고 다크 팝을 습관으로 고르지 않게 함');
+  ok(calls[0].prompt.includes('빌런 —') && calls[0].prompt.includes("'편안함'"), '화자가 빌런일 때만 편안한 쪽을 막음');
+  ok(calls[0].prompt.includes('【화자】'), '화자도 주제에 맞게 고를 수 있음');
+  const enumOk = calls[0].schema?.properties?.genre?.properties?.pick?.items?.enum?.includes('다크 팝');
+  ok(enumOk, '고를 수 있는 말을 enum 으로 묶어 엉뚱한 표기를 막음');
   const { settingsFit } = await import(appUrl('js/prompts.js'));
+  const fields = [{ key: 'genre', label: '장르', multi: true, options: ['a'] }];
+  ok(settingsFit({ concept: 'x', fields, persona: 'confessional' }).prompt.includes('분위기에 제한을 두지 않습니다'),
+    '빌런이 아닌 화자면 따뜻한·밝은 쪽도 고를 수 있음 (예전에는 늘 빌런 기준)');
   const t = settingsFit({ concept: 'x', fields: [{ key: 'genre', label: '장르', multi: true, options: ['a'] }] }).temperature;
   ok(t >= 0.7, `폭을 주는 온도 (${t}) — 낮으면 늘 무난한 답만 나옴`);
   ok(calls[0].prompt.includes('【장르】'), '고를 수 있는 목록을 넘김');
@@ -340,7 +345,8 @@ console.log('\n주제로 설정 맞추기:');
   // 먼저 보여 주기만 하고 아직 켜지 않아야 합니다.
   const beforeApply = labelsOn('mood');
   ok(root.textContent.includes('무겁고 빠르게'), '어떤 소리가 될지 먼저 보여 줌');
-  ok(root.querySelectorAll('[data-fit-pick]').length === 3, '모르는 칸과 없는 값은 빼고 3칸만 제안');
+  ok(root.querySelectorAll('[data-fit-pick]').length === 3, '없는 값만 온 칸은 빼고 3칸 제안 (표기가 다른 다크팝은 살림)');
+  ok(root.textContent.includes('시대감 / 스타일 — 목록에서 맞는 값을 찾지 못해'), '못 맞춘 칸은 조용히 버리지 않고 알려 줌');
   ok(
     JSON.stringify(labelsOn('mood')) === JSON.stringify(beforeApply),
     '적용 전에는 아무것도 바뀌지 않음'
@@ -363,6 +369,20 @@ console.log('\n주제로 설정 맞추기:');
     `하나만 고르는 칸은 하나만 켜짐 (${labelsOn('tempo')[0]})`
   );
   ok(root.textContent.includes('맞췄습니다'), '무엇을 바꿨는지 알려 줌');
+
+  // 표기가 다른 장르('다크팝')도 실제로 켜지는지 — 이번엔 전부 적용합니다.
+  click($('[data-fit]'));
+  await settle();
+  click($('[data-fit-go]'));
+  await settle();
+  ok(labelsOn('genre').includes('다크 팝') && labelsOn('genre').includes('트랩'), `표기가 달라도 장르가 바뀜 (${labelsOn('genre').join(', ')})`);
+
+  // 주제를 바꾸고 설정을 안 맞추면 알려 줌
+  const hint = () => root.querySelector('[data-fit-hint]');
+  ok(hint() && hint().style.display === 'none', '방금 맞춘 주제에는 안내가 없음');
+  $('[data-f=concept]').value = '봄날 첫 데이트';
+  $('[data-f=concept]').dispatchEvent(new window.Event('input', { bubbles: true }));
+  ok(hint() && hint().style.display !== 'none' && hint().textContent.includes('아직 설정을 맞추지 않았습니다'), '주제를 바꾸면 설정을 다시 맞추라고 알려 줌');
 
   calls.length = 0;
 }

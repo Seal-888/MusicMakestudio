@@ -38,6 +38,8 @@ window.document.getElementById('view').replaceChildren(c);
 let mod = await import(appUrl('js/pages/music.js'));
 mod.default(c);
 c.querySelector('[data-f=concept]').value = '테스트 주제';
+// 장르는 기본으로 비어 있으므로 하나 고릅니다.
+c.querySelector('[data-pills="genre"] .pill[data-value="dark pop"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true}));
 c.querySelector('[data-go]').click();
 await new Promise(r=>setTimeout(r,900));
 check(c.querySelector('[data-out]').querySelectorAll('[data-lyrics]').length>0, '곡 생성됨');

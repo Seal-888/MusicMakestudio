@@ -21,6 +21,23 @@ const CLICHE_WORDS = [
  * 같은 사건도 누가 말하느냐에 따라 완전히 다른 곡이 됩니다.
  */
 export const PERSONAS = {
+  /**
+   * 화자에게 성격을 입히지 않습니다. 주제가 말하는 그대로 씁니다.
+   *
+   * 왜 필요한가:
+   * 예전에는 빌런이 기본이라 '비 오는 가을날' 같은 분위기 주제에도
+   * 약을 타고 문을 잠그는 곡만 나왔습니다. 빌런 지침이 '당한 사람과 한 짓'을 요구하기 때문입니다.
+   */
+  plain: {
+    label: '기본 — 주제 그대로',
+    voice: `주제와 장면에 맞는 자연스러운 말투. 과장하거나 꾸미지 않는다.
+감정을 이름으로 부르지 말고 본 것과 하는 일을 적는다.`,
+    guide: `화자에게 따로 성격을 입히지 않습니다. **주제가 말하는 감정과 장면 그대로** 씁니다.
+- 주제가 잔잔하면 잔잔하게, 설레면 설레게, 아프면 아프게, 신나면 신나게.
+- **사건이나 갈등을 억지로 만들지 마세요.** 아무 일 없이 머무는 순간도 충분히 노래가 됩니다.
+  비 오는 날이 주제면 비 오는 날 그 자체가 곡입니다. 누군가를 해치거나 속일 필요가 없습니다.
+- 1인칭으로, 그 순간 안에서 누군가에게(또는 스스로에게) 하는 말로 씁니다.`,
+  },
   villain: {
     label: '빌런 — 해 놓고 아무렇지 않은',
     // voice 는 가사를 옮길 때만 쓰는 짧은 말투 설명입니다.
@@ -908,11 +925,10 @@ JSON만 출력합니다.`,
  * 가사 언어와 곡 길이는 일부러 빼 두었습니다.
  * 그건 곡이 아니라 채널이 정하는 값입니다.
  */
-export function settingsFit({ concept, fields = [], persona = 'villain', language = '', vocalGender = '', current = null }) {
+export function settingsFit({ concept, fields = [], persona = 'plain', language = '', vocalGender = '', current = null }) {
   const menu = fields
     .map((f) => `【${f.label}】(${f.key}) ${f.multi ? '여러 개, 2~4개' : '하나만'}\n${f.options.join(' · ')}`)
     .join('\n\n');
-  const p = PERSONAS[persona] || PERSONAS.villain;
 
   return {
     // 고르는 일이지만 너무 낮으면 늘 무난한 답만 나옵니다.
@@ -925,9 +941,12 @@ export function settingsFit({ concept, fields = [], persona = 'villain', languag
 ════════ 주제 ════════
 ${concept}
 
-════════ 지금 고른 화자 ════════
-${p.label}${language ? `\n가사 언어: ${language}` : ''}
-화자 칸에서 주제에 더 맞는 화자를 다시 골라도 됩니다. 고른 화자에 맞춰 나머지를 고르세요.
+════════ 화자 ════════
+화자도 **주제를 보고** 고르세요. 지금 무엇이 골라져 있든 상관없습니다.${language ? `\n가사 언어: ${language}` : ''}
+- 주제에 인물의 성격(악행·고백·맞섬·관찰)이 드러나 있지 않으면 **'기본 — 주제 그대로'** 를 고릅니다.
+  날씨·계절·장소·하루의 분위기 같은 주제가 그렇습니다. 여기에 빌런을 붙이면 없던 범죄가 생깁니다.
+- 빌런은 주제가 악행이나 가해를 말할 때만 고릅니다.
+고른 화자에 맞춰 나머지 칸을 고르세요.
 
 ════════ 고를 수 있는 것 ════════
 ${menu}
@@ -941,10 +960,10 @@ ${menu}
 - **장르를 넓게 보세요.** 목록 전체를 훑고, 주제에 가장 맞는 것을 고르세요.
   어두운 이야기라고 어두운 장르만 맞는 게 아닙니다. 분노는 록, 권태는 재즈, 과시는 EDM, 그리움은 포크가 맞을 수 있습니다.
   **다크 팝은 주제가 정말 그 소리를 말할 때만** 고르세요. 습관처럼 고르지 마세요.
-${persona === 'villain'
-      ? `- 화자가 빌런이면 편안하고 다정한 쪽(따스한 위로, 순수한 평화, 포근한 구름, 귀여운)으로는 가지 않습니다.
-  다만 밝고 시끄러운 것(축제 분위기, 에너지 폭발)은 빌런과 잘 맞을 수 있습니다. 피할 것은 '밝음'이 아니라 '편안함'입니다.`
-      : `- 화자가 빌런이 아니므로 분위기에 제한을 두지 않습니다. 따뜻한 주제면 따뜻하게, 밝은 주제면 밝게 고르세요.`}
+- **분위기의 제한은 고른 화자에 따릅니다.**
+  빌런을 골랐을 때만 편안하고 다정한 쪽(따스한 위로, 순수한 평화, 포근한 구름, 귀여운)을 피합니다.
+  그때도 밝고 시끄러운 것(축제 분위기, 에너지 폭발)은 괜찮습니다. 피할 것은 '밝음'이 아니라 '편안함'입니다.
+  다른 화자면 제한이 없습니다. 따뜻한 주제면 따뜻하게, 쓸쓸한 주제면 쓸쓸하게 고르세요.
 - **보컬:** 주제에 화자의 성별 단서가 있으면 따릅니다.${vocalGender
       ? ` 단서가 없으면 **${vocalGender} 보컬 안에서** 고르되, 창법은 주제에 맞게 고르세요. 지금 창법을 유지할 이유는 없습니다.`
       : ' 단서가 없으면 주제에 맞게 고르세요.'}
@@ -985,8 +1004,8 @@ JSON만 출력합니다.`,
  * 자동 자막은 노래를 받아쓴 것이라 글자가 자주 틀립니다.
  * 그래서 정확한 가사 원문을 함께 넘겨 짝을 맞추게 합니다.
  */
-export function lyricsSubtitle({ blocks, lyrics, concept = '', persona = 'villain' }) {
-  const p = PERSONAS[persona] || PERSONAS.villain;
+export function lyricsSubtitle({ blocks, lyrics, concept = '', persona = 'plain' }) {
+  const p = PERSONAS[persona] || PERSONAS.plain;
   const list = blocks.map((b, i) => `${i + 1}. ${b.text.replace(/\n/g, ' ')}`).join('\n');
 
   return {
@@ -1038,11 +1057,11 @@ ${list}
 }
 
 export function songSeeds({
-  genres, language, moods, concept, persona = 'villain',
+  genres, language, moods, concept, persona = 'plain',
   seedCount = 5, avoidTitles = [], referenceStyle = null, seriesNote = '',
   form = 'standard', actOpen = 'hook', vocal = '', tempo = '', avoidSeeds = [],
 }) {
-  const p = PERSONAS[persona] || PERSONAS.villain;
+  const p = PERSONAS[persona] || PERSONAS.plain;
   /**
    * 3막 7장은 '한 순간'이 아니라 '한 편의 이야기'를 고르는 것입니다.
    *
@@ -1135,7 +1154,8 @@ ${hookArc
 "불타는 걸 바라본다", "무너지는 소리를 듣는다", "파편을 감상한다" —
 이런 건 전부 틀렸습니다. 아름답게 들리지만 남의 일입니다.
 
-화자가 하는 일을 쓰세요. 지르고, 붙잡고, 던지고, 따지고, 묻습니다.
+화자가 하는 일을 쓰세요. 걷고, 기다리고, 건네고, 붙잡고, 묻습니다.
+주제가 격하면 지르고 던지고 따지지만, 주제가 잔잔하면 잔잔한 행동이면 됩니다.
 감정을 **묘사하지 말고 그 감정 상태에서 말하게** 하세요.
 
 - 틀림: 분노를 바라보는 사람의 시선
@@ -1145,7 +1165,8 @@ ${hookArc
 주제 안에서 서로 다른 **순간**을 골라내세요.
 어떤 순간이 있을지는 주제가 정합니다. 아래는 갈래를 나누는 축일 뿐입니다.
 
-- 무슨 일이 벌어지는 중인가 (터지기 직전 / 터지는 중 / 터지고 난 직후)
+- 무슨 일이 벌어지는 중인가 (터지기 직전 / 터지는 중 / 지나간 직후 / 아무 일 없이 머무는 중)
+  **주제에 사건이 없으면 사건을 만들지 마세요.** 비 오는 오후 그 자체도 한 곡이 됩니다.
 - 누구와 있는가 (상대 앞 / 여럿 앞 / 아무도 없는 데)
 - 무엇을 하고 있는가 (몸으로 하는 구체적인 행동 하나)
 
@@ -1245,7 +1266,7 @@ export function songWriting({
   density = 'normal', adlibs = true, negativeTags = false, reference = '',
   avoidTitles = [], referenceStyle = null,
   mumbling = false, rhyme = true, minimal = false,
-  persona = 'villain', anchor = true,
+  persona = 'plain', anchor = true,
   variety = true, batchSeed = 0, introMode = 'short', form = 'standard', actOpen = 'hook',
   referenceFirst = false, introInStyle = false, seed = null, crack = false,
 }) {
@@ -1595,7 +1616,7 @@ Suno는 가사가 끝나면 곡을 닫아 버리므로, 길이는 가사 분량�
 맨 끝에 [End] 를 넣어 곡을 닫습니다.
 
 ════════ 누가 부르는 노래인가 ════════
-${(PERSONAS[persona] || PERSONAS.villain).guide}
+${(PERSONAS[persona] || PERSONAS.plain).guide}
 
 ════════ 부르지 않을 말은 대괄호에 넣습니다 ════════
 Suno는 **소괄호 ( ) 안의 글자를 노래로 부릅니다.**

@@ -131,6 +131,16 @@ const $ = (sel) => root.querySelector(sel);
 const click = (el) => el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
 const settle = () => new Promise((r) => setTimeout(r, 60));
 
+console.log('\n처음 화면 — 기울지 않은 기본값:');
+{
+  const on = (name) => [...root.querySelectorAll(`[data-pills="${name}"] .pill.on`)].map((p) => p.dataset.value);
+  ok(on('genre').length === 0, '장르가 비어 있음 (다크 팝이 기본이 아님)');
+  ok(on('persona')[0] === 'plain', "화자는 '주제 그대로'");
+  ok(on('mood').length === 0, '분위기도 비어 있음');
+}
+// 이 검사들은 생성 흐름을 보므로 장르를 하나 골라 둡니다.
+click(root.querySelector('[data-pills="genre"] .pill[data-value="dark pop"]'));
+
 console.log('\n버전 표시:');
 {
   // app.js 는 라우터라 이 테스트에서 띄우지 않습니다.
@@ -334,8 +344,10 @@ console.log('\n주제로 설정 맞추기:');
   ok(enumOk, '고를 수 있는 말을 enum 으로 묶어 엉뚱한 표기를 막음');
   const { settingsFit } = await import(appUrl('js/prompts.js'));
   const fields = [{ key: 'genre', label: '장르', multi: true, options: ['a'] }];
-  ok(settingsFit({ concept: 'x', fields, persona: 'confessional' }).prompt.includes('분위기에 제한을 두지 않습니다'),
-    '빌런이 아닌 화자면 따뜻한·밝은 쪽도 고를 수 있음 (예전에는 늘 빌런 기준)');
+  const fp = settingsFit({ concept: '비가 오는 추적추적한 가을날', fields }).prompt;
+  ok(fp.includes('다른 화자면 제한이 없습니다'), '빌런이 아닌 화자면 따뜻한·밝은 쪽도 고를 수 있음 (예전에는 늘 빌런 기준)');
+  ok(fp.includes("'기본 — 주제 그대로'") && fp.includes('날씨·계절·장소'), '날씨·계절 같은 주제에는 성격 없는 화자를 고르게 함');
+  ok(!fp.includes('지금 고른 화자'), '지금 화자(빌런)로 끌지 않음');
   const t = settingsFit({ concept: 'x', fields: [{ key: 'genre', label: '장르', multi: true, options: ['a'] }] }).temperature;
   ok(t >= 0.7, `폭을 주는 온도 (${t}) — 낮으면 늘 무난한 답만 나옴`);
   ok(calls[0].prompt.includes('【장르】'), '고를 수 있는 목록을 넘김');

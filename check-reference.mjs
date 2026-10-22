@@ -59,7 +59,7 @@ console.log('  안내:', c.querySelector('[data-ref-applied]').textContent.trim(
 check(on('genre').some(g=>/재즈|보사노바/.test(g)), '장르가 재즈로 바뀜');
 check(on('tempo').some(t=>t.includes('70-90')), '템포가 78-84에 맞는 구간으로');
 check(on('instrument').some(i=>/피아노|색소폰/.test(i)), '악기가 맞춰짐');
-check(!on('genre').includes('다크 팝'), '기본 장르(다크 팝) 꺼짐');
+check(!on('genre').includes('다크 팝'), '다크 팝이 켜져 있지 않음');
 
 // 쓰지 않기
 const none=[...c.querySelectorAll('input[name=ref]')].find(r=>r.value==='');
@@ -68,7 +68,7 @@ await new Promise(r=>setTimeout(r,80));
 console.log('\n"쓰지 않기" 선택 후:');
 console.log('  장르:', on('genre').join(', '));
 console.log('  안내:', c.querySelector('[data-ref-applied]').textContent.trim());
-check(on('genre').includes('다크 팝'), '기본 장르로 되돌아옴');
+check(on('genre').length === 0, '기본값(빈 장르)으로 되돌아옴 — 레퍼런스가 켠 장르가 남지 않음');
 check(!on('genre').some(g=>/재즈/.test(g)), '재즈가 꺼짐');
 
 console.log(fail?`\n${fail}개 실패`:'\n모두 통과.');

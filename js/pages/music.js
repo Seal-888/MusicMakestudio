@@ -258,44 +258,32 @@ const FIT_FIELDS = [
 ];
 
 /**
- * 빌런 플레이리스트를 자주 만들기 때문에 처음부터 그 조합으로 켜 둡니다.
- * 알약을 눌러 언제든 바꿀 수 있고, "기본값으로 되돌리기"로 다시 불러옵니다.
- */
-/**
  * 처음 화면에 켜 두는 값입니다.
  *
- * 빌런은 장르가 아니라 **태도**입니다.
- * 예전 기본값은 그 태도를 다크 팝·트랩·시네마틱 세 장르로 굳혀 두었고,
- * 그래서 어떤 주제를 넣어도 비슷한 소리가 나왔습니다.
- * 같은 화자라도 곡에 따라 록·재즈·EDM·동양풍이 더 맞을 수 있습니다.
- *
- * 그래서 장르와 악기는 **바탕만** 켜 두고 나머지는 비워 둡니다.
+ * 장르·분위기·악기·화자는 어느 쪽으로도 기울지 않게 비워 둡니다(화자는 '주제 그대로').
  * 곡마다 '주제로 설정 맞추기'로 채우는 것이 맞는 순서입니다.
- * 다만 발랄하거나 평화로운 쪽은 이 채널과 끝까지 어울리지 않으므로,
- * 그 방향으로는 처음부터 가지 않게 어두운 바탕 하나는 남겨 둡니다.
+ * 빌런 채널용 조합이 필요하면 화자를 빌런으로 고르고 설정을 맞추면 됩니다.
  */
 const DEFAULTS = {
-  // 장르는 하나만. 여기서 출발해 주제에 맞게 넓히는 편이 낫습니다.
-  genre: ['dark pop'],
-  // 빌런은 소리를 지를 때보다 여유로울 때 위협적입니다.
-  // 다만 저음만 쓰면 나이 든 인상이 되므로, 젊고 날 선 음색을 기본으로 둡니다.
-  vocal: 'young sharp male tenor, cold precise diction, effortless control',
+  // 처음엔 어느 쪽으로도 기울지 않게 비워 둡니다.
+  // 예전에는 다크 팝 · 어두운 분위기 · 빌런이 기본이라, 설정을 맞추지 않으면
+  // '비 오는 가을날' 같은 주제에도 약을 타고 문을 잠그는 다크 팝만 나왔습니다.
+  // 장르는 주제를 적고 '주제로 설정 맞추기'로 채우거나 직접 고릅니다.
+  genre: [],
+  vocal: 'warm smooth male vocal, gentle delivery',
   language: 'English',
   tempo: 'mid tempo 90-110 BPM',
-  // 태도만 남기고 소리의 색은 비웠습니다.
-  // '웅장한', '관능적', '신비로운'은 곡마다 달라야 할 것이라 뺐습니다.
-  mood: ['dark and intense', 'menacing but composed, unhurried'],
+  mood: [],
   era: 'modern 2020s',
-  // 특정 편성으로 굳지 않게 둘만 켜 둡니다.
-  instrument: ['orchestral strings', 'grand piano'],
-  // 곡마다 주제가 다르므로 비워 둡니다. 화자 설정이 빌런 색을 잡아 줍니다.
+  instrument: [],
   concept: '',
   // '라임 살리기'와 '여백 있게'는 서로 부딪힙니다.
   // 라임을 맞추려면 줄 끝에 특정 단어가 와야 해서 문장이 길어지는데,
   // 여백은 단문을 요구합니다. 둘 다 켜면 라임이 이깁니다.
   // 훅의 중독성이 더 중요하므로 라임을 기본으로 둡니다.
   craft: ['rhyme', 'anchor', 'variety'],
-  persona: 'villain',
+  // 성격을 입히지 않는 화자. 빌런·고백·관찰·반항은 주제에 맞을 때 고릅니다.
+  persona: 'plain',
   intro: 'short',
   introWhere: 'tag',
   form: 'standard',
@@ -586,7 +574,14 @@ export default function renderMusic(root) {
         root.querySelector('[data-f=concept]').value = DEFAULTS.concept;
         continue;
       }
-      setPills(name, Array.isArray(want) ? want : [want]);
+      const values = Array.isArray(want) ? want : [want];
+      // 기본값이 빈 칸(장르·분위기·악기)은 setPills 가 아무것도 안 하므로 직접 끕니다.
+      // 그러지 않으면 '기본값으로 되돌리기'나 '레퍼런스 쓰지 않기' 뒤에도 앞 설정이 남습니다.
+      if (!values.length) {
+        root.querySelectorAll(`[data-pills="${name}"] .pill.on`).forEach((p) => p.classList.remove('on'));
+        continue;
+      }
+      setPills(name, values);
     }
   }
 
@@ -911,7 +906,7 @@ export default function renderMusic(root) {
   /** 만들기 전에 빠진 값이 없는지 봅니다. 문제가 있으면 문구를 돌려줍니다. */
   function missing() {
     if (!R.readPills(root, 'genre').length && !pickedRef()) {
-      return '장르를 하나 이상 고르거나, 맨 위에서 레퍼런스를 골라 주세요.';
+      return '장르가 비어 있습니다. 주제를 적고 "주제로 설정 맞추기"를 누르거나, 장르를 직접 고르거나, 맨 위에서 레퍼런스를 골라 주세요.';
     }
     if (!root.querySelector('[data-f=concept]').value.trim()) return '주제를 입력해 주세요.';
     return null;
@@ -974,7 +969,7 @@ export default function renderMusic(root) {
         callGemini(
           settingsFit({
             concept,
-            persona: R.readPills(root, 'persona')[0] || 'villain',
+            persona: R.readPills(root, 'persona')[0] || 'plain',
             language: R.readPills(root, 'language')[0] || '',
             fields: FIT_FIELDS.map((f) => ({
               key: f.key,
@@ -1158,7 +1153,7 @@ export default function renderMusic(root) {
             language: R.readPills(root, 'language')[0] || 'Korean',
             moods: R.readPills(root, 'mood').join(', ') || 'natural',
             concept: root.querySelector('[data-f=concept]').value.trim(),
-            persona: R.readPills(root, 'persona')[0] || 'villain',
+            persona: R.readPills(root, 'persona')[0] || 'plain',
             seedCount: want,
             // 구성에 맞는 후보를 뽑습니다. 3막 7장이면 한 순간이 아니라 이야기 한 편을 고릅니다.
             ...currentForm(),
@@ -1272,7 +1267,7 @@ export default function renderMusic(root) {
       minimal: craft.includes('minimal'),
       mumbling: craft.includes('mumbling'),
       anchor: craft.includes('anchor'),
-      persona: R.readPills(root, 'persona')[0] || 'villain',
+      persona: R.readPills(root, 'persona')[0] || 'plain',
       variety: craft.includes('variety'),
       crack: craft.includes('crack'),
       introMode: R.readPills(root, 'intro')[0] || 'short',

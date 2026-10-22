@@ -60,7 +60,7 @@ export default function renderSubtitle(root) {
           'persona',
           // 라벨에서 '— 설명' 부분을 떼어 짧게 보여 줍니다. 여기서는 말투만 고르면 됩니다.
           Object.entries(PERSONAS).map(([k, v]) => ({ label: v.label.split(' — ')[0], value: k })),
-          { multi: false, selected: ['villain'] }
+          { multi: false, selected: ['plain'] }
         )}
         <div class="muted small" data-voice-note></div>
       </div>
@@ -80,7 +80,7 @@ export default function renderSubtitle(root) {
 
   /** 고른 말투가 실제로 어떤 지시인지 보여 줍니다. 고르고 나서야 알면 늦습니다. */
   function paintVoice() {
-    const key = R.readPills(root, 'persona')[0] || 'villain';
+    const key = R.readPills(root, 'persona')[0] || 'plain';
     const v = PERSONAS[key]?.voice || '';
     const el = $('[data-voice-note]');
     if (el) el.textContent = v.replace(/\n/g, ' ');
@@ -129,7 +129,7 @@ export default function renderSubtitle(root) {
             blocks,
             lyrics,
             concept: $('[data-concept]').value.trim(),
-            persona: R.readPills(root, 'persona')[0] || 'villain',
+            persona: R.readPills(root, 'persona')[0] || 'plain',
           })
         ),
       onDone: (d) => paint(d.lines || []),

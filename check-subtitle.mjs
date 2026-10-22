@@ -140,7 +140,8 @@ ok(root.textContent.includes('1:05'), '끝나는 시각을 보여 줌');
 console.log('\n화자 성격 알약:');
 {
   const pills = [...root.querySelectorAll('[data-pills="persona"] .pill')];
-  ok(pills.length === 4, `알약 ${pills.length}개가 그려짐`);
+  ok(pills.length === 5, `알약 ${pills.length}개가 그려짐 (주제 그대로 + 넷)`);
+  ok(pills.find((p) => p.classList.contains('on'))?.dataset.value === 'plain', '처음엔 주제 그대로가 켜져 있음');
   ok(pills.filter((p) => p.classList.contains('on')).length === 1, '처음에 하나만 켜져 있음');
 
   const defiant = pills.find((p) => p.textContent.includes('반항'));
@@ -155,7 +156,8 @@ console.log('\n화자 성격 알약:');
   back.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   ok(back.classList.contains('on') && !defiant.classList.contains('on'), '다시 바꿀 수 있음');
 
-  // 고르고 나서야 어떤 지시인지 알면 늦습니다.
+  // 고르고 나서야 어떤 지시인지 알면 늦습니다. (말투 안내는 클릭 다음 틱에 바뀝니다)
+  await new Promise((r) => setTimeout(r, 10));
   ok(root.textContent.includes('감정을 설명하지 않고'), '고른 말투가 화면에 보임');
   defiant.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await settle(20);
@@ -168,8 +170,8 @@ console.log('\n화자마다 말투가 다른가:');
 {
   const { PERSONAS } = await import(appUrl('js/prompts.js'));
   const voices = Object.values(PERSONAS).map((x) => x.voice);
-  ok(voices.every(Boolean), '네 화자 모두 번역용 말투가 있음');
-  ok(new Set(voices).size === 4, '네 개가 서로 다름');
+  ok(voices.every(Boolean), '모든 화자에 번역용 말투가 있음');
+  ok(new Set(voices).size === voices.length, `${voices.length}개가 서로 다름`);
   ok(voices.every((v) => v.length < 150), `작사 지침보다 훨씬 짧음 (최대 ${Math.max(...voices.map((v) => v.length))}자)`);
 }
 

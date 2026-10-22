@@ -102,8 +102,21 @@ const check = (ok, label, extra = '') => {
   if (!ok) failed++;
 };
 
-// 주제는 이제 비어 있는 것이 기본이므로 검사에서 채워 넣습니다.
+// 주제·장르·화자는 기본으로 비어 있거나 중립이므로 사용자가 고르듯 채워 넣습니다.
+const alerts = [];
+global.alert = (m) => alerts.push(m);
 container.querySelector('[data-f=concept]').value = '빌런 플레이리스트 테스트';
+container.querySelector('[data-go]').click();
+await new Promise((r) => setTimeout(r, 100));
+console.log('기본값:');
+check(calls === 0 && alerts.some((m) => m.includes('주제로 설정 맞추기')), '장르가 비면 만들지 않고 설정을 맞추라고 안내');
+const onPersona = container.querySelector('[data-pills="persona"] .pill.on')?.dataset.value;
+check(onPersona === 'plain', `기본 화자는 '주제 그대로' (${onPersona}) — 예전엔 빌런이라 모든 주제가 범죄 이야기가 됨`);
+
+const pill = (name, value) =>
+  container.querySelector(`[data-pills="${name}"] .pill[data-value="${value}"]`).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+pill('genre', 'dark pop');
+pill('persona', 'villain');
 container.querySelector('[data-go]').click();
 await new Promise((r) => setTimeout(r, 700));
 

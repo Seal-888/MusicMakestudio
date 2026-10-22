@@ -319,9 +319,10 @@ console.log('\n처음 켜 두는 값이 한 장르로 굳지 않았는가:');
   ok(count('genre') <= 2, `장르 기본값이 ${count('genre')}개 — 넓힐 여지를 남김`);
   ok(count('mood') <= 3, `분위기 기본값이 ${count('mood')}개 — 곡마다 채우게 둠`);
   ok(count('instrument') <= 3, `악기 기본값이 ${count('instrument')}개`);
-  // 채널 성격은 남아 있어야 합니다.
-  ok(/dark/.test(block), '어두운 바탕은 남아 있음');
-  ok(/menacing/.test(block), '위협적인 태도는 남아 있음');
+  // 어느 쪽으로도 기울지 않게 — 예전에는 다크 팝·위협·빌런이 기본이라 모든 주제가 그쪽으로 갔습니다.
+  ok(!/dark|menacing/.test(block), '기본값이 어둡거나 위협적인 쪽으로 기울지 않음');
+  ok(/persona: 'plain'/.test(block), "기본 화자는 '주제 그대로'");
+  ok(count('genre') === 0, '장르는 비워 두고 주제로 맞추게 함');
 }
 
 console.log('\n프롬프트에서도 충돌을 막는가:');

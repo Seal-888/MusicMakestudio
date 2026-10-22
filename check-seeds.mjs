@@ -79,6 +79,9 @@ global.fetch = async (url, opts = {}) => {
       rhyme: '두 줄씩 맞춤',
       devices: ['되풀이', '주고받기', '호명'],
       voice: 'I count the cars outside your window tonight',
+      styleForm: '쉼표로 이은 태그 열 개 남짓, 200자 안팎. 장르 → 보컬 → 악기 → 질감 순',
+      styleSound: 'dark pop, breathy female vocal, 808, plucked synth',
+      excludeForm: '반대 성별 보컬과 왜곡 계열 세 개',
       summary: '짧은 줄로 끊어 치고 훅을 세 번 박는다.',
     });
   }
@@ -575,11 +578,14 @@ console.log('\n가사 꼴 레퍼런스:');
   await settle();
   ok(calls.length === 0, '너무 짧은 가사는 보내지 않음');
 
+  $('[data-pat-style]').value = 'dark pop, breathy female vocals, 808 bass, plucked synth, 98 BPM';
+  $('[data-pat-exclude]').value = 'male vocals, distortion';
   src.value = '[Verse 1]\nI count the cars outside your window tonight\nnobody comes\n[Chorus]\nCome on back\nCome on back\n' + 'la la la\n'.repeat(10);
   click($('[data-pat-go]'));
   await settle();
-  ok(calls[0]?.prompt.includes('원문의 문장이나 표현을 옮겨 적지 마세요'), '꼴만 뽑고 문장은 옮기지 말라고 함');
-  ok(src.value === '', '분석이 끝나면 붙여 넣은 가사를 지움');
+  ok(calls[0]?.prompt.includes('원문을 옮겨 적지 마세요'), '꼴만 뽑고 문장은 옮기지 말라고 함');
+  ok(calls[0]?.prompt.includes('════════ 스타일 프롬프트') && calls[0]?.prompt.includes('════════ 피할 요소'), '가사·스타일·피할 요소를 함께 보냄');
+  ok(src.value === '' && $('[data-pat-style]').value === '' && $('[data-pat-exclude]').value === '', '분석이 끝나면 붙여 넣은 원문을 모두 지움');
   const saved = JSON.parse(store.get('plimusic:patterns') || '[]')[0];
   ok(saved?.name === '짧게 끊는 주고받기 팝', '꼴을 저장함');
   ok(saved && !saved.spec.includes('count the cars outside'), '꼴 설명에 섞인 원문 인용은 지우고 저장', ` — ${saved?.spec.split('\n').find((l) => l.startsWith('말투'))}`);
@@ -592,6 +598,10 @@ console.log('\n가사 꼴 레퍼런스:');
   ok(calls[0]?.prompt.includes('가사 꼴 레퍼런스') && calls[0]?.prompt.includes('두 단어 명령문'), '작사 지시문에 꼴이 실림');
   ok(calls[0]?.prompt.includes('원곡의 문장이나 단어를 가져오지 마세요'), '작사 단계에서도 원곡 문장을 가져오지 말라고 함');
   ok(calls[0]?.prompt.includes("줄 수는 아래 '이번 곡의 구성'을 따릅니다"), '구간 줄 수는 구성표가 정함 (꼴과 곡 길이가 부딪히지 않게)');
+  ok(calls[0]?.prompt.includes('[스타일 꼴]') && calls[0]?.prompt.includes('쓰는 방식과 길이는 위 [스타일 꼴]을 따릅니다'), '스타일도 인기곡의 쓰는 방식을 따름 (650~900자 문단 규격 대신)');
+  ok(!calls[0]?.prompt.includes('650~900자'), '레퍼런스 스타일 꼴이 있으면 긴 문단 규격을 주지 않음 (서로 부딪히지 않게)');
+  ok(calls[0]?.prompt.includes('exclude 를 이 범주와 개수에 맞춰'), '피할 요소도 꼴을 따름');
+  ok(calls[0]?.prompt.includes("장르·보컬·템포는 아래 '모든 곡이 지킬 것'을 따릅니다"), '내가 고른 장르·보컬·템포가 레퍼런스 소리보다 먼저');
 
   click(root.querySelector('[data-del-pat]'));
   await settle();

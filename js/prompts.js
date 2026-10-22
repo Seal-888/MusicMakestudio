@@ -1291,6 +1291,9 @@ export function songWriting({
   const isInstrumental = language === 'instrumental';
   const lyricLang = isInstrumental ? '연주 지시문' : language;
   const lines = countLines(structure);
+  // 레퍼런스에 스타일·피할 요소 꼴이 들어 있으면 그쪽 규격을 따릅니다.
+  const patStyle = !!lyricPattern && lyricPattern.includes('[스타일 꼴]');
+  const patExclude = !!lyricPattern && lyricPattern.includes('[피할 요소 꼴]');
 
   /**
    * 왜 이렇게 짧아졌나:
@@ -1386,9 +1389,12 @@ ${referenceStyle}
 `
       : ''}${lyricPattern
       ? `════════ 가사 꼴 레퍼런스 ════════
-사용자가 좋아하는 곡에서 뽑은 **가사의 꼴**입니다. 줄의 길이와 리듬, 운율 배치, 훅을 되풀이하는 방식, 쓰는 기법을 이것에 맞추세요.
-구간 순서와 줄 수는 아래 '이번 곡의 구성'을 따릅니다. (곡 길이를 지키기 위해서입니다)
-원곡의 문장이나 단어를 가져오지 마세요. 꼴만 빌립니다.
+사용자가 고른 인기곡에서 뽑은 **꼴**입니다. 원곡의 문장이나 단어를 가져오지 마세요. 꼴만 빌립니다.
+- [가사 꼴] → 가사의 줄 길이와 리듬, 운율 배치, 훅을 되풀이하는 방식, 기법, 말투를 이것에 맞춥니다.
+  구간 순서와 줄 수는 아래 '이번 곡의 구성'을 따릅니다. (곡 길이를 지키기 위해서입니다)${patStyle ? `
+- [스타일 꼴] → 스타일 프롬프트를 **이 방식대로** 씁니다(태그 나열이면 태그 나열, 짧으면 짧게). 아래 스타일 규격보다 이쪽이 먼저입니다.
+  그리는 소리는 참고하되, 장르·보컬·템포는 아래 '모든 곡이 지킬 것'을 따릅니다.` : ''}${patExclude ? `
+- [피할 요소 꼴] → exclude 를 이 범주와 개수에 맞춰 씁니다.` : ''}
 
 ${lyricPattern}
 
@@ -1484,10 +1490,15 @@ ${referenceFirst
 - 장르: ${genres} / 보컬: ${vocal} / 템포: ${tempo} / 시대감: ${era}${instruments ? ` / 주요 악기: ${instruments}` : ''}
 그 범위 안에서 **곡 내용에 맞춰** 편성·질감·BPM을 곡마다 다르게 잡습니다.
 
-영어 한 문단, 공백 포함 650~900자 (Suno Style 칸은 1000자에서 잘립니다).
-반드시 넣을 것: 장르와 보컬(첫 문장), 조성(key), BPM 숫자${introInStyle ? ', 곡이 어떻게 시작하는지 (The track opens …)' : ''}.
-${introInStyle ? '' : '인트로 이야기는 넣지 않습니다. 스타일을 다른 곡에 다시 쓸 수 있어야 합니다.\n'}나머지는 악기 다섯 가지 이상을 **어떻게 연주하는지 동사로**, 보컬의 질감과 음역, 믹싱(공간감·잔향·저역/고역)으로 채웁니다.
+${patStyle
+      ? '**쓰는 방식과 길이는 위 [스타일 꼴]을 따릅니다.** 1000자는 넘기지 않습니다 (Suno Style 칸 한도).'
+      : '영어 한 문단, 공백 포함 650~900자 (Suno Style 칸은 1000자에서 잘립니다).'}
+반드시 넣을 것: 장르와 보컬${patStyle ? '' : '(첫 문장)'}, ${patStyle ? '' : '조성(key), '}BPM 숫자${introInStyle ? `, 곡이 어떻게 시작하는지 (${patStyle ? 'cold open · short intro 같은 태그나 문장' : 'The track opens …'})` : ''}.
+${introInStyle ? '' : '인트로 이야기는 넣지 않습니다. 스타일을 다른 곡에 다시 쓸 수 있어야 합니다.\n'}${patStyle
+      ? ''
+      : `나머지는 악기 다섯 가지 이상을 **어떻게 연주하는지 동사로**, 보컬의 질감과 음역, 믹싱(공간감·잔향·저역/고역)으로 채웁니다.
 **정해진 틀을 따르지 마세요.** 곡마다 첫 문장의 꼴과 문장 순서를 바꿉니다. ("A male vocalist delivers…"로 매번 시작하지 않습니다)
+`}
 구조 태그와 아티스트 이름은 넣지 않습니다. 부정형보다 긍정형(clean, smooth)으로.
 
 함께 낼 것:
@@ -1527,29 +1538,45 @@ JSON만 출력합니다.`,
  * 모델이 문장을 베끼고, 저작권이 있는 글이 저장·백업 파일로 남습니다.
  * 줄 길이·운율·훅 반복·기법은 베낄 문장이 없으면서도 곡의 모양을 결정합니다.
  */
-export function lyricPattern({ lyrics }) {
+export function lyricPattern({ lyrics = '', style = '', exclude = '' }) {
+  const has = { lyrics: !!lyrics.trim(), style: !!style.trim(), exclude: !!exclude.trim() };
   return {
     temperature: 0.3,
-    maxOutputTokens: 2500,
+    maxOutputTokens: 3000,
     thinkingLevel: 'low',
-    prompt: `당신은 히트곡의 가사 구조를 분석하는 작사 선생님입니다.
-아래 가사를 읽고 **이 곡의 꼴**만 정리하세요. 다른 곡을 쓸 때 본보기로 씁니다.
+    prompt: `당신은 요즘 잘 되는 곡들을 분석해 온 프로듀서 겸 작사 선생님입니다.
+아래는 Suno에서 인기 있는 곡의 ${[has.lyrics && '가사', has.style && '스타일 프롬프트', has.exclude && '피할 요소'].filter(Boolean).join(' · ')}입니다.
+**이 곡의 꼴**만 정리하세요. 다른 곡을 만들 때 본보기로 씁니다.
 
-**원문의 문장이나 표현을 옮겨 적지 마세요.** 세 단어 넘게 이어서 인용하지 않습니다.
-훅을 설명할 때도 문장을 적지 말고 꼴로 설명합니다. (예: '두 단어 명령문을 세 번', '뜻 없는 소리 네 음절')
-
+**원문을 옮겨 적지 마세요.** 가사는 세 단어 넘게 이어서 인용하지 않습니다.
+훅도 문장을 적지 말고 꼴로 설명합니다. (예: '두 단어 명령문을 세 번', '뜻 없는 소리 네 음절')
+스타일은 장르·악기·창법 같은 **일반적인 음악 용어**는 써도 되지만, 원문 문장을 그대로 옮기지 않습니다.
+${has.lyrics ? `
 ════════ 가사 ════════
 ${lyrics}
-
-════════ 정리할 것 (모두 한국어) ════════
-- name: 이 꼴을 부를 짧은 이름 (예: '짧게 끊는 주고받기 팝'). 원곡 제목이나 가수 이름은 쓰지 않습니다.
-- sections: 구간마다 한 줄씩. "역할 · 줄 수 · 줄 길이(음절) · 운율" 꼴로. (예: 'Verse · 8줄 · 짧은 줄과 긴 줄이 번갈아 6/11음절 · AABB')
+` : ''}${has.style ? `
+════════ 스타일 프롬프트 ════════
+${style}
+` : ''}${has.exclude ? `
+════════ 피할 요소 ════════
+${exclude}
+` : ''}
+════════ 정리할 것 (모두 한국어, 받지 않은 부분은 빈 문자열 "" 이나 빈 배열) ════════
+- name: 이 꼴을 부를 짧은 이름. 원곡 제목이나 가수 이름은 쓰지 않습니다.
+가사 쪽
+- sections: 구간마다 한 줄씩. "역할 · 줄 수 · 줄 길이(음절) · 운율" 꼴. (예: 'Verse · 8줄 · 6/11음절 번갈아 · AABB')
 - hook: 훅의 꼴과 후렴 안에서 몇 번, 어디에 나오는지.
 - lineShape: 줄 길이와 리듬의 특징. 문장 조각·쉼·말 끊기 같은 것.
 - rhyme: 운율을 어디서 어떻게 맞추는지.
-- devices: 쓰인 기법들 (되풀이, 대구, 주고받기, 질문, 호명, 목록, 소리말 등). 짧게 여러 개.
+- devices: 쓰인 기법들 (되풀이, 대구, 주고받기, 질문, 호명, 소리말 …).
 - voice: 누가 누구에게 어떤 말투로 하는지, 시제, 감정을 직접 말하는 정도.
-- summary: 이 꼴로 쓰려면 무엇을 지키면 되는지 두세 문장.
+스타일 쪽
+- styleForm: 스타일 프롬프트를 **어떻게 쓰는지**. 쉼표로 이은 태그 나열인지 문장인지, 대략 몇 자인지,
+  무엇을 어떤 순서로 적는지(장르 → 보컬 → 악기 → 믹싱 등), BPM·조성·시대를 적는지.
+- styleSound: 그 스타일이 그리는 **소리**. 장르 계열, 보컬 종류, 중심 악기, 질감, 프로덕션. 일반 음악 용어로.
+피할 요소 쪽
+- excludeForm: 무엇을 빼는지 범주(잡음, 반대 성별 보컬, 특정 악기, 과한 효과 …)와 대략 몇 개를 적는지.
+- summary: 이 꼴로 만들려면 무엇을 지키면 되는지 두세 문장.
 
 JSON만 출력합니다.`,
     schema: obj({
@@ -1560,22 +1587,36 @@ JSON만 출력합니다.`,
       rhyme: S.str,
       devices: S.strList,
       voice: S.str,
+      styleForm: S.str,
+      styleSound: S.str,
+      excludeForm: S.str,
       summary: S.str,
     }),
   };
 }
 
-/** 뽑은 꼴을 작사 지시문에 넣을 글로 */
+/**
+ * 뽑은 꼴을 작사 지시문에 넣을 글로.
+ * 칸마다 머리를 붙여, 작사 단계가 어느 쪽(가사·스타일·피할 요소)에 쓸지 알 수 있게 합니다.
+ */
 export function patternText(d) {
+  const lyric = [
+    (d.sections || []).length && `구간: ${d.sections.join(' / ')}`,
+    d.hook && `훅: ${d.hook}`,
+    d.lineShape && `줄 길이와 리듬: ${d.lineShape}`,
+    d.rhyme && `운율: ${d.rhyme}`,
+    (d.devices || []).length && `기법: ${d.devices.join(', ')}`,
+    d.voice && `말투: ${d.voice}`,
+  ].filter(Boolean);
   return [
-    `구간: ${(d.sections || []).join(' / ')}`,
-    `훅: ${d.hook || ''}`,
-    `줄 길이와 리듬: ${d.lineShape || ''}`,
-    `운율: ${d.rhyme || ''}`,
-    `기법: ${(d.devices || []).join(', ')}`,
-    `말투: ${d.voice || ''}`,
-    `요약: ${d.summary || ''}`,
-  ].join('\n');
+    lyric.length && ['[가사 꼴]', ...lyric].join('\n'),
+    (d.styleForm || d.styleSound) &&
+      ['[스타일 꼴]', d.styleForm && `쓰는 방식: ${d.styleForm}`, d.styleSound && `그리는 소리: ${d.styleSound}`].filter(Boolean).join('\n'),
+    d.excludeForm && `[피할 요소 꼴]\n${d.excludeForm}`,
+    d.summary && `요약: ${d.summary}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /**

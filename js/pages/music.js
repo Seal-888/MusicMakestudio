@@ -340,15 +340,24 @@ export default function renderMusic(root) {
     </div>
 
     <div class="card patbox">
-      <span class="card-tag is-blue">가사 꼴 레퍼런스 <small>선택</small></span>
-      <p style="margin-top:0">좋아하는 곡의 가사를 붙여 넣으면 <b>줄 길이 · 운율 · 훅을 되풀이하는 방식 · 기법</b> 같은
-      꼴만 뽑아 둡니다. 가사를 쓸 때 그 꼴을 따릅니다. <b>가사 원문은 저장하지 않습니다.</b></p>
+      <span class="card-tag is-blue">인기곡 꼴 레퍼런스 <small>선택</small></span>
+      <p style="margin-top:0">Suno에서 잘 되는 곡의 <b>가사 · 스타일 · 피할 요소</b>를 붙여 넣으면 그 <b>꼴</b>만 뽑아 둡니다.
+      곡을 만들 때 가사도, 스타일도, 피할 요소도 그 꼴을 따릅니다. <b>붙여 넣은 원문은 저장하지 않습니다.</b></p>
       <div class="reflist" data-pat-list></div>
       <details class="more" style="margin-top:10px">
         <summary>새 레퍼런스 추가</summary>
-        <label class="field" style="margin-top:10px">
-          <span>가사 <small>구간 태그가 있으면 더 정확합니다. 분석이 끝나면 지웁니다</small></span>
+        <p class="muted small" style="margin:10px 0 0">셋 중 있는 것만 넣으세요. 분석이 끝나면 모두 지웁니다.</p>
+        <label class="field" style="margin-top:8px">
+          <span>가사 <small>구간 태그가 있으면 더 정확합니다</small></span>
           <textarea rows="8" data-pat-src placeholder="[Verse 1]&#10;...&#10;[Chorus]&#10;..."></textarea>
+        </label>
+        <label class="field">
+          <span>스타일 프롬프트 <small>Suno의 Style 칸</small></span>
+          <textarea rows="3" data-pat-style placeholder="예) dark pop, breathy female vocals, 808, ..."></textarea>
+        </label>
+        <label class="field">
+          <span>피할 요소 <small>Suno의 Exclude Styles 칸</small></span>
+          <input type="text" data-pat-exclude placeholder="예) male vocals, distortion, ...">
         </label>
         <button class="btn sm is-blue" data-pat-go>꼴 뽑기</button>
         <div data-pat-out></div>
@@ -1267,18 +1276,25 @@ export default function renderMusic(root) {
 
   root.querySelector('[data-pat-go]').addEventListener('click', () => {
     const src = root.querySelector('[data-pat-src]');
+    const styleBox = root.querySelector('[data-pat-style]');
+    const excludeBox = root.querySelector('[data-pat-exclude]');
     const lyrics = src.value.trim();
-    if (lyrics.length < 80) return alert('가사를 조금 더 넣어 주세요. 절과 후렴이 함께 있어야 꼴이 보입니다.');
+    const style = styleBox.value.trim();
+    const exclude = excludeBox.value.trim();
+    if (lyrics && lyrics.length < 80) return alert('가사를 조금 더 넣어 주세요. 절과 후렴이 함께 있어야 꼴이 보입니다.');
+    if (!lyrics && style.length < 20) return alert('가사나 스타일 프롬프트 중 하나는 넣어 주세요.');
     R.runTask({
       button: root.querySelector('[data-pat-go]'),
       output: root.querySelector('[data-pat-out]'),
-      working: '가사의 꼴 읽는 중',
-      task: () => callGemini(lyricPattern({ lyrics })),
+      working: '인기곡의 꼴 읽는 중',
+      task: () => callGemini(lyricPattern({ lyrics, style, exclude })),
       onDone: (d) => {
         const { text, removed } = stripQuotes(patternText(d), lyrics);
         patterns.add({ name: (d.name || '이름 없는 꼴').slice(0, 40), spec: text });
         // 원문은 남기지 않습니다.
         src.value = '';
+        styleBox.value = '';
+        excludeBox.value = '';
         const id = patterns.all()[0]?.id;
         paintPatterns(id);
         root.querySelector('[data-pat-out]').innerHTML = `<p class="mood-why">「${R.esc(d.name || '')}」 꼴을 저장하고 골라 두었습니다.${
@@ -1411,6 +1427,8 @@ export default function renderMusic(root) {
           vocal: R.readPills(root, 'vocal')[0] || '',
           tempo: R.readPills(root, 'tempo')[0] || '',
           needOpening: baseOptions.introInStyle,
+          // 인기곡 스타일 꼴을 따랐으면 짧은 태그 나열도 정상입니다.
+          fromPattern: !!baseOptions.lyricPattern?.includes('[스타일 꼴]'),
         };
         for (const song of made) {
           Object.assign(song, { duration, form: baseOptions.form, actOpen: baseOptions.actOpen, checkWith });
@@ -1473,7 +1491,7 @@ export default function renderMusic(root) {
             <div class="songstyle">
               <div class="style-head">
                 <b>이 곡의 Suno 스타일</b>
-                ${styleLenBadge(song.style)}
+                ${styleLenBadge(song.style, song.checkWith?.fromPattern)}
                 ${R.copyBtn(song.style || '', '스타일 복사')}
                 <button class="btn sm is-gold" data-save-style="${i}">보관함에 저장</button>
               </div>
@@ -1564,10 +1582,11 @@ export default function renderMusic(root) {
    * 스타일 프롬프트가 충분히 자세한지 글자 수로 보여 줍니다.
    * Suno는 묘사가 자세할수록 그대로 따라가기 때문에 분량이 곧 품질입니다.
    */
-  function styleLenBadge(prompt) {
+  function styleLenBadge(prompt, fromPattern = false) {
     const n = (prompt || '').length;
     // Suno의 Style 칸은 1000자까지입니다. 넘으면 뒷부분이 잘립니다.
-    const state = n < 400 ? 'short' : n > 1000 ? 'long' : 'ok';
+    // 레퍼런스 꼴을 따른 스타일은 짧은 태그 나열이 정상이라 '짧다'고 하지 않습니다.
+    const state = n < 400 && !fromPattern ? 'short' : n > 1000 ? 'long' : 'ok';
     const note =
       state === 'short' ? ' · 짧습니다' : state === 'long' ? ' · 1000자 초과, 잘립니다' : ' / 1000';
     return `<span class="lenbadge is-${state}">${n}자${note}</span>`;

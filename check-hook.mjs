@@ -594,6 +594,18 @@ console.log('\n후보 검토 4차 — 비 오는 가을날 실제 후보로:');
   ok(wp.includes('그 단어만'), "'그대로 써라'와 '금지어'가 부딪히면 그 단어만 바꾸게 함");
 }
 
+console.log('\n인기곡 꼴 — 짧은 태그 스타일:');
+{
+  const { checkStyle } = await import(appUrl('js/lyrics.js'));
+  const tag = 'dark pop, breathy female vocals, 808 bass, plucked synth, 98 BPM, cold open';
+  const opt = { genres: ['dark pop'], vocal: 'breathy female vocal', tempo: 't', needOpening: true };
+  ok(checkStyle(tag, opt).some((x) => x.label === '스타일이 짧음'), '레퍼런스 없이 쓴 짧은 스타일은 짧다고 알림');
+  ok(!checkStyle(tag, { ...opt, fromPattern: true }).length, '인기곡 꼴을 따른 태그 나열은 짧아도·cold open 태그여도 정상');
+  const plainP = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1,
+    lyricPattern: '[가사 꼴]\n훅: 두 단어' }).prompt;
+  ok(plainP.includes('650~900자') && !plainP.includes('[스타일 꼴]을 따릅니다'), '가사 꼴만 있으면 스타일은 기본 규격 그대로');
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

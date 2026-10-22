@@ -193,7 +193,7 @@ export function estimateDuration(text) {
  * 스타일 프롬프트가 내가 정한 장르·보컬을 지켰는지 봅니다.
  * 가사 내용에 끌려가서 다른 장르로 새는 일이 있어서 확인이 필요합니다.
  */
-export function checkStyle(style, { genres = [], vocal = '', tempo = '', needOpening = true } = {}) {
+export function checkStyle(style, { genres = [], vocal = '', tempo = '', needOpening = true, fromPattern = false } = {}) {
   const issues = [];
   const text = (style || '').toLowerCase();
   if (!text) return [{ label: '스타일 없음', detail: '이 곡에 스타일 프롬프트가 없습니다' }];
@@ -217,12 +217,15 @@ export function checkStyle(style, { genres = [], vocal = '', tempo = '', needOpe
     issues.push({ label: 'BPM이 빠짐', detail: tempo || '숫자를 넣어야 합니다' });
   }
 
-  if (style.length < 400) {
+  // 레퍼런스 꼴을 따랐으면 짧은 태그 나열도 정상입니다. 인기곡 스타일은 대개 짧습니다.
+  if (style.length < 400 && !fromPattern) {
     issues.push({ label: '스타일이 짧음', detail: `${style.length}자 · 800자 안팎을 권합니다` });
   }
   // 스타일에 인트로를 넣는 방식일 때만 확인합니다.
   // 태그로만 지정하는 방식이면 스타일이 깨끗한 것이 정상입니다.
-  if (needOpening && !/track (opens|begins|starts)/i.test(style)) {
+  // 태그 나열이면 'cold open', 'short intro' 같은 태그로도 시작 방식을 적습니다.
+  const opening = fromPattern ? /track (opens|begins|starts)|\bintro\b|cold open/i : /track (opens|begins|starts)/i;
+  if (needOpening && !opening.test(style)) {
     issues.push({
       label: '시작 방식이 없음',
       detail: '"The track opens with..." 문장이 없으면 인트로가 다른 곡과 비슷해집니다',

@@ -796,6 +796,10 @@ export function checkSeeds(seeds = []) {
   if (hurtFirst.length) {
     out.push(`처음 장면 ${hurtFirst.length}개에서 이미 폭력이 오갑니다. 처음은 아직 아무 일도 터지지 않은 평소여야 오를 데가 있습니다.`);
   }
+  const notBut = seeds.filter((x) => /아니라.{0,30}(였다|이다|었다)/.test(x.twist || ''));
+  if (notBut.length >= 3) {
+    out.push(`반전 ${notBut.length}개가 'A가 아니라 B였다' 같은 문형입니다. 꼴이 같으면 다 같은 반전처럼 들립니다.`);
+  }
   const down = seeds.filter((x) => /쓰러|무릎|엎드|주저앉|비명|빌고|피를|울부짖/.test(x.scene || ''));
   if (down.length >= 3) {
     out.push(`결말 ${down.length}개가 '상대가 쓰러져 있는' 장면입니다.`);

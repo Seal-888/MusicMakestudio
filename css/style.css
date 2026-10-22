@@ -932,3 +932,6 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
 /* 알약 묶음만 잠그기 — .field 를 잠그면 같은 칸의 다른 묶음까지 막힙니다 */
 .pills-wrap.is-off { opacity: .45; }
 .pills-wrap.is-off .pill { pointer-events: none; }
+
+/* 후보의 후렴 스케치 — 이야기 요약이 아니라 노래로 판단할 수 있게 가사처럼 보여 줍니다 */
+.seed-chorus{margin:4px 0 6px;padding-left:10px;border-left:3px solid var(--gold);font-style:italic}

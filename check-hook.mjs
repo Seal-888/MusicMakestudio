@@ -56,7 +56,7 @@ console.log('\n프롬프트 지시:');
   ok(full.prompt.includes('문장일 필요는 없습니다'), '훅이 문장이 아니어도 된다고 알림');
   ok(full.prompt.includes('Na na na'), '뜻 없는 소리도 훅으로 예시');
   ok(seeds.prompt.includes('Runaway'), '후보 단계에도 단어 반복형 예시');
-  ok(seeds.prompt.includes('구경하지 마세요'), '관찰자 시점을 금지함');
+  ok(seeds.prompt.includes('지켜보는 사람이 아니라'), '관찰자 시점을 금지함');
   ok(!seeds.prompt.includes('무관심'), '특정 태도를 예시로 주지 않음');
   ok(seeds.prompt.includes('누구에게 하는 말인가'), '말 거는 상대를 요구함');
   ok(seeds.prompt.includes('현재진행으로'), '지금 벌어지는 일을 요구함');
@@ -586,7 +586,7 @@ console.log('\n후보 검토 4차 — 비 오는 가을날 실제 후보로:');
   ok(checkSeeds([real[1], real[2], real[4]]).length === 0, '멀쩡한 후보에는 경고 없음');
 
   const sp = songSeeds({ genres: 'lo-fi', language: 'English', moods: 'm', concept: '비 오는 가을날' }).prompt;
-  ok(sp.includes('amber') && sp.includes('제목·훅·첫 줄 어디에도'), '후보 단계에도 금지어를 알려 줌 (작사 단계와 충돌하던 것)');
+  ok(sp.includes('amber') && sp.includes('제목·훅·첫 줄·후렴 어디에도'), '후보 단계에도 금지어를 알려 줌 (작사 단계와 충돌하던 것)');
   ok(sp.includes('주제 문장을 그대로 훅으로 옮기지 마세요'), '주제를 그대로 옮긴 훅을 막음');
   ok(sp.includes('to 에 적은 대상에게 하는 말'), '첫 줄은 to 에게 하는 말');
   const wp = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i',
@@ -604,6 +604,38 @@ console.log('\n인기곡 꼴 — 짧은 태그 스타일:');
   const plainP = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1,
     lyricPattern: '[가사 꼴]\n훅: 두 단어' }).prompt;
   ok(plainP.includes('650~900자') && !plainP.includes('[스타일 꼴]을 따릅니다'), '가사 꼴만 있으면 스타일은 기본 규격 그대로');
+}
+
+console.log('\n후보 검토 5차 — 레퍼런스 꼴과 3막 후보:');
+{
+  const { checkSeeds } = await import(appUrl('js/lyrics.js'));
+  const { patternText } = await import(appUrl('js/prompts.js'));
+  const pat = '[가사 꼴]\n훅: 격앙된 단어의 3연속 반복';
+  const sp = songSeeds({ genres: 'trap', language: 'English', moods: 'm', concept: 'c', form: 'threeActs', lyricPattern: pat }).prompt;
+  ok(sp.includes('레퍼런스 꼴 — 후보도 이 꼴로') && sp.includes('3연속 반복'), '후보 단계도 레퍼런스 꼴을 받음 (예전엔 완성 단계에만 넘겨 전혀 안 보였음)');
+  const schema = songSeeds({ genres: 'x', language: 'English', moods: 'm', concept: 'c' }).schema.properties.seeds.items.properties;
+  ok(!!schema.chorus, '후보에 후렴 스케치 4줄 — 노래인지 판단할 가사가 있음');
+  ok(sp.includes('15~25자') && sp.includes('소설처럼 쓰지 마세요'), '3막 장면은 그림 한 장 길이로');
+  ok(sp.includes('"A가 아니라 B였다" 문형'), "반전의 'A가 아니라 B였다' 문형을 막음");
+  ok(sp.length < 4000, `후보 프롬프트가 짧음 (${sp.length}자, 예전 약 1만 3천 자)`);
+
+  // 2026-10 사용자 보고 — 반전 5개가 모두 이 문형
+  const real = [
+    { twist: '화자가 기다리던 전화의 상대는 연인/친구가 아니라 이미 집 안 다른 방에 있던 사람이었다.' },
+    { twist: '바람 소리는 창문이 아니라 화자가 잊고 안 닫은 베란다 문이었다.' },
+    { twist: '상대가 계속 피하던 것은 낙엽이 아니라 화자의 시선과 발걸음이었다.' },
+    { twist: '차를 약이라며 건넸던 잔은 화자가 아니라 상대가 마시려던 잔이었다.' },
+    { twist: '손에서 놓쳐 깨진 잔은 상대의 것이 아니라 화자가 가장 아끼던 잔이었다.' },
+  ];
+  ok(checkSeeds(real).some((w) => w.includes("'A가 아니라 B였다'")), '실제 후보 — 같은 문형의 반전 몰림을 잡음');
+
+  // 넣지 않은 피할 요소에 '지정된 바 없음'이 와도 꼴로 저장하지 않음
+  const t = patternText({ sections: ['Verse · 8줄'], styleForm: '태그 나열', excludeForm: '지정된 바 없음', summary: 's' },
+    { lyrics: true, style: true, exclude: false });
+  ok(!t.includes('[피할 요소 꼴]') && t.includes('[스타일 꼴]'), "넣지 않은 칸('지정된 바 없음')은 꼴로 남기지 않음 — 피할 요소가 비던 원인");
+  const w = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1,
+    seed: { title: 'T', scene: 's', to: 'x', hook: 'Run run run', chorus: ['Run run run', 'a', 'b', 'Run run run'], opening: 'o', soundNote: 'n' } }).prompt;
+  ok(w.includes('후렴 스케치: Run run run / a / b / Run run run') && w.includes('스케치를 바탕으로'), '고른 후보의 후렴 스케치가 완성 단계로 넘어감');
 }
 
 console.log('\n가사 규칙끼리 부딪히지 않는가:');

@@ -1186,6 +1186,9 @@ export default function renderMusic(root) {
             vocal: R.readPills(root, 'vocal')[0] || '',
             tempo: R.readPills(root, 'tempo')[0] || '',
             avoidSeeds: shownSeeds.slice(-15),
+            // 후보도 레퍼런스 꼴을 따라야 합니다. 예전에는 완성 단계에만 넘겨서,
+            // 후보의 훅을 '그대로 쓰라'는 지시에 밀려 레퍼런스가 전혀 보이지 않았습니다.
+            lyricPattern: pickedPattern()?.spec || null,
             avoidTitles: [...(latest?.data.songs || []).map((x) => x.title), ...shownSeeds.map((x) => x.title)],
             referenceStyle: pickedRef()?.detail || null,
           })
@@ -1221,6 +1224,7 @@ export default function renderMusic(root) {
               ${x.origin ? `<p class="muted small"><b>처음</b> ${R.esc(x.origin)}</p>` : ''}
               ${x.twist ? `<p class="muted small"><b>반전</b> ${R.esc(x.twist)}</p>` : ''}
               <p class="seed-line">훅 · ${R.esc(x.hook)}</p>
+              ${(x.chorus || []).length ? `<p class="seed-line seed-chorus">${x.chorus.map((l) => R.esc(l)).join('<br>')}</p>` : ''}
               <p class="seed-line">첫 줄 · ${R.esc(x.opening)}</p>
               <p class="muted small">${R.esc(x.soundNote)}</p>
             </div>
@@ -1289,7 +1293,7 @@ export default function renderMusic(root) {
       working: '인기곡의 꼴 읽는 중',
       task: () => callGemini(lyricPattern({ lyrics, style, exclude })),
       onDone: (d) => {
-        const { text, removed } = stripQuotes(patternText(d), lyrics);
+        const { text, removed } = stripQuotes(patternText(d, { lyrics: !!lyrics, style: !!style, exclude: !!exclude }), lyrics);
         patterns.add({ name: (d.name || '이름 없는 꼴').slice(0, 40), spec: text });
         // 원문은 남기지 않습니다.
         src.value = '';

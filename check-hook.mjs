@@ -569,6 +569,31 @@ console.log('\n후보 검토 3차 — 실제 받은 후보로:');
   ok(wp.includes('그쪽을 따릅니다'), "작사 단계에서 소리 메모가 정한 보컬을 덮지 못함");
 }
 
+console.log('\n후보 검토 4차 — 비 오는 가을날 실제 후보로:');
+{
+  const { checkSeeds } = await import(appUrl('js/lyrics.js'));
+  const real = [
+    { title: 'Cold Brew and Rain', to: '나 자신', hook: 'Sip it slow, let it go', opening: 'I am tracing the water drops on the glass.' },
+    { title: 'Under the Same Fabric', to: '상대', hook: 'Lean on my shoulder', opening: 'Are you feeling the chill in this damp wind?' },
+    { title: 'Fogged Living Room', to: '듣는 사람', hook: 'Stay right here', opening: 'Pull the blanket a little closer to your chin.' },
+    { title: 'Amber Streetlights', to: '세상', hook: 'Walking in the autumn rain', opening: 'You are walking too fast for this lazy night.' },
+    { title: 'Damp Footsteps', to: '상대', hook: 'Drip, drop, fall', opening: 'Leave your wet coat right beside the wooden door.' },
+  ];
+  const w = checkSeeds(real);
+  ok(w.some((x) => x.includes('금지어') && x.includes('amber') && x.includes('lazy')), '후보의 금지어(amber, lazy)를 잡음', ` (${w[0] || ''})`);
+  ok(w.some((x) => x.includes("'세상'에게 하는 말인데 첫 줄이 you")), "'세상'에게 하는 말인데 you 를 부르는 첫 줄을 잡음");
+  ok(checkSeeds([real[3]]).length === 2, '후보가 하나여도 금지어·대상 어긋남은 봄');
+  ok(checkSeeds([real[1], real[2], real[4]]).length === 0, '멀쩡한 후보에는 경고 없음');
+
+  const sp = songSeeds({ genres: 'lo-fi', language: 'English', moods: 'm', concept: '비 오는 가을날' }).prompt;
+  ok(sp.includes('amber') && sp.includes('제목·훅·첫 줄 어디에도'), '후보 단계에도 금지어를 알려 줌 (작사 단계와 충돌하던 것)');
+  ok(sp.includes('주제 문장을 그대로 훅으로 옮기지 마세요'), '주제를 그대로 옮긴 훅을 막음');
+  ok(sp.includes('to 에 적은 대상에게 하는 말'), '첫 줄은 to 에게 하는 말');
+  const wp = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i',
+    concept: 'c', songCount: 1, seed: { title: 'T', scene: 's', to: 'x', hook: 'h', opening: 'this lazy night', soundNote: 'n' } }).prompt;
+  ok(wp.includes('그 단어만'), "'그대로 써라'와 '금지어'가 부딪히면 그 단어만 바꾸게 함");
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

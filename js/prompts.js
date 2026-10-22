@@ -10,7 +10,7 @@
  * AI 작사에서 반복해서 나오는 단어들입니다.
  * 처음 보면 그럴듯하지만 어디서나 나오기 때문에 개성을 지웁니다.
  */
-const CLICHE_WORDS = [
+export const CLICHE_WORDS = [
   'velvet', 'echo', 'amber', 'lazy', 'midnight', 'fade', 'neon', 'shadow',
   'whisper', 'bloom', 'drift', 'glow', 'ember', 'twilight', 'ocean',
   'hollow', 'silk', 'dream', 'paper', 'golden',
@@ -1201,6 +1201,10 @@ ${hookArc
 - hookReadings: 그 훅이 ${hookArc ? '프롤로그 · 3장 · 7장' : '3장 · 5장 · 7장'}에서 각각 어떻게 들리는지, 한국어로 짧게 셋.
   ' / '로 나눠 한 줄에 씁니다. 셋이 같은 뜻이면 훅을 바꾸세요.`
       : ''}
+- **제목·훅·첫 줄 어디에도 아래 단어를 쓰지 마세요.** 작사 단계에서 쓰지 못하는 말입니다.
+  ${CLICHE_WORDS.join(', ')}
+- **주제 문장을 그대로 훅으로 옮기지 마세요.** (주제가 '비 오는 가을날'인데 훅이 Walking in the autumn rain)
+  주제를 설명하는 말은 훅이 아니라 제목 설명입니다. 그 장면에서 실제로 입에 붙는 말을 고르세요.
 - opening: ${hookArc
       ? '**[Verse 1]의 첫 줄 — 처음 장면(origin)에서 하는 말.** 곡의 첫 소리는 훅이므로, 이건 되돌아간 뒤의 첫 줄입니다. 결말 장면의 말을 여기 쓰지 마세요.'
       : arc
@@ -1209,6 +1213,7 @@ ${hookArc
   **누군가에게 건네는 말이거나, 화자가 하는 행동입니다.**
   Watch / See / Hear 처럼 풍경을 가리키며 시작하지 마세요.
   **현재형으로, 그 장면 안에서 상대에게 지금 하는 말**로 씁니다. 지난 일을 들려주는 문장이 아닙니다.
+  **to 에 적은 대상에게 하는 말이어야 합니다.** to 가 '나 자신'이나 '세상'인데 you 라고 부르면 장면이 어긋납니다.
   but / so / before / because / making sure 처럼 사정을 덧붙이는 말을 붙이지 마세요. 노래가 아니라 소설이 됩니다.
   한 호흡에 부를 수 있는 7~11음절. 너무 짧으면 노래가 아니라 지시문이 됩니다.
     틀림: I buckled you in, making sure the click was loud enough.   (과거형 보고 + 의도 설명)
@@ -1323,7 +1328,8 @@ ${seed
 - 첫 줄: ${seed.opening}
 - 소리: ${seed.soundNote}
 
-**후렴 훅과 첫 줄은 위 문장을 그대로 씁니다.** 다듬는 정도는 괜찮지만 갈아엎지 마세요.${coldOpen
+**후렴 훅과 첫 줄은 위 문장을 그대로 씁니다.** 다듬는 정도는 괜찮지만 갈아엎지 마세요.
+단, 아래 '쓰지 말아야 할 말'이 섞여 있으면 **그 단어만** 같은 뜻의 일상적인 말로 바꿉니다.${coldOpen
       ? `
 이 곡은 훅으로 시작하므로, 곡의 맨 첫 소리는 훅입니다. 위의 '첫 줄'은 **[Verse 1]의 첫 줄**로 씁니다.${
           hookFirstActs && !seed.origin

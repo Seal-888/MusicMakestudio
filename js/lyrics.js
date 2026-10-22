@@ -1,4 +1,5 @@
 import { toSrtTime } from './audio.js';
+import { CLICHE_WORDS } from './prompts.js';
 
 /**
  * 붙여넣은 가사를 자막으로 쓸 수 있게 다듬습니다.
@@ -756,8 +757,22 @@ export function checkRepeats(text) {
  * 몰리는 일이 잦습니다. 프롬프트로 막아도 새는 경우가 있어서 화면에서 바로 보이게 합니다.
  * 돌려주는 값: 경고 문장 목록
  */
+/** 작사 단계의 금지어. 후보 단계에서도 미리 잡습니다. */
+const CLICHE_RE = new RegExp(`\\b(${CLICHE_WORDS.join('|')})`, 'i');
+const CLICHE_RE_G = new RegExp(`\\b(${CLICHE_WORDS.join('|')})\\w*`, 'gi');
+
 export function checkSeeds(seeds = []) {
   const out = [];
+  const banned = seeds.filter((x) => CLICHE_RE.test(`${x.title} ${x.hook} ${x.opening}`));
+  if (banned.length) {
+    const words = [...new Set(banned.flatMap((x) => `${x.title} ${x.hook} ${x.opening}`.match(CLICHE_RE_G) || []).map((w) => w.toLowerCase()))];
+    out.push(`후보 ${banned.length}개에 금지어(${words.join(', ')})가 있습니다. 완성할 때 그 단어는 바뀝니다.`);
+  }
+  const selfTalk = seeds.filter((x) => /나 자신|세상/.test(x.to || '') && /\byou(r|'re)?\b/i.test(x.opening || ''));
+  if (selfTalk.length) {
+    out.push(`후보 ${selfTalk.length}개는 '${selfTalk[0].to}'에게 하는 말인데 첫 줄이 you 를 부릅니다. 누구에게 하는 말인지 어긋납니다.`);
+  }
+  // 아래의 '몰림' 검사는 후보가 여럿일 때만 뜻이 있습니다.
   if (seeds.length < 3) return out;
   const planned = seeds.filter((x) =>
     /처음부터|전부터|미리|이미 .{0,12}(계획|알고|준비|타고|넣어)/.test(x.twist || '')

@@ -688,6 +688,24 @@ console.log('\n후보 하나의 자동 검사 (추천도에 넘김):');
   ok(rp.includes('자동 검사: 후렴 스케치 없음'), '자동 검사 결과를 추천도 판단에 넘김');
 }
 
+console.log('\n기본 구성(3막 7장 · 훅 먼저) 점검:');
+{
+  for (const d of ['2:00', '2:30', '3:00', '3:30', '4:00']) {
+    const sec = songStructure({ duration: d, form: 'threeActs', actOpen: 'hook' });
+    const odd = sec.filter(([r, note]) => /정확히 (\d+)줄/.test(note) && +note.match(/정확히 (\d+)줄/)[1] % 2);
+    ok(!odd.length, `${d} — 가사 구간이 모두 짝수 줄`, odd.length ? ` (${odd.map(([r]) => r).join(', ')})` : '');
+    ok(sec.some(([r, note]) => r === 'Chorus' && /정확히 4줄/.test(note)), `${d} — 후렴 4줄 (후보의 후렴 스케치 4줄과 같음)`);
+  }
+  const base = { genres: 'trap', language: 'English', vocal: 'v', tempo: 'mid tempo 90-110 BPM', moods: 'melancholic', era: 'e', instruments: 'i', concept: 'c', songCount: 1, form: 'threeActs', actOpen: 'hook' };
+  const p = songWriting(base).prompt;
+  ok(p.includes('차분한 곡이라') && !p.includes('느린 곡이라'), "템포가 보통이면 '느린 곡'이라고 하지 않음");
+  ok(!p.includes('곡마다 BPM'), "한 곡만 만들 때는 '곡마다 BPM을 다르게'를 빼고");
+  ok(p.includes('변화의 크기는 주제를 따릅니다'), "3막 7장과 '주제 그대로' 화자가 부딪히지 않게 — 잔잔한 주제를 사건으로 부풀리지 않음");
+  const sp = songSeeds({ genres: 'trap', language: 'English', moods: 'm', concept: 'c', form: 'threeActs', lyricPattern: '[가사 꼴]\n훅: x' }).prompt;
+  ok(!sp.includes('훅 모양을 그대로 따릅니다') && sp.includes('훅 계열 안에서, 후보마다 변주'), "후보: '그대로 따름'과 '계열 안에서 변주' 모순 제거");
+  ok(sp.includes('범죄나 폭력으로 키우지 마세요') && !sp.includes('공범이었다'), '후보의 3막 반전 예시가 범죄 쪽으로 기울지 않음');
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {
@@ -741,7 +759,7 @@ console.log('\n예상 길이:');
 console.log('\n줄 수 계산 — 포스트코러스:');
 {
   const t = targetLines({ duration: '3:30', form: 'threeActs', actOpen: 'hook' });
-  // 콜드4 + V5 + P3 + C5 + Post4 + V4 + P3 + C5(반복) + B4 + C5+1(반복) + O4 = 47
+  // 콜드2 + V6 + P4 + C4 + Post4 + V6 + P4 + C4(반복) + B4 + C4+1(반복) + O4 = 47
   ok(t === 47, '포스트코러스 줄 수가 후렴 반복 계산을 덮어쓰지 않음', ` (${t})`);
 }
 

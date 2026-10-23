@@ -1,5 +1,5 @@
 // 이 파일은 bump.mjs 가 만듭니다. 직접 고치지 마세요.
-export const VERSION = "v79";
+export const VERSION = "v80";
 export const BUILT = "2026-10-23";
-export const COMMIT = "073e4ae";
+export const COMMIT = "d20f3d2";
 export const DIRTY = true;

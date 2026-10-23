@@ -111,6 +111,10 @@ await new Promise((r) => setTimeout(r, 100));
 console.log('기본값:');
 check(calls === 0 && alerts.some((m) => m.includes('주제로 설정 맞추기')), '장르가 비면 만들지 않고 설정을 맞추라고 안내');
 const onPersona = container.querySelector('[data-pills="persona"] .pill.on')?.dataset.value;
+const onForm = container.querySelector('[data-pills="form"] .pill.on')?.dataset.value;
+const onOpen = container.querySelector('[data-pills="actOpen"] .pill.on')?.dataset.value;
+check(onForm === 'threeActs' && onOpen === 'hook', `기본 곡 구성은 3막 7장 · 훅 먼저 (${onForm} · ${onOpen})`);
+check(container.querySelector('[data-pills="intro"]').closest('.pills-wrap').classList.contains('is-off'), '기본 구성이 훅으로 시작하므로 인트로 설정은 잠겨 있음');
 check(onPersona === 'plain', `기본 화자는 '주제 그대로' (${onPersona}) — 예전엔 빌런이라 모든 주제가 범죄 이야기가 됨`);
 
 const pill = (name, value) =>
@@ -143,8 +147,10 @@ for (const [label, needle] of [
   ['화자 지침', '이미 저지르고도 아무렇지 않은 사람'],
   ['화자 — 피해자 요구', '당한 사람이 있어야 합니다'],
   ['총 줄 수 지정', '모두 합쳐'],
-  ['정확한 줄 수 (절은 짝수 줄)', '정확히 8줄'],
-  ['구간별 역할', 'Bridge 가장 솔직한 한두 줄'],
+  ['정확한 줄 수 (절은 짝수 줄)', '정확히 6줄'],
+  ['기본 구성 — 3막 7장 훅 먼저', '훅 먼저 여는 3막 7장'],
+  ['3막 설계도', '■ 2막 · 대립'],
+  ['콜드 오픈', '훅으로 시작합니다'],
   ['최종 체크리스트', '내보내기 전에'],
   ['부를 수 있게 (줄 길이 섞기)', '짧은 줄(3~6음절)과 긴 줄'],
   ['후렴은 외치는 곳', '후렴은 설명하는 곳이 아니라'],

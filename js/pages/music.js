@@ -287,7 +287,8 @@ const DEFAULTS = {
   persona: 'plain',
   intro: 'short',
   introWhere: 'tag',
-  form: 'standard',
+  // 기본 구성은 3막 7장(훅 먼저). 첫 5~10초에 훅이 나오는 요즘 구성에 이야기를 얹습니다.
+  form: 'threeActs',
   actOpen: 'hook',
 };
 

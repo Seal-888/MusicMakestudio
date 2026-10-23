@@ -666,6 +666,14 @@ console.log('\n후보 검토 6차 — 꼴을 틀처럼 찍어 냄:');
   ok(wp.includes("축약(I'm, don't, gonna)"), '작사 단계도 구어체 축약');
 }
 
+console.log('\n운율보다 뜻:');
+{
+  const sp = songSeeds({ genres: 'trap', language: 'English', moods: 'm', concept: 'c' }).prompt;
+  ok(sp.includes('운율 때문에 뜻이 깨지면 안 됩니다') && sp.includes('paid for the weather'), '후보 후렴 스케치 — 실제로 나온 뜻 없는 운율 줄을 틀린 예로');
+  const wp = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1 }).prompt;
+  ok(wp.includes('운율을 맞추되, 뜻이 먼저입니다'), '작사 단계도 뜻이 먼저');
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

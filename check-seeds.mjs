@@ -586,10 +586,10 @@ console.log('\n방향 잡기 — 주제와 참고곡을 한 번에:');
   click($('[data-fit]'));
   await settle(150);
   ok(calls.length === 2, `버튼 하나로 꼴 뽑기 → 방향 잡기 두 번 호출 (${calls.length}회)`);
-  ok(calls[1]?.prompt.includes('주제와 참고곡이 둘 다 있습니다') && calls[1]?.prompt.includes('짧게 끊는') === false && calls[1]?.prompt.includes('두 단어 명령문'),
+  ok(calls[1]?.prompt.includes('주제와 벤치마킹 대상이 둘 다 있습니다') && calls[1]?.prompt.includes('짧게 끊는') === false && calls[1]?.prompt.includes('두 단어 명령문'),
     '방향 잡기가 주제와 방금 뽑은 꼴을 함께 봄');
   ok(calls[1]?.prompt.includes('하나의 곡이 되게'), '둘이 부딪히면 한 곡이 되게 맞추라고 함 (예전엔 따로 움직임)');
-  ok(root.textContent.includes('기준 · 주제 + 참고곡 「짧게 끊는 주고받기 팝」'), '무엇을 기준으로 잡았는지 보여 줌');
+  ok(root.textContent.includes('기준 · 주제 + 인기곡 「짧게 끊는 주고받기 팝」'), '무엇을 기준으로 잡았는지 보여 줌');
   ok(!root.querySelector('[data-fit-concept]'), '주제가 있으면 주제를 제안하지 않음');
   ok(calls[0]?.prompt.includes('원문을 옮겨 적지 마세요'), '꼴만 뽑고 문장은 옮기지 말라고 함');
   ok(calls[0]?.prompt.includes('════════ 스타일 프롬프트') && calls[0]?.prompt.includes('════════ 피할 요소'), '가사·스타일·피할 요소를 함께 보냄');

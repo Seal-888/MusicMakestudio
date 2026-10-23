@@ -297,8 +297,9 @@ function swatches(colors) {
 
 
 /* ── 플리 스타일 분석 ──
-   유튜브 영상을 Gemini에 통째로 들려주고, 그 소리를 만드는 Suno 프롬프트를 역산합니다. */
-function soundTab(body) {
+   유튜브 영상을 Gemini에 통째로 들려주고, 그 소리를 만드는 Suno 프롬프트를 역산합니다.
+   음악 만들기의 '벤치마킹'에서도 같은 화면을 그대로 띄웁니다. 저장하면 onSaved 로 알려 줍니다. */
+export function soundTab(body, { onSaved = null } = {}) {
   let picked = null; // 고른 음원 파일
 
   body.innerHTML = `
@@ -564,6 +565,7 @@ function soundTab(body) {
           },
         });
         toast('레퍼런스로 저장했습니다');
+        onSaved?.(refs.all()[0]?.id);
         return;
       }
       const i = e.target.dataset.save;

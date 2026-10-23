@@ -4,6 +4,7 @@ import { stripQuotes, checkSeeds, checkNarration, tidyLyrics, tidyStyle, checkLy
 import { styles, songs, refs, draft, patterns } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
 import * as R from '../render.js';
+import { soundTab } from './planning.js';
 
 const GENRES = [
   ['팝 / 대중음악', [
@@ -299,56 +300,34 @@ export default function renderMusic(root) {
       )
       .join('');
 
-  const savedRefs = refs.all();
-
+  
   root.innerHTML =
     R.header('ai music lab', '음악', '만들기', '옵션을 골라 가사와 Suno 스타일 프롬프트를 만듭니다.') +
-    `<div class="card refbox">
-      <span class="card-tag is-gold">레퍼런스 스타일로 만들기</span>
-      ${
-        savedRefs.length
-          ? `<p style="margin-top:0">분석해 둔 레퍼런스의 사운드에 맞춰 가사와 연주 지시를 씁니다.</p>
-             <label class="reffirst">
-               <input type="checkbox" data-f="refFirst" checked>
-               <span><b>레퍼런스를 우선 적용</b>
-                 <span class="muted small">아래 장르·보컬·템포 설정과 다르면 레퍼런스 쪽을 씁니다.
-                 끄면 아래 설정이 우선이고 레퍼런스는 참고로만 쓰입니다.</span></span>
-             </label>
-             <div class="reflist">
-               ${savedRefs
-                 .map(
-                   (r) => `<label class="refitem">
-                     <input type="radio" name="ref" value="${r.id}">
-                     <span>
-                       <b>${R.esc(r.name)}</b>
-                       <span class="muted small">${R.esc(r.source)} · ${R.esc(r.summary || '')}</span>
-                     </span>
-                     <button type="button" class="row-x" data-del-ref="${r.id}" title="빼기">✕</button>
-                   </label>`
-                 )
-                 .join('')}
-               <label class="refitem">
-                 <input type="radio" name="ref" value="" checked>
-                 <span><b>쓰지 않기</b><span class="muted small">아래 옵션만으로 만듭니다</span></span>
-               </label>
-             </div>`
-          : `<p style="margin-top:0">아직 저장된 레퍼런스가 없습니다.<br>
-             <b>플리채널 기획 → 플리 스타일 분석</b>에서 좋아하는 영상을 분석하고
-             <b>"이 스타일로 음악 만들기"</b>를 누르면 여기에 쌓입니다.</p>
-             <a class="btn sm is-ghost" href="#/planning">플리 스타일 분석하러 가기</a>`
-      }
-    </div>
+    `<div class="card refbox bench">
+      <span class="card-tag is-gold">벤치마킹 <small>선택 · 하나만 고릅니다</small></span>
+      <p style="margin-top:0">본보기로 삼을 것을 하나 고르면 <b>방향 잡기</b>와 작사가 그것을 따릅니다.
+      <b>레퍼런스 사운드</b>는 소리를, <b>인기곡</b>은 가사·스타일·피할 요소의 꼴을 따릅니다.</p>
+      <div class="tabs" data-bench-tabs>
+        <button type="button" class="tab on" data-bench-tab="ref">레퍼런스 사운드</button>
+        <button type="button" class="tab" data-bench-tab="pat">인기곡</button>
+      </div>
 
-    <div class="card">
-      <span class="card-tag is-red">1 · 음악 옵션</span>
+      <div data-bench-pane="ref">
+        <label class="reffirst">
+          <input type="checkbox" data-f="refFirst" checked>
+          <span><b>레퍼런스를 우선 적용</b>
+            <span class="muted small">아래 장르·보컬·템포 설정과 다르면 레퍼런스 쪽을 씁니다.
+            끄면 아래 설정이 우선이고 레퍼런스는 참고로만 쓰입니다.</span></span>
+        </label>
+        <div class="reflist" data-ref-list></div>
+        <details class="more" style="margin-top:8px" data-ref-new>
+          <summary>유튜브 · 음원으로 새로 분석</summary>
+          <div data-ref-analyze style="margin-top:10px"></div>
+        </details>
+        <p class="muted small" style="margin:8px 0 0">채널 단위 분석은 <a href="#/planning">플리채널 기획 → 레퍼런스 분석</a>에서 저장하면 여기에 함께 쌓입니다.</p>
+      </div>
 
-      <label class="field is-lead">
-        <span>주제 / 컨셉 <small>무엇에 대한 노래인지 · 비워 두면 참고곡으로 정합니다</small></span>
-        <textarea rows="4" data-f="concept" placeholder="예) 오래된 연인과 헤어진 뒤 처음 맞는 봄">${R.esc(DEFAULTS.concept)}</textarea>
-      </label>
-
-      <div class="field patbox">
-        <p class="field-label">참고할 인기곡 <small>선택 · 원문은 저장하지 않고 꼴만 뽑아 둡니다</small></p>
+      <div data-bench-pane="pat" hidden>
         <div class="reflist" data-pat-list></div>
         <details class="more" style="margin-top:8px">
           <summary>새 곡 붙여 넣기</summary>
@@ -369,8 +348,19 @@ export default function renderMusic(root) {
         </details>
       </div>
 
-      <small class="field-hint">주제와 참고곡 중 <b>하나만 있어도</b> 됩니다. 둘 다 있으면 무엇에 대한 노래인지는 주제에서,
-      소리와 가사의 꼴은 참고곡에서 가져와 한 곡으로 맞춥니다. 참고곡만 있으면 주제도 제안합니다.</small>
+      <p class="mood-why" data-bench-now style="margin:12px 0 0"></p>
+    </div>
+
+    <div class="card">
+      <span class="card-tag is-red">1 · 음악 옵션</span>
+
+      <label class="field is-lead">
+        <span>주제 / 컨셉 <small>무엇에 대한 노래인지 · 비워 두면 벤치마킹 대상으로 정합니다</small></span>
+        <textarea rows="4" data-f="concept" placeholder="예) 오래된 연인과 헤어진 뒤 처음 맞는 봄">${R.esc(DEFAULTS.concept)}</textarea>
+      </label>
+
+      <small class="field-hint">주제와 위의 벤치마킹 중 <b>하나만 있어도</b> 됩니다. 둘 다 있으면 무엇에 대한 노래인지는 주제에서,
+      소리와 꼴은 벤치마킹 대상에서 가져와 한 곡으로 맞춥니다. 벤치마킹만 있으면 주제도 제안합니다.</small>
       <div class="style-head" style="margin-top:9px">
         <button class="btn is-gold" data-fit>방향 잡기</button>
       </div>
@@ -566,13 +556,103 @@ export default function renderMusic(root) {
       <div data-out></div>
     </div>`;
 
-  root.querySelectorAll('[data-del-ref]').forEach((b) =>
-    b.addEventListener('click', (e) => {
-      e.preventDefault();
-      refs.remove(b.dataset.delRef);
-      b.closest('.refitem').remove();
-    })
-  );
+  /* ── 벤치마킹 ── */
+  /** 페이지 창의 Event 로 만듭니다. (검사 환경처럼 창이 여럿이어도 같은 것을 쓰게) */
+  const changeEvent = () => new (root.ownerDocument.defaultView.Event)('change', { bubbles: true });
+  const refList = root.querySelector('[data-ref-list]');
+  function paintRefs(selectId = null) {
+    const all = refs.all();
+    const keep = selectId ?? root.querySelector('input[name=ref]:checked')?.value ?? '';
+    refList.innerHTML =
+      (all.length
+        ? all
+            .map(
+              (r) => `<label class="refitem">
+                <input type="radio" name="ref" value="${r.id}"${r.id === keep ? ' checked' : ''}>
+                <span>
+                  <b>${R.esc(r.name)}</b>
+                  <span class="muted small">${R.esc(r.source)} · ${R.esc(r.summary || '')}</span>
+                </span>
+                <button type="button" class="row-x" data-del-ref="${r.id}" title="빼기">✕</button>
+              </label>`
+            )
+            .join('')
+        : '<p class="muted small" style="margin:0 0 6px">아직 저장된 레퍼런스가 없습니다. 아래에서 유튜브나 음원으로 분석해 보세요.</p>') +
+      `<label class="refitem">
+        <input type="radio" name="ref" value=""${keep && all.some((r) => r.id === keep) ? '' : ' checked'}>
+        <span><b>쓰지 않기</b><span class="muted small">레퍼런스 사운드 없이 만듭니다</span></span>
+      </label>`;
+  }
+  paintRefs();
+
+  refList.addEventListener('click', (e) => {
+    const id = e.target.dataset?.delRef;
+    if (!id) return;
+    e.preventDefault();
+    const wasPicked = root.querySelector('input[name=ref]:checked')?.value === id;
+    refs.remove(id);
+    paintRefs(wasPicked ? '' : null);
+    refreshBench();
+  });
+
+  // 탭
+  root.querySelector('[data-bench-tabs]').addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-bench-tab]');
+    if (!tab) return;
+    showBenchTab(tab.dataset.benchTab);
+  });
+  function showBenchTab(key) {
+    root.querySelectorAll('[data-bench-tab]').forEach((t) => t.classList.toggle('on', t.dataset.benchTab === key));
+    root.querySelectorAll('[data-bench-pane]').forEach((p) => (p.hidden = p.dataset.benchPane !== key));
+  }
+
+  // 유튜브·음원 분석은 열 때 한 번만 그립니다. 기획 화면의 '플리 스타일 분석'과 같은 화면입니다.
+  root.querySelector('[data-ref-new]').addEventListener('toggle', (e) => {
+    const box = root.querySelector('[data-ref-analyze]');
+    if (!e.target.open || box.dataset.ready) return;
+    box.dataset.ready = '1';
+    soundTab(box, {
+      onSaved: (id) => {
+        paintRefs(id);
+        // 고른 것처럼 다뤄서 설정 반영·인기곡 해제까지 한 번에 합니다.
+        root.querySelector(`input[name=ref][value="${id}"]`)?.dispatchEvent(changeEvent());
+      },
+    });
+  });
+
+  /**
+   * 벤치마킹은 하나만. 레퍼런스 사운드와 인기곡을 같이 고르면 방향이 둘이 됩니다.
+   * 다른 쪽을 '쓰지 않기'로 돌릴 때는 change 를 일으키지 않습니다.
+   * (레퍼런스 쪽 '쓰지 않기'는 설정을 기본값으로 되돌리므로, 옮겨 갈 때 그게 일어나면 곤란합니다)
+   */
+  root.addEventListener('change', (e) => {
+    if (e.target.matches('input[name=ref]') && e.target.value) {
+      const none = root.querySelector('input[name=pat][value=""]');
+      if (none) none.checked = true;
+    }
+    if (e.target.matches('input[name=pat]') && e.target.value) {
+      const none = root.querySelector('input[name=ref][value=""]');
+      if (none && !none.checked) {
+        none.checked = true;
+        refreshRefMode();
+      }
+    }
+    if (e.target.matches('input[name=ref], input[name=pat]')) refreshBench();
+  });
+
+  function refreshBench() {
+    const ref = pickedRef();
+    const pat = pickedPattern();
+    const now = root.querySelector('[data-bench-now]');
+    if (now) {
+      now.textContent = ref
+        ? `지금 벤치마킹 · 레퍼런스 사운드 「${ref.name}」`
+        : pat
+          ? `지금 벤치마킹 · 인기곡 「${pat.name}」`
+          : '지금 벤치마킹 · 없음 (주제만으로 만듭니다)';
+    }
+    refreshFitHint?.();
+  }
 
   /**
    * 도입부 코러스는 후렴부터 시작하므로 인트로 설정이 필요 없습니다.
@@ -932,8 +1012,8 @@ export default function renderMusic(root) {
       return '장르가 비어 있습니다. 주제를 적고 "주제로 설정 맞추기"를 누르거나, 장르를 직접 고르거나, 맨 위에서 레퍼런스를 골라 주세요.';
     }
     if (!root.querySelector('[data-f=concept]').value.trim()) {
-      return pickedPattern()
-        ? '주제가 비어 있습니다. "방향 잡기"를 누르면 참고곡으로 주제를 제안해 줍니다.'
+      return pickedPattern() || pickedRef()
+        ? '주제가 비어 있습니다. "방향 잡기"를 누르면 벤치마킹 대상에 맞는 주제를 제안해 줍니다.'
         : '주제를 입력해 주세요.';
     }
     return null;
@@ -975,7 +1055,8 @@ export default function renderMusic(root) {
   function fitKey() {
     const c = root.querySelector('[data-f=concept]').value.trim();
     const pat = root.querySelector('input[name=pat]:checked')?.value || '';
-    return c || pat ? `${c}|${pat}` : '';
+    const ref = root.querySelector('input[name=ref]:checked')?.value || '';
+    return c || pat || ref ? `${c}|${pat}|${ref}` : '';
   }
   function refreshFitHint() {
     const key = fitKey();
@@ -984,13 +1065,11 @@ export default function renderMusic(root) {
     fitHint.style.display = stale ? '' : 'none';
     if (stale) {
       const g = R.readPills(root, 'genre').map((v) => toLabel(GENRES, v)).filter(Boolean).join(', ') || '없음';
-      fitHint.textContent = `주제나 참고곡이 바뀌었는데 아직 방향을 잡지 않았습니다. 지금 장르(${g})와 화자 그대로 만들어집니다.`;
+      fitHint.textContent = `주제나 벤치마킹이 바뀌었는데 아직 방향을 잡지 않았습니다. 지금 장르(${g})와 화자 그대로 만들어집니다.`;
     }
   }
   root.querySelector('[data-f=concept]').addEventListener('input', refreshFitHint);
-  root.addEventListener('change', (e) => {
-    if (e.target.matches('input[name=pat]')) refreshFitHint();
-  });
+
   refreshFitHint();
 
   fitBtn.addEventListener('click', () => {
@@ -1009,8 +1088,9 @@ export default function renderMusic(root) {
       return alert('가사나 스타일 프롬프트 중 하나는 넣어 주세요.');
     }
     const picked = pickedPattern();
-    if (!concept && !hasPaste && !picked) {
-      return alert('주제를 적거나, 참고할 인기곡을 고르거나 붙여 넣어 주세요.');
+    const ref = pickedRef();
+    if (!concept && !hasPaste && !picked && !ref) {
+      return alert('주제를 적거나, 위 벤치마킹에서 레퍼런스나 인기곡을 골라 주세요.');
     }
 
     R.runTask({
@@ -1035,6 +1115,7 @@ export default function renderMusic(root) {
           settingsFit({
             concept,
             patternSpec: pat?.spec || '',
+            refSpec: pat ? '' : pickedRef()?.detail || '',
             language: R.readPills(root, 'language')[0] || '',
             fields: FIT_FIELDS.map((f) => ({
               key: f.key,
@@ -1050,8 +1131,12 @@ export default function renderMusic(root) {
         return { fit, pat, removed, fresh: hasPaste };
       },
       onDone: ({ fit, pat, removed, fresh }) => {
-        if (fresh) paintPatterns(pat?.id);
-        paintFit(fit, { pat, removed, concept });
+        if (fresh) {
+          paintPatterns(pat?.id);
+          // 새로 붙여 넣은 곡이 벤치마킹 대상이 됩니다.
+          root.querySelector(`input[name=pat][value="${pat?.id}"]`)?.dispatchEvent(changeEvent());
+        }
+        paintFit(fit, { pat, ref: pat ? null : pickedRef(), removed, concept });
       },
     });
   });
@@ -1099,7 +1184,11 @@ export default function renderMusic(root) {
 
     fitOut.innerHTML = `<div class="card">
       <span class="card-tag is-gold">잡은 방향</span>
-      <p class="muted small">기준 · ${ctx.concept ? '주제' : ''}${ctx.concept && ctx.pat ? ' + ' : ''}${ctx.pat ? `참고곡 「${R.esc(ctx.pat.name)}」` : ''}${
+      <p class="muted small">기준 · ${[
+        ctx.concept && '주제',
+        ctx.pat && `인기곡 「${R.esc(ctx.pat.name)}」`,
+        ctx.ref && `레퍼런스 사운드 「${R.esc(ctx.ref.name)}」`,
+      ].filter(Boolean).join(' + ')}${
         ctx.removed ? ` · 꼴 설명에 섞인 원문 인용 ${ctx.removed}군데는 지웠습니다` : ''
       }</p>
       ${summary ? `<p class="mood-why">${R.esc(summary)}</p>` : ''}
@@ -1107,7 +1196,7 @@ export default function renderMusic(root) {
         ? `<label class="seed-item">
             <input type="checkbox" data-fit-concept checked>
             <div><strong>주제 제안</strong><p class="seed-line">${R.esc(suggested)}</p>
-            <p class="muted small">주제를 비워 두셔서 참고곡의 꼴로 부르기 좋은 주제를 골랐습니다. 적용하면 주제 칸에 넣습니다.</p></div>
+            <p class="muted small">주제를 비워 두셔서 벤치마킹 대상에 어울리는 노래 주제를 골랐습니다. 적용하면 주제 칸에 넣습니다.</p></div>
           </label>`
         : ''}
       <p class="muted small">켤 것만 남기고 <b>적용</b>을 누르세요. 지금 설정과 같은 칸은 꺼 두었습니다.
@@ -1335,6 +1424,7 @@ export default function renderMusic(root) {
       </label>`;
   }
   paintPatterns();
+  refreshBench();
 
   patList.addEventListener('click', (e) => {
     const id = e.target.dataset?.delPat;
@@ -1352,7 +1442,7 @@ export default function renderMusic(root) {
 
   function pickedRef() {
     const id = root.querySelector('input[name=ref]:checked')?.value;
-    return id ? savedRefs.find((r) => r.id === id) : null;
+    return id ? refs.all().find((r) => r.id === id) : null;
   }
 
   function generate(append, seedList = null) {

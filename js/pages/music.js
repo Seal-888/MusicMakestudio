@@ -339,43 +339,41 @@ export default function renderMusic(root) {
       }
     </div>
 
-    <div class="card patbox">
-      <span class="card-tag is-blue">인기곡 꼴 레퍼런스 <small>선택</small></span>
-      <p style="margin-top:0">Suno에서 잘 되는 곡의 <b>가사 · 스타일 · 피할 요소</b>를 붙여 넣으면 그 <b>꼴</b>만 뽑아 둡니다.
-      곡을 만들 때 가사도, 스타일도, 피할 요소도 그 꼴을 따릅니다. <b>붙여 넣은 원문은 저장하지 않습니다.</b></p>
-      <div class="reflist" data-pat-list></div>
-      <details class="more" style="margin-top:10px">
-        <summary>새 레퍼런스 추가</summary>
-        <p class="muted small" style="margin:10px 0 0">셋 중 있는 것만 넣으세요. 분석이 끝나면 모두 지웁니다.</p>
-        <label class="field" style="margin-top:8px">
-          <span>가사 <small>구간 태그가 있으면 더 정확합니다</small></span>
-          <textarea rows="8" data-pat-src placeholder="[Verse 1]&#10;...&#10;[Chorus]&#10;..."></textarea>
-        </label>
-        <label class="field">
-          <span>스타일 프롬프트 <small>Suno의 Style 칸</small></span>
-          <textarea rows="3" data-pat-style placeholder="예) dark pop, breathy female vocals, 808, ..."></textarea>
-        </label>
-        <label class="field">
-          <span>피할 요소 <small>Suno의 Exclude Styles 칸</small></span>
-          <input type="text" data-pat-exclude placeholder="예) male vocals, distortion, ...">
-        </label>
-        <button class="btn sm is-blue" data-pat-go>꼴 뽑기</button>
-        <div data-pat-out></div>
-      </details>
-    </div>
-
     <div class="card">
       <span class="card-tag is-red">1 · 음악 옵션</span>
 
       <label class="field is-lead">
-        <span>주제 / 컨셉 <small>필수 · 무엇에 대한 노래인지</small></span>
+        <span>주제 / 컨셉 <small>무엇에 대한 노래인지 · 비워 두면 참고곡으로 정합니다</small></span>
         <textarea rows="4" data-f="concept" placeholder="예) 오래된 연인과 헤어진 뒤 처음 맞는 봄">${R.esc(DEFAULTS.concept)}</textarea>
-        <small class="field-hint">아래 설정이 주제와 부딪히면 설정이 이깁니다.
-        주제를 적은 뒤 <b>주제로 설정 맞추기</b>를 눌러 한 번에 맞춰 두세요.</small>
-        <div class="style-head" style="margin-top:9px">
-          <button class="btn is-gold" data-fit>주제로 설정 맞추기</button>
-        </div>
       </label>
+
+      <div class="field patbox">
+        <p class="field-label">참고할 인기곡 <small>선택 · 원문은 저장하지 않고 꼴만 뽑아 둡니다</small></p>
+        <div class="reflist" data-pat-list></div>
+        <details class="more" style="margin-top:8px">
+          <summary>새 곡 붙여 넣기</summary>
+          <p class="muted small" style="margin:10px 0 0">Suno에서 잘 되는 곡의 가사 · 스타일 · 피할 요소 중 있는 것만 넣으세요.
+          <b>방향 잡기</b>를 누르면 꼴을 뽑아 저장하고, 붙여 넣은 원문은 지웁니다.</p>
+          <label class="field" style="margin-top:8px">
+            <span>가사 <small>구간 태그가 있으면 더 정확합니다</small></span>
+            <textarea rows="8" data-pat-src placeholder="[Verse 1]&#10;...&#10;[Chorus]&#10;..."></textarea>
+          </label>
+          <label class="field">
+            <span>스타일 프롬프트 <small>Suno의 Style 칸</small></span>
+            <textarea rows="3" data-pat-style placeholder="예) dark pop, breathy female vocals, 808, ..."></textarea>
+          </label>
+          <label class="field">
+            <span>피할 요소 <small>Suno의 Exclude Styles 칸</small></span>
+            <input type="text" data-pat-exclude placeholder="예) male vocals, distortion, ...">
+          </label>
+        </details>
+      </div>
+
+      <small class="field-hint">주제와 참고곡 중 <b>하나만 있어도</b> 됩니다. 둘 다 있으면 무엇에 대한 노래인지는 주제에서,
+      소리와 가사의 꼴은 참고곡에서 가져와 한 곡으로 맞춥니다. 참고곡만 있으면 주제도 제안합니다.</small>
+      <div class="style-head" style="margin-top:9px">
+        <button class="btn is-gold" data-fit>방향 잡기</button>
+      </div>
       <div data-fit-out></div>
 
       <div class="field">
@@ -933,7 +931,11 @@ export default function renderMusic(root) {
     if (!R.readPills(root, 'genre').length && !pickedRef()) {
       return '장르가 비어 있습니다. 주제를 적고 "주제로 설정 맞추기"를 누르거나, 장르를 직접 고르거나, 맨 위에서 레퍼런스를 골라 주세요.';
     }
-    if (!root.querySelector('[data-f=concept]').value.trim()) return '주제를 입력해 주세요.';
+    if (!root.querySelector('[data-f=concept]').value.trim()) {
+      return pickedPattern()
+        ? '주제가 비어 있습니다. "방향 잡기"를 누르면 참고곡으로 주제를 제안해 줍니다.'
+        : '주제를 입력해 주세요.';
+    }
     return null;
   }
 
@@ -969,32 +971,70 @@ export default function renderMusic(root) {
   fitHint.className = 'lenbadge is-short';
   fitHint.dataset.fitHint = '1';
   fitBtn.closest('.style-head').insertAdjacentElement('afterend', fitHint);
-  function refreshFitHint() {
+  /** 방향을 잡을 때 본 것: 주제와 고른 참고곡 */
+  function fitKey() {
     const c = root.querySelector('[data-f=concept]').value.trim();
-    const stale = c && c !== fittedFor;
+    const pat = root.querySelector('input[name=pat]:checked')?.value || '';
+    return c || pat ? `${c}|${pat}` : '';
+  }
+  function refreshFitHint() {
+    const key = fitKey();
+    const stale = key && key !== fittedFor;
     // hidden 속성은 .lenbadge 의 display 에 덮여서 안 먹습니다. 직접 끕니다.
     fitHint.style.display = stale ? '' : 'none';
     if (stale) {
       const g = R.readPills(root, 'genre').map((v) => toLabel(GENRES, v)).filter(Boolean).join(', ') || '없음';
-      fitHint.textContent = `이 주제로 아직 설정을 맞추지 않았습니다. 지금 장르(${g})와 화자 그대로 만들어집니다.`;
+      fitHint.textContent = `주제나 참고곡이 바뀌었는데 아직 방향을 잡지 않았습니다. 지금 장르(${g})와 화자 그대로 만들어집니다.`;
     }
   }
   root.querySelector('[data-f=concept]').addEventListener('input', refreshFitHint);
+  root.addEventListener('change', (e) => {
+    if (e.target.matches('input[name=pat]')) refreshFitHint();
+  });
   refreshFitHint();
 
   fitBtn.addEventListener('click', () => {
     const concept = root.querySelector('[data-f=concept]').value.trim();
-    if (!concept) return alert('주제를 먼저 입력해 주세요.');
+    const boxes = {
+      lyrics: root.querySelector('[data-pat-src]'),
+      style: root.querySelector('[data-pat-style]'),
+      exclude: root.querySelector('[data-pat-exclude]'),
+    };
+    const pasted = Object.fromEntries(Object.entries(boxes).map(([k, el]) => [k, el.value.trim()]));
+    const hasPaste = !!(pasted.lyrics || pasted.style || pasted.exclude);
+    if (pasted.lyrics && pasted.lyrics.length < 80) {
+      return alert('가사를 조금 더 넣어 주세요. 절과 후렴이 함께 있어야 꼴이 보입니다.');
+    }
+    if (hasPaste && !pasted.lyrics && pasted.style.length < 20) {
+      return alert('가사나 스타일 프롬프트 중 하나는 넣어 주세요.');
+    }
+    const picked = pickedPattern();
+    if (!concept && !hasPaste && !picked) {
+      return alert('주제를 적거나, 참고할 인기곡을 고르거나 붙여 넣어 주세요.');
+    }
 
     R.runTask({
       button: fitBtn,
       output: fitOut,
-      working: '주제에 맞는 소리 고르는 중',
-      task: () =>
-        callGemini(
+      working: hasPaste ? '참고곡의 꼴을 읽고 방향 잡는 중' : '방향 잡는 중',
+      task: async () => {
+        // 1) 새로 붙여 넣은 곡이 있으면 꼴부터 뽑아 저장합니다. 원문은 남기지 않습니다.
+        let pat = picked;
+        let removed = 0;
+        if (hasPaste) {
+          const d = await callGemini(lyricPattern(pasted));
+          const has = { lyrics: !!pasted.lyrics, style: !!pasted.style, exclude: !!pasted.exclude };
+          const cut = stripQuotes(patternText(d, has), pasted.lyrics);
+          removed = cut.removed;
+          patterns.add({ name: (d.name || '이름 없는 꼴').slice(0, 40), spec: cut.text });
+          pat = patterns.all()[0];
+          Object.values(boxes).forEach((el) => (el.value = ''));
+        }
+        // 2) 주제와 꼴을 한자리에서 보고 설정을 고릅니다.
+        const fit = await callGemini(
           settingsFit({
             concept,
-            persona: R.readPills(root, 'persona')[0] || 'plain',
+            patternSpec: pat?.spec || '',
             language: R.readPills(root, 'language')[0] || '',
             fields: FIT_FIELDS.map((f) => ({
               key: f.key,
@@ -1006,8 +1046,13 @@ export default function renderMusic(root) {
             // 보컬의 성별만 넘깁니다. 채널 목소리가 갑자기 바뀌지 않게 하려는 것입니다.
             vocalGender: genderOf(R.readPills(root, 'vocal')[0] || ''),
           })
-        ),
-      onDone: (d) => paintFit(d),
+        );
+        return { fit, pat, removed, fresh: hasPaste };
+      },
+      onDone: ({ fit, pat, removed, fresh }) => {
+        if (fresh) paintPatterns(pat?.id);
+        paintFit(fit, { pat, removed, concept });
+      },
     });
   });
 
@@ -1020,8 +1065,9 @@ export default function renderMusic(root) {
   }
 
   /** 무엇이 어떻게 바뀌는지 먼저 보여 주고, 고른 것만 켭니다. */
-  function paintFit(d) {
+  function paintFit(d, ctx = {}) {
     const { summary = '' } = d;
+    const suggested = !ctx.concept && d.concept ? String(d.concept).trim() : '';
     // 새 형식: { genre: {pick, why}, vocal: {...} } / 예전 형식: { picks: [{key, pick, why}] }
     const picks = d.picks || FIT_FIELDS.filter((f) => d[f.key]).map((f) => ({ key: f.key, ...d[f.key] }));
     const missed = [];
@@ -1046,14 +1092,24 @@ export default function renderMusic(root) {
       })
       .filter(Boolean);
 
-    if (!rows.length) {
+    if (!rows.length && !suggested) {
       fitOut.innerHTML = '<p class="muted">맞는 설정을 찾지 못했습니다.</p>';
       return;
     }
 
     fitOut.innerHTML = `<div class="card">
-      <span class="card-tag is-gold">주제에 맞춘 설정</span>
+      <span class="card-tag is-gold">잡은 방향</span>
+      <p class="muted small">기준 · ${ctx.concept ? '주제' : ''}${ctx.concept && ctx.pat ? ' + ' : ''}${ctx.pat ? `참고곡 「${R.esc(ctx.pat.name)}」` : ''}${
+        ctx.removed ? ` · 꼴 설명에 섞인 원문 인용 ${ctx.removed}군데는 지웠습니다` : ''
+      }</p>
       ${summary ? `<p class="mood-why">${R.esc(summary)}</p>` : ''}
+      ${suggested
+        ? `<label class="seed-item">
+            <input type="checkbox" data-fit-concept checked>
+            <div><strong>주제 제안</strong><p class="seed-line">${R.esc(suggested)}</p>
+            <p class="muted small">주제를 비워 두셔서 참고곡의 꼴로 부르기 좋은 주제를 골랐습니다. 적용하면 주제 칸에 넣습니다.</p></div>
+          </label>`
+        : ''}
       <p class="muted small">켤 것만 남기고 <b>적용</b>을 누르세요. 지금 설정과 같은 칸은 꺼 두었습니다.
       일부만 적용하면 새 장르에 예전 악기처럼 서로 안 맞는 조합이 남을 수 있습니다.</p>
       ${missed.length
@@ -1090,16 +1146,21 @@ export default function renderMusic(root) {
       const on = [...fitOut.querySelectorAll('[data-fit-pick]:checked')].map(
         (el) => rows[+el.dataset.fitPick]
       );
-      if (!on.length) return alert('적용할 칸을 하나 이상 고르세요.');
+      const takeConcept = suggested && fitOut.querySelector('[data-fit-concept]')?.checked;
+      if (!on.length && !takeConcept) return alert('적용할 칸을 하나 이상 고르세요.');
 
       const done = [];
+      if (takeConcept) {
+        root.querySelector('[data-f=concept]').value = suggested;
+        done.push('주제');
+      }
       for (const r of on) {
         const values = r.labels.map((x) => toValue(r.field.list(), x)).filter(Boolean);
         if (setPills(r.field.key, r.field.multi ? values : values.slice(0, 1))) {
           done.push(r.field.label);
         }
       }
-      fittedFor = root.querySelector('[data-f=concept]').value.trim();
+      fittedFor = fitKey();
       refreshFitHint();
       fitOut.innerHTML = `<p class="mood-why">${R.esc(done.join(', '))} 설정을 맞췄습니다.</p>`;
     });
@@ -1282,36 +1343,6 @@ export default function renderMusic(root) {
     patterns.remove(id);
     paintPatterns();
     toast('가사 레퍼런스를 뺐습니다');
-  });
-
-  root.querySelector('[data-pat-go]').addEventListener('click', () => {
-    const src = root.querySelector('[data-pat-src]');
-    const styleBox = root.querySelector('[data-pat-style]');
-    const excludeBox = root.querySelector('[data-pat-exclude]');
-    const lyrics = src.value.trim();
-    const style = styleBox.value.trim();
-    const exclude = excludeBox.value.trim();
-    if (lyrics && lyrics.length < 80) return alert('가사를 조금 더 넣어 주세요. 절과 후렴이 함께 있어야 꼴이 보입니다.');
-    if (!lyrics && style.length < 20) return alert('가사나 스타일 프롬프트 중 하나는 넣어 주세요.');
-    R.runTask({
-      button: root.querySelector('[data-pat-go]'),
-      output: root.querySelector('[data-pat-out]'),
-      working: '인기곡의 꼴 읽는 중',
-      task: () => callGemini(lyricPattern({ lyrics, style, exclude })),
-      onDone: (d) => {
-        const { text, removed } = stripQuotes(patternText(d, { lyrics: !!lyrics, style: !!style, exclude: !!exclude }), lyrics);
-        patterns.add({ name: (d.name || '이름 없는 꼴').slice(0, 40), spec: text });
-        // 원문은 남기지 않습니다.
-        src.value = '';
-        styleBox.value = '';
-        excludeBox.value = '';
-        const id = patterns.all()[0]?.id;
-        paintPatterns(id);
-        root.querySelector('[data-pat-out]').innerHTML = `<p class="mood-why">「${R.esc(d.name || '')}」 꼴을 저장하고 골라 두었습니다.${
-          removed ? ` 원문 인용이 섞인 ${removed}군데는 지웠습니다.` : ''
-        }</p><pre class="rb-pre">${R.esc(text)}</pre>`;
-      },
-    });
   });
 
   function pickedPattern() {

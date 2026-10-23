@@ -94,6 +94,7 @@ global.fetch = async (url, opts = {}) => {
       mood: { pick: ['에너지 폭발', '다크하고 강렬'], why: '분노를 지켜보지 않고 터뜨림' },
       tempo: { pick: ['빠른 (130-150)'], why: '몰아치는 속도' },
       era: { pick: ['없는시대감'], why: '목록에 없는 값' },
+      ...(cfg.responseSchema?.properties?.concept ? { concept: '나를 무시하던 동네에 돌아온 밤' } : {}),
       summary: '무겁고 빠르게 몰아치는 다크 팝.',
     });
   }
@@ -355,7 +356,7 @@ console.log('\n주제로 설정 맞추기:');
   ok(calls[0].prompt.includes('남성 보컬 안에서') && calls[0].prompt.includes('지금 창법을 유지할 이유는 없습니다'),
     '보컬은 성별만 이어 가고 창법은 주제에 맞게 (예전에는 사실상 바뀌지 않음)');
   ok(calls[0].prompt.includes('분노는 록') && calls[0].prompt.includes('습관처럼 고르지 마세요'), '장르를 넓게 보고 다크 팝을 습관으로 고르지 않게 함');
-  ok(calls[0].prompt.includes('빌런 —') && calls[0].prompt.includes("'편안함'"), '화자가 빌런일 때만 편안한 쪽을 막음');
+  ok(calls[0].prompt.includes('빌런일 때만 편안하고 다정한 쪽을 피합니다'), '화자가 빌런일 때만 편안한 쪽을 막음');
   ok(calls[0].prompt.includes('【화자】'), '화자도 주제에 맞게 고를 수 있음');
   const enumOk = calls[0].schema?.properties?.genre?.properties?.pick?.items?.enum?.includes('다크 팝');
   ok(enumOk, '고를 수 있는 말을 enum 으로 묶어 엉뚱한 표기를 막음');
@@ -411,7 +412,7 @@ console.log('\n주제로 설정 맞추기:');
   ok(hint() && hint().style.display === 'none', '방금 맞춘 주제에는 안내가 없음');
   $('[data-f=concept]').value = '봄날 첫 데이트';
   $('[data-f=concept]').dispatchEvent(new window.Event('input', { bubbles: true }));
-  ok(hint() && hint().style.display !== 'none' && hint().textContent.includes('아직 설정을 맞추지 않았습니다'), '주제를 바꾸면 설정을 다시 맞추라고 알려 줌');
+  ok(hint() && hint().style.display !== 'none' && hint().textContent.includes('아직 방향을 잡지 않았습니다'), '주제를 바꾸면 방향을 다시 잡으라고 알려 줌');
 
   calls.length = 0;
 }
@@ -566,7 +567,7 @@ console.log('\n3막 7장 — 후보도 구성에 맞게:');
   ok(!calls[0]?.prompt.includes('3막 7장') && !calls[0]?.prompt.includes('- twist:'), '기본 구성은 예전처럼 한 순간만 뽑음');
 }
 
-console.log('\n가사 꼴 레퍼런스:');
+console.log('\n방향 잡기 — 주제와 참고곡을 한 번에:');
 {
   const src = $('[data-pat-src]');
   ok(!!src && !!$('[data-pat-list]'), '가사를 붙여 넣는 칸과 목록이 있음');
@@ -574,15 +575,22 @@ console.log('\n가사 꼴 레퍼런스:');
 
   src.value = 'short';
   calls.length = 0;
-  click($('[data-pat-go]'));
+  click($('[data-fit]'));
   await settle();
   ok(calls.length === 0, '너무 짧은 가사는 보내지 않음');
 
   $('[data-pat-style]').value = 'dark pop, breathy female vocals, 808 bass, plucked synth, 98 BPM';
   $('[data-pat-exclude]').value = 'male vocals, distortion';
   src.value = '[Verse 1]\nI count the cars outside your window tonight\nnobody comes\n[Chorus]\nCome on back\nCome on back\n' + 'la la la\n'.repeat(10);
-  click($('[data-pat-go]'));
-  await settle();
+  $('[data-f=concept]').value = '비 오는 가을날';
+  click($('[data-fit]'));
+  await settle(150);
+  ok(calls.length === 2, `버튼 하나로 꼴 뽑기 → 방향 잡기 두 번 호출 (${calls.length}회)`);
+  ok(calls[1]?.prompt.includes('주제와 참고곡이 둘 다 있습니다') && calls[1]?.prompt.includes('짧게 끊는') === false && calls[1]?.prompt.includes('두 단어 명령문'),
+    '방향 잡기가 주제와 방금 뽑은 꼴을 함께 봄');
+  ok(calls[1]?.prompt.includes('하나의 곡이 되게'), '둘이 부딪히면 한 곡이 되게 맞추라고 함 (예전엔 따로 움직임)');
+  ok(root.textContent.includes('기준 · 주제 + 참고곡 「짧게 끊는 주고받기 팝」'), '무엇을 기준으로 잡았는지 보여 줌');
+  ok(!root.querySelector('[data-fit-concept]'), '주제가 있으면 주제를 제안하지 않음');
   ok(calls[0]?.prompt.includes('원문을 옮겨 적지 마세요'), '꼴만 뽑고 문장은 옮기지 말라고 함');
   ok(calls[0]?.prompt.includes('════════ 스타일 프롬프트') && calls[0]?.prompt.includes('════════ 피할 요소'), '가사·스타일·피할 요소를 함께 보냄');
   ok(src.value === '' && $('[data-pat-style]').value === '' && $('[data-pat-exclude]').value === '', '분석이 끝나면 붙여 넣은 원문을 모두 지움');
@@ -591,6 +599,29 @@ console.log('\n가사 꼴 레퍼런스:');
   ok(saved && !saved.spec.includes('count the cars outside'), '꼴 설명에 섞인 원문 인용은 지우고 저장', ` — ${saved?.spec.split('\n').find((l) => l.startsWith('말투'))}`);
   ok(!JSON.stringify(saved).includes('nobody comes'), '가사 원문은 어디에도 저장하지 않음');
   ok(root.querySelector('input[name=pat]:checked')?.value === saved?.id, '새로 뽑은 꼴이 바로 골라짐');
+
+  // 주제를 비우고 참고곡만으로
+  $('[data-f=concept]').value = '';
+  calls.length = 0;
+  click($('[data-fit]'));
+  await settle(150);
+  ok(calls.length === 1 && calls[0]?.prompt.includes('주제가 없습니다') && calls[0]?.schema?.properties?.concept,
+    '주제가 없으면 참고곡으로 설정을 잡고 주제도 받아 옴 (이미 저장된 꼴이라 꼴 뽑기는 다시 안 함)');
+  ok(!!root.querySelector('[data-fit-concept]'), '제안한 주제를 적용할지 고를 수 있음');
+  click($('[data-fit-go]'));
+  await settle();
+  ok($('[data-f=concept]').value === '나를 무시하던 동네에 돌아온 밤', '적용하면 주제 칸에 들어감');
+
+  // 주제도 참고곡도 없으면
+  $('[data-f=concept]').value = '';
+  click(root.querySelector('input[name=pat][value=""]'));
+  root.querySelector('input[name=pat][value=""]').checked = true;
+  calls.length = 0;
+  click($('[data-fit]'));
+  await settle();
+  ok(calls.length === 0, '주제도 참고곡도 없으면 보내지 않음');
+  root.querySelector(`input[name=pat][value="${saved?.id}"]`).checked = true;
+  $('[data-f=concept]').value = '나를 무시하던 동네에 돌아온 밤';
 
   calls.length = 0;
   click($('[data-go]'));

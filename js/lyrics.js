@@ -779,8 +779,18 @@ export function checkSeeds(seeds = []) {
   if (noChorus.length) {
     out.push(`후보 ${noChorus.length}개에 후렴 스케치가 없습니다. 노래인지 판단하기 어려우니 다시 뽑아 보세요.`);
   }
+  // 축약하지 않은 영어(I do not, I am)는 노래에서 딱딱합니다.
+  const stiff = seeds.filter((x) => /\b(I am|I do not|do not|does not|I will not)\b/.test(`${x.opening} ${(x.chorus || []).join(' ')}`));
+  if (stiff.length) {
+    out.push(`후보 ${stiff.length}개가 'I do not', 'I am'처럼 풀어 씁니다. 노래에서는 I don't, I'm 이 자연스럽습니다.`);
+  }
   // 아래의 '몰림' 검사는 후보가 여럿일 때만 뜻이 있습니다.
   if (seeds.length < 3) return out;
+  // 레퍼런스 꼴을 틀처럼 찍어 내면 훅이 전부 같은 모양이 됩니다. (Pass, pass, pass / Nah, nah, nah …)
+  const tripled = seeds.filter((x) => /^\s*([\w']+)[,\s]+\1[,\s]+\1\W*$/i.test(x.hook || ''));
+  if (tripled.length >= 3) {
+    out.push(`훅 ${tripled.length}개가 '한 단어 세 번' 같은 모양입니다. 꼴은 계열이지 틀이 아닙니다 — 같은 곡 다섯 개입니다.`);
+  }
   const planned = seeds.filter((x) =>
     /처음부터|전부터|미리|이미 .{0,12}(계획|알고|준비|타고|넣어)/.test(x.twist || '')
   );

@@ -638,6 +638,34 @@ console.log('\n후보 검토 5차 — 레퍼런스 꼴과 3막 후보:');
   ok(w.includes('후렴 스케치: Run run run / a / b / Run run run') && w.includes('스케치를 바탕으로'), '고른 후보의 후렴 스케치가 완성 단계로 넘어감');
 }
 
+console.log('\n후보 검토 6차 — 꼴을 틀처럼 찍어 냄:');
+{
+  const { checkSeeds } = await import(appUrl('js/lyrics.js'));
+  // 2026-10 사용자 보고 — '다크 이모 힙합 트랩' 꼴로 뽑은 후보 다섯 개
+  const real = [
+    { hook: 'Pass, pass, pass', chorus: ['Pass, pass, pass', 'I am too clean to stress', 'You can keep all the mess', 'Pass, pass, pass'], opening: 'Ring my phone all day I do not care' },
+    { hook: 'Nah, nah, nah', chorus: ['Nah, nah, nah', 'I got the status and cash', 'Your tiny drama is trash', 'Nah, nah, nah'], opening: 'Look at my seat you cannot come close' },
+    { hook: 'Done, done, done', chorus: ['Done, done, done', 'I win without any try', 'Watch all your favors go by', 'Done, done, done'], opening: "Don't send a text I won't reply" },
+    { hook: 'Bye, bye, bye', chorus: ['Bye, bye, bye', 'Too rich to answer your call', 'I rather step back and ball', 'Bye, bye, bye'], opening: 'Mute every call I sit in my ride' },
+    { hook: 'No, no, no', chorus: ['No, no, no', 'I shine without doing chores', 'Go lock your own heavy doors', 'No, no, no'], opening: 'Stop calling me I am way too high' },
+  ];
+  const w = checkSeeds(real);
+  ok(w.some((x) => x.includes("'한 단어 세 번' 같은 모양")), '훅 다섯 개가 같은 모양이면 알려 줌', ` (${w.find((x) => x.includes('모양')) || ''})`);
+  ok(w.some((x) => x.includes("I don't")), "축약 안 한 영어(I do not, I am)를 알려 줌");
+  const varied = [
+    { hook: 'Pass, pass, pass', chorus: ['a'], opening: "I'm not picking up" },
+    { hook: 'Not my problem', chorus: ['a'], opening: "Leave it at the door" },
+    { hook: 'Who? Me? Nah', chorus: ['a'], opening: "Phone face down again" },
+  ];
+  ok(!checkSeeds(varied).some((x) => x.includes('모양') || x.includes("I don't")), '꼴 안에서 변주한 후보에는 경고 없음');
+
+  const sp = songSeeds({ genres: 'trap', language: 'English', moods: 'm', concept: 'c', lyricPattern: '[가사 꼴]\n훅: 단어 세 번' }).prompt;
+  ok(sp.includes('꼴은 틀이 아니라 계열입니다') && sp.includes('Not my problem'), '꼴은 계열 — 후보마다 변주하게 함');
+  ok(sp.includes("I don't") && sp.includes('축약'), '후보의 영어는 구어체 축약으로');
+  const wp = songWriting({ genres: 'x', language: 'English', vocal: 'v', tempo: 't', moods: 'm', era: 'e', instruments: 'i', concept: 'c', songCount: 1 }).prompt;
+  ok(wp.includes("축약(I'm, don't, gonna)"), '작사 단계도 구어체 축약');
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

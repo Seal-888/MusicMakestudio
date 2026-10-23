@@ -900,3 +900,19 @@ export function stripQuotes(spec = '', source = '') {
     .join('\n');
   return { text, removed };
 }
+
+/**
+ * 후보 하나에서 자동 검사로 잡히는 것들. 추천도를 매길 때 함께 넘깁니다.
+ * (checkSeeds 는 후보 묶음 전체의 몰림을 보고, 이건 후보 하나만 봅니다)
+ */
+export function seedIssues(x = {}) {
+  const out = [];
+  const lines = [x.hook, ...(x.chorus || []), x.opening].filter(Boolean).join(' ');
+  if (!(x.chorus || []).filter((l) => String(l).trim()).length) out.push('후렴 스케치 없음');
+  if (isNarration(x.opening)) out.push('첫 줄이 지난 일을 들려주는 문장');
+  if (isClipped(x.opening)) out.push('첫 줄이 짧은 지시문 토막');
+  if (/\b(I am|I do not|do not|does not|I will not)\b/.test(lines)) out.push('영어를 풀어 씀(I do not, I am)');
+  if (CLICHE_RE.test(`${x.title} ${lines}`)) out.push('금지어');
+  if (/나 자신|세상/.test(x.to || '') && /\byou(r|'re)?\b/i.test(x.opening || '')) out.push('말 거는 대상이 첫 줄과 어긋남');
+  return out;
+}

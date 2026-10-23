@@ -674,6 +674,20 @@ console.log('\n운율보다 뜻:');
   ok(wp.includes('운율을 맞추되, 뜻이 먼저입니다'), '작사 단계도 뜻이 먼저');
 }
 
+console.log('\n후보 하나의 자동 검사 (추천도에 넘김):');
+{
+  const { seedIssues } = await import(appUrl('js/lyrics.js'));
+  const bad = { title: 'Amber Night', to: '세상', hook: 'h', chorus: [], opening: 'You handed me the coffee, but your fingers were already cold.' };
+  const got = seedIssues(bad);
+  ok(got.includes('후렴 스케치 없음') && got.includes('첫 줄이 지난 일을 들려주는 문장') && got.includes('금지어') && got.includes('말 거는 대상이 첫 줄과 어긋남'),
+    `결함을 하나씩 짚음 (${got.join(', ')})`);
+  ok(!seedIssues({ title: 'Cold Champagne', to: '나 자신', hook: 'Done, done, done', chorus: ['Done, done, done', "Thought I had it all, now I've got none", 'x', 'Done, done, done'], opening: "I'm holding this glass till my hand goes numb" }).length,
+    '멀쩡한 후보에는 아무것도 안 짚음');
+  const { seedReview } = await import(appUrl('js/prompts.js'));
+  const rp = seedReview({ seeds: [bad], issues: [got] }).prompt;
+  ok(rp.includes('자동 검사: 후렴 스케치 없음'), '자동 검사 결과를 추천도 판단에 넘김');
+}
+
 console.log('\n가사 규칙끼리 부딪히지 않는가:');
 {
   const base = {

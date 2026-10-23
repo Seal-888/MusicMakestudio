@@ -1,6 +1,6 @@
 import { callGemini } from '../api/gemini.js';
-import { lyricPattern, patternText, songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
-import { stripQuotes, checkSeeds, checkNarration, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
+import { lyricPattern, patternText, seedReview, songWriting, songSeeds, moodPick, settingsFit, targetLines, songStructure, opensCold, ACTS, actScenes, ACT_OPENINGS, DEFAULT_EXCLUDE, PERSONAS, INTRO_MODES, SONG_FORMS, toMumbling, suggestTitles } from '../prompts.js';
+import { seedIssues, stripQuotes, checkSeeds, checkNarration, tidyLyrics, tidyStyle, checkLyrics, checkTitle, estimateDuration, checkStyle, checkHook, checkInlineTags, checkOutro, checkLength, checkRepeats, fixParentheses, trimStyle, matchOptions, pickBpm } from '../lyrics.js';
 import { styles, songs, refs, draft, patterns } from '../store.js';
 import { toast, setLeaveGuard } from '../ui.js';
 import * as R from '../render.js';
@@ -1365,7 +1365,8 @@ export default function renderMusic(root) {
     seedOut.innerHTML = `<div class="card">
       <span class="card-tag is-gold">후보 ${seeds.length}개</span>
       <p class="muted small" data-seed-used>곡 구성 · ${R.esc(used.form || '')} / 인기곡 꼴 · ${used.pattern ? `<b>${R.esc(used.pattern)}</b>` : '쓰지 않음'}</p>
-      <p class="muted small">완성할 후보를 고르세요. 고른 것만 가사와 스타일을 만듭니다.</p>
+      <p class="muted small">완성할 후보를 고르세요. 고른 것만 가사와 스타일을 만듭니다.
+      <span data-seed-review-state>추천도 매기는 중…</span></p>
       ${warn.length
         ? `<div class="lint"><b>후보끼리 너무 닮았습니다</b><ul>${warn.map((w) => `<li>${R.esc(w)}</li>`).join('')}</ul>
            <p class="muted small" style="margin:6px 0 0">"후보 다시 뽑기"를 눌러 보세요.</p></div>`
@@ -1375,7 +1376,8 @@ export default function renderMusic(root) {
           (x, i) => `<label class="seed-item">
             <input type="checkbox" data-seed-pick="${i}">
             <div>
-              <strong>${R.esc(x.title)}</strong>
+              <strong>${R.esc(x.title)}</strong> <span class="seed-grade" data-seed-grade="${i}"></span>
+              <p class="muted small seed-why" data-seed-why="${i}"></p>
               <p class="muted small">${x.origin ? '<b>결말</b> ' : x.twist ? '<b>출발</b> ' : ''}${R.esc(x.scene)}${x.to ? ` <b>→ ${R.esc(x.to)}</b>` : ''}</p>
               ${x.origin ? `<p class="muted small"><b>처음</b> ${R.esc(x.origin)}</p>` : ''}
               ${x.twist ? `<p class="muted small"><b>반전</b> ${R.esc(x.twist)}</p>` : ''}
@@ -1401,6 +1403,46 @@ export default function renderMusic(root) {
       if (!picked.length) return alert('완성할 후보를 하나 이상 고르세요.');
       generate(false, picked);
     });
+
+    reviewSeeds(seeds);
+  }
+
+  /**
+   * 추천도를 매겨 카드에 붙입니다. 실패해도 후보는 그대로 둡니다.
+   * ◎ 후보는 미리 골라 둡니다. 사용자가 끄면 됩니다.
+   */
+  async function reviewSeeds(seeds) {
+    const box = seedOut;
+    const state = box.querySelector('[data-seed-review-state]');
+    try {
+      const { reviews = [] } = await callGemini(
+        seedReview({
+          seeds,
+          concept: root.querySelector('[data-f=concept]').value.trim(),
+          pattern: pickedPattern()?.spec || '',
+          issues: seeds.map(seedIssues),
+        })
+      );
+      // 그사이 후보를 다시 뽑았으면(카드가 새로 그려졌으면) 버립니다.
+      if (!box.contains(state)) return;
+      for (const r of reviews) {
+        const i = parseInt(r.n, 10) - 1;
+        const badge = box.querySelector(`[data-seed-grade="${i}"]`);
+        if (!badge) continue;
+        const grade = ['◎', '○', '△'].includes(r.grade) ? r.grade : '';
+        badge.textContent = grade ? `추천 ${grade}` : '';
+        badge.className = `seed-grade is-${{ '◎': 'top', '○': 'mid', '△': 'low' }[grade] || 'mid'}`;
+        const why = box.querySelector(`[data-seed-why="${i}"]`);
+        if (why) why.textContent = r.why || '';
+        if (grade === '◎') {
+          const pick = box.querySelector(`[data-seed-pick="${i}"]`);
+          if (pick) pick.checked = true;
+        }
+      }
+      state.textContent = reviews.length ? '◎ 후보는 미리 골라 두었습니다.' : '';
+    } catch {
+      if (box.contains(state)) state.textContent = '(추천도를 매기지 못했습니다. 후보는 그대로 고르시면 됩니다.)';
+    }
   }
 
   /* ── 가사 꼴 레퍼런스 ── */

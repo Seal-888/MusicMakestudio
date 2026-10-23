@@ -56,6 +56,7 @@ window.matchMedia = () => ({ matches: false, addEventListener() {} });
  * gemini.js의 실제 요청 구성과 응답 파싱까지 함께 검증됩니다.
  */
 const calls = [];
+const reviewCalls = [];
 let seedPromptLen = 0;
 const FAKE_SEEDS = [
   { title: '문은 내가 닫았어', scene: '현관에서 상대를 막아선 채 문고리를 쥐고 있다', to: '상대', hook: '문은 내가 닫았어', opening: '불은 껐어', soundNote: '느린 808에 현악' },
@@ -67,6 +68,17 @@ global.fetch = async (url, opts = {}) => {
   const sent = JSON.parse(opts.body || '{}');
   const prompt = sent.contents?.[0]?.parts?.at(-1)?.text || '';
   const cfg = sent.generationConfig || {};
+  // 후보 추천도는 따로 셉니다. 다른 검사들이 세는 '호출 수'에 섞이지 않게.
+  if (cfg.responseSchema?.properties?.reviews) {
+    reviewCalls.push({ prompt });
+    return jsonRes({
+      reviews: [
+        { n: '1', grade: '◎', why: '훅이 바로 귀에 붙음' },
+        { n: '2', grade: '△', why: '후렴 2행이 운율 때문에 뜻이 흐림' },
+        { n: '3', grade: '○', why: '무난하지만 색이 약함' },
+      ],
+    });
+  }
   calls.push({ prompt, maxOutputTokens: cfg.maxOutputTokens, schema: cfg.responseSchema });
 
   // 가사 꼴 뽑기 — 일부러 원문 인용 한 줄을 섞어 돌려줍니다(지워지는지 보려고).
@@ -479,6 +491,15 @@ const seedBudget = seedCall.maxOutputTokens;
 
 const items = root.querySelectorAll('.seed-item');
 ok(items.length === 3, `후보 ${items.length}개가 화면에 그려짐`);
+
+console.log('\n후보 추천도:');
+await settle();
+ok(reviewCalls.length === 1, '후보가 나오면 추천도를 따로 한 번 매김');
+ok(reviewCalls[0]?.prompt.includes('노래로서') && reviewCalls[0]?.prompt.includes('◎는 많아야 두 개'), '노래로서 비교해서 매기게 함 (다 ◎ 주지 않게)');
+ok(root.querySelector('[data-seed-grade="0"]')?.textContent === '추천 ◎' && root.querySelector('[data-seed-why="1"]')?.textContent.includes('운율'), '후보마다 추천도와 한 줄 이유가 붙음');
+ok(root.querySelector('[data-seed-pick="0"]')?.checked && !root.querySelector('[data-seed-pick="1"]')?.checked, '◎ 후보는 미리 골라 둠');
+// 다음 검사들은 직접 고르므로 미리 골라 둔 것을 풉니다.
+root.querySelectorAll('[data-seed-pick]').forEach((el) => (el.checked = false));
 ok(root.textContent.includes('문은 내가 닫았어'), '후보 훅이 보임');
 
 console.log('\n2단계 — 고른 것만 완성:');

@@ -935,3 +935,12 @@ textarea.lyrics:focus{box-shadow:0 0 0 3px rgba(74,124,190,.3)}
 
 /* 후보의 후렴 스케치 — 이야기 요약이 아니라 노래로 판단할 수 있게 가사처럼 보여 줍니다 */
 .seed-chorus{margin:4px 0 6px;padding-left:10px;border-left:3px solid var(--gold);font-style:italic}
+
+/* 후보 추천도 */
+.seed-grade{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1.5px solid var(--border)}
+.seed-grade:empty{display:none}
+.seed-grade.is-top{background:#eaf7ea;border-color:var(--green)}
+.seed-grade.is-mid{background:var(--paper)}
+.seed-grade.is-low{background:#fdeaea;border-color:var(--red)}
+.seed-why{margin:2px 0 6px}
+.seed-why:empty{display:none}

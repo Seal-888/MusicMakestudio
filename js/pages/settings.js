@@ -53,9 +53,9 @@ function serviceBlock(svc) {
         <input type="password" data-key-input placeholder="키를 붙여넣으세요"
                value="${saved ? escapeAttr(saved) : ''}" autocomplete="off" spellcheck="false">
         <button class="btn sm is-gold" data-act="reveal">보기</button>
-        <button class="btn sm is-blue" data-act="save">저장</button>
-        <button class="btn sm is-green" data-act="test">테스트</button>
-        <button class="btn sm is-red" data-act="clear">삭제</button>
+        <button class="btn sm" data-act="save">저장</button>
+        <button class="btn sm is-ghost" data-act="test">테스트</button>
+        <button class="btn sm is-danger" data-act="clear">삭제</button>
       </div>
 
       ${svc.id === 'gemini' ? modelPicker() : ''}

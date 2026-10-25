@@ -227,7 +227,7 @@ function refTab(body) {
 function paletteTab(body) {
   body.innerHTML = `
     <div class="card">
-      <span class="card-tag" style="background:var(--purple)">비주얼 팔레트</span>
+      <span class="card-tag">비주얼 팔레트</span>
       <label class="field">
         <span>컨셉과 분위기 <small>필수</small></span>
         <textarea rows="3" data-f="concept" placeholder="예) 비 오는 날 혼자 듣는 재즈. 도시의 밤"></textarea>
@@ -240,7 +240,7 @@ function paletteTab(body) {
         <span>타겟 <small>선택</small></span>
         <input type="text" data-f="target" placeholder="예) 야근하는 직장인">
       </label>
-      <button class="btn" style="background:var(--purple)" data-go>비주얼 팔레트 만들기</button>
+      <button class="btn" data-go>비주얼 팔레트 만들기</button>
       <div data-out></div>
     </div>`;
 

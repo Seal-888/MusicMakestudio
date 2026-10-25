@@ -128,7 +128,8 @@ export default function renderMastering(root) {
     playing: false, src: [], t0: 0, off: 0, which: 'master', vendor: null, tonal: null, checkSrc: null, saved: false };
   let worker = null, ctx = null, G = null, rid = 0, raf = 0;
   const pend = new Map();
-  const col = { primary: '#243B53', point: '#8FA9BF', base: '#EDF1F4', soft: '#52667A', line: '#D3DCE4' };
+  /** 그래프(canvas) 색. CSS 의 --mst-* 변수에서 읽으므로 테마를 바꾸면 그래프도 같이 바뀝니다. */
+  const col = {};
 
   root.innerHTML = `
   <div class="mst">
@@ -282,6 +283,14 @@ export default function renderMastering(root) {
 
   const $ = (s) => root.querySelector(s);
   const show = (s, on) => { $(s).hidden = !on; };
+  (function readColors() {
+    const cs = window.getComputedStyle($('.mst'));
+    const v = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+    Object.assign(col, {
+      primary: v('--mst-primary', '#8FA3FF'), point: v('--mst-original', '#7E93A8'), base: v('--mst-base', '#1D2632'),
+      soft: v('--mst-soft', '#9AA8B6'), line: v('--mst-line', '#263140'), band: v('--mst-band', 'rgba(143,163,255,.14)'),
+    });
+  })();
   document.body.classList.add('is-mastering');
 
   /* ── 계산 담당(worker)과 오디오는 처음 쓸 때 만듭니다 ── */
@@ -560,7 +569,7 @@ export default function renderMastering(root) {
     g.beginPath();
     THIRDS.forEach((f, i) => { const y = Y(refAt(f) + 3.5); if (i) g.lineTo(X(f), y); else g.moveTo(X(f), y); });
     for (let i = THIRDS.length - 1; i >= 0; i--) g.lineTo(X(THIRDS[i]), Y(refAt(THIRDS[i]) - 3.5));
-    g.closePath(); g.fillStyle = 'rgba(143,169,191,.32)'; g.fill();
+    g.closePath(); g.fillStyle = col.band; g.fill();
     if (G && S.playing) {
       const data = new Float32Array(G.spec.frequencyBinCount);
       G.spec.getFloatFrequencyData(data);

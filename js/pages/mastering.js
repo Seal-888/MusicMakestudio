@@ -561,7 +561,7 @@ export default function renderMastering(root) {
     const X = (f) => (Math.log(f / 25) / Math.log(16000 / 25)) * (w - 12) + 6;
     const Y = (v) => top + (1 - (Math.max(-24, Math.min(12, v)) + 24) / 36) * (bot - top);
     g.fillStyle = col.base; g.fillRect(0, 0, w, h);
-    g.strokeStyle = col.line; g.lineWidth = 1; g.fillStyle = col.soft; g.font = '500 10px "IBM Plex Mono", monospace'; g.textAlign = 'center';
+    g.strokeStyle = col.line; g.lineWidth = 1; g.fillStyle = col.soft; g.font = '500 11px "IBM Plex Mono", monospace'; g.textAlign = 'center';
     for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) {
       const x = X(f); g.beginPath(); g.moveTo(x, top); g.lineTo(x, bot); g.stroke();
       g.fillText(f >= 1000 ? `${f / 1000}k` : String(f), x, h - 6);
@@ -603,7 +603,7 @@ export default function renderMastering(root) {
     g.moveTo(cx - R * 0.7071, cy - R * 0.7071); g.lineTo(cx + R * 0.7071, cy + R * 0.7071);
     g.moveTo(cx + R * 0.7071, cy - R * 0.7071); g.lineTo(cx - R * 0.7071, cy + R * 0.7071); g.stroke();
     g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
-    g.fillStyle = col.soft; g.font = '500 10px "IBM Plex Mono", monospace'; g.textAlign = 'center';
+    g.fillStyle = col.soft; g.font = '500 11px "IBM Plex Mono", monospace'; g.textAlign = 'center';
     g.fillText('M', cx, cy - R - 4); g.fillText('L', cx - R * 0.74, cy - R * 0.74 - 4); g.fillText('R', cx + R * 0.74, cy - R * 0.74 - 4);
     if (!G || !S.playing) return;
     const l = new Float32Array(G.aL.fftSize), r = new Float32Array(G.aR.fftSize);

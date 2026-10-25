@@ -9,6 +9,7 @@ import renderSubtitle from './pages/subtitle.js';
 import renderStyles from './pages/styles.js';
 import renderAnalyzer from './pages/analyzer.js';
 import renderRevenue from './pages/revenue.js';
+import renderMastering from './pages/mastering.js';
 
 const routes = {
   settings: renderSettings,
@@ -19,6 +20,7 @@ const routes = {
   styles: renderStyles,
   analyzer: renderAnalyzer,
   revenue: renderRevenue,
+  mastering: renderMastering,
 };
 
 const view = document.getElementById('view');

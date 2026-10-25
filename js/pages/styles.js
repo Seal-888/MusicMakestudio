@@ -35,7 +35,7 @@ export default function renderStyles(root) {
 
     if (!all.length) {
       list.innerHTML = `<div class="placeholder">
-        <div class="big">🎨</div>
+        <div class="big">${R.icon('swatches')}</div>
         <p><strong>아직 저장된 스타일이 없습니다.</strong></p>
         <p>음악 만들기에서 결과가 나오면 "보관함에 저장"을 눌러 주세요.</p>
         <p style="margin-top:16px"><a class="btn is-ghost" href="#/music">음악 만들기로 가기</a></p>

@@ -89,7 +89,6 @@ function escapeAttr(s) {
 
 export default function renderSettings(root) {
   root.innerHTML = `
-    <p class="eyebrow">api settings</p>
     <h1>API <em>설정</em></h1>
     <p class="lede">키를 넣고 연결을 확인하세요. 키는 이 브라우저에만 저장되고 어디로도 전송되지 않습니다.</p>
 

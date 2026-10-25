@@ -574,7 +574,7 @@ export default function renderMusic(root) {
                   <b>${R.esc(r.name)}</b>
                   <span class="muted small">${R.esc(r.source)} · ${R.esc(r.summary || '')}</span>
                 </span>
-                <button type="button" class="row-x" data-del-ref="${r.id}" title="빼기">✕</button>
+                <button type="button" class="row-x" data-del-ref="${r.id}" title="빼기" aria-label="빼기">${R.icon('close')}</button>
               </label>`
             )
             .join('')
@@ -1457,7 +1457,7 @@ export default function renderMusic(root) {
           (x) => `<label class="refitem">
             <input type="radio" name="pat" value="${x.id}"${x.id === keep ? ' checked' : ''}>
             <span><b>${R.esc(x.name)}</b><span class="muted small">${R.esc((x.spec.split('\n').find((l) => l.startsWith('요약')) || '').replace(/^요약: /, ''))}</span></span>
-            <button type="button" class="row-x" data-del-pat="${x.id}" title="빼기">✕</button>
+            <button type="button" class="row-x" data-del-pat="${x.id}" title="빼기" aria-label="빼기">${R.icon('close')}</button>
           </label>`
         )
         .join('') +

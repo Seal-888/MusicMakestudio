@@ -134,7 +134,6 @@ export default function renderMastering(root) {
   <div class="mst">
     <header class="mst-head">
       <div>
-        <p class="mst-eyebrow">Mastering · 이 브라우저에서 처리</p>
         <h1 class="mst-title">마스터링</h1>
         <p class="mst-sub">곡을 먼저 측정하고 기준에서 벗어난 것만 다듬어, 발매 음량(−9 LUFS · −0.5 dBTP)으로 마감합니다. 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
       </div>
@@ -145,7 +144,7 @@ export default function renderMastering(root) {
     </header>
 
     <section data-view="master">
-      <div class="mst-panel">
+      <div class="mst-panel is-bare">
         <div class="mst-drop" data-drop tabindex="0" role="button" aria-label="트랙 파일 고르기">
           ${icon('upload')}
           <div><b>트랙을 끌어다 놓거나 눌러서 고르세요</b><span>WAV · AIFF · FLAC · MP3 · M4A · 12분 · 300 MB 이하</span></div>
@@ -263,7 +262,7 @@ export default function renderMastering(root) {
     </section>
 
     <section data-view="check" hidden>
-      <div class="mst-panel">
+      <div class="mst-panel is-bare">
         <div class="mst-drop" data-drop-c tabindex="0" role="button" aria-label="점검할 트랙 고르기">
           ${icon('upload')}
           <div><b data-drop-c-title>점검할 트랙을 끌어다 놓거나 눌러서 고르세요</b><span>음량 · 트루피크 · 다이내믹 · 저중역 · 모노 호환성 · 대역 밸런스. 업로드 없이 이 브라우저에서 잽니다.</span></div>

@@ -188,11 +188,28 @@ export function readPills(root, name) {
   return [...root.querySelectorAll(`[data-pills="${name}"] .pill.on`)].map((p) => p.dataset.value);
 }
 
-/** 화면 제목 */
-export function header(eyebrow, title, accent, lede) {
-  return `<p class="eyebrow">${esc(eyebrow)}</p>
-    <h1>${esc(title)} <em>${esc(accent)}</em></h1>
+/**
+ * 화면 제목.
+ * 첫 인자(영문 머리말)는 예전 화면들이 넘기던 값이라 받기만 하고 그리지 않습니다.
+ * 제목 위의 작은 머리말은 제목과 같은 말을 한 번 더 할 뿐이라 뺐습니다.
+ */
+export function header(_eyebrow, title, accent, lede) {
+  return `<h1>${esc(title)} <em>${esc(accent)}</em></h1>
     <p class="lede">${esc(lede)}</p>`;
+}
+
+/**
+ * 선 아이콘. 이모지 대신 같은 굵기의 선으로 그려 화면마다 모양이 같게 합니다.
+ * 색은 글자색(currentColor)을 따릅니다.
+ */
+const ICONS = {
+  note: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+  swatches: '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8M17 13v8"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+};
+export function icon(name, cls = 'icon') {
+  return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 }
 
 /** 탭 */

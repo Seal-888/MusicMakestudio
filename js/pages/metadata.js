@@ -69,7 +69,7 @@ function songsTab(body) {
               )
               .join('')
           : `<div class="placeholder">
-              <div class="big">📋</div>
+              <div class="big">${R.icon('list')}</div>
               <p><strong>아직 저장된 노래가 없습니다.</strong></p>
               <p>음악 만들기에서 "메타데이터에 저장"을 눌러 주세요.</p>
               <p style="margin-top:16px"><a class="btn is-ghost" href="#/music">음악 만들기로 가기</a></p>

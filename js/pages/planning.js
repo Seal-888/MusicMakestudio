@@ -350,7 +350,7 @@ export function soundTab(body, { onSaved = null } = {}) {
 
       <div data-src="file" hidden>
         <div class="dropzone" data-drop>
-          <div class="dz-icon">♪</div>
+          <div class="dz-icon">${R.icon('note')}</div>
           <p><strong>음원 파일을 끌어다 놓거나 눌러서 고르세요</strong></p>
           <p class="muted small" data-filelabel>mp3 · wav · m4a · ${MAX_UPLOAD_MB}MB 이하</p>
           <input type="file" accept="audio/*" hidden data-file>

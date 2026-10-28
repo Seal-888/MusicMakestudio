@@ -1493,7 +1493,9 @@ ${introInStyle ? '' : '인트로 이야기는 넣지 않습니다. 스타일을 
       : `나머지는 악기 다섯 가지 이상을 **어떻게 연주하는지 동사로**, 보컬의 질감과 음역, 믹싱(공간감·잔향·저역/고역)으로 채웁니다.
 **정해진 틀을 따르지 마세요.** 곡마다 첫 문장의 꼴과 문장 순서를 바꿉니다. ("A male vocalist delivers…"로 매번 시작하지 않습니다)
 `}
-구조 태그와 아티스트 이름은 넣지 않습니다. 부정형보다 긍정형(clean, smooth)으로.
+구조 태그와 아티스트 이름은 넣지 않습니다. 부정형보다 긍정형(clean, smooth)으로.${isInstrumental ? '' : `
+보컬 문장에 **clear and upfront vocal** 을 넣습니다. 완성곡을 그대로 마스터링하므로 보컬이 또렷하게 앞에 들려야 합니다.
+hi-fi · 48kHz · studio quality 같은 음질 단어와 dry · isolated · no reverb 같은 녹음 지시는 넣지 않습니다. Suno 음질은 이런 말로 바뀌지 않고, 녹음 지시는 완성곡을 덜 다듬어진 소리로 만듭니다.`}
 
 함께 낼 것:
 - exclude: 이 곡에서 나오면 안 되는 소리 (Suno Exclude Styles, 영어 목록). 잡음 계열 + 이 곡에 안 맞는 요소.${oppositeVoiceNote(vocal)}
@@ -1962,6 +1964,7 @@ ${VARIATION_AXES.map(([k, v]) => `- ${k}: ${v}`).join('\n')}
 - BPM 숫자를 넣습니다. **변주마다 BPM이 달라야 합니다.**
 - 구조 태그와 아티스트 이름은 넣지 않습니다.
 - 부정형("no noise") 대신 clean, pristine, smooth 같은 긍정형으로 씁니다.
+- 보컬이 있는 스타일이면 clear and upfront vocal 을 변주마다 유지합니다. hi-fi · 48kHz · studio quality 같은 음질 단어는 넣지 않습니다.
 
 [담을 내용]
 - label: 이 변주가 어떤 방향인지 한국어로 짧게. 예) "느리고 넓게", "기타 중심으로"
